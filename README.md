@@ -37,4 +37,7 @@ npm run dev
 
 ## DSL 参数总表
 
+当前 DSL 已移除 `mapping_config`，并且在 `data_processing` 中不再显式提供 mapping 节点；映射关系由 `rule_input -> rule_output` 隐式表达。
+
 完整参数模板见：`dsl_full_parameters.json`。
+

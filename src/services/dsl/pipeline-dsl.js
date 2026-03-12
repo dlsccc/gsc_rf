@@ -114,6 +114,46 @@ const hasEffectiveTransform = (config) => {
   return !!config.type;
 };
 
+const parseSourceKey = (key) => {
+  const text = trimText(key);
+  if (!text) return { sourceTable: 'raw', column: '', full: '' };
+
+  const parts = text.split('.');
+  if (parts.length >= 2) {
+    return {
+      sourceTable: parts[0],
+      column: parts.slice(1).join('.'),
+      full: text
+    };
+  }
+
+  return {
+    sourceTable: 'raw',
+    column: text,
+    full: text
+  };
+};
+
+const unique = (arr) => Array.from(new Set(arr));
+
+const toRuleInputsByRawSources = (sourceKeys = []) => {
+  const grouped = new Map();
+
+  (Array.isArray(sourceKeys) ? sourceKeys : []).forEach((key) => {
+    const parsed = parseSourceKey(key);
+    if (!parsed.column) return;
+
+    if (!grouped.has(parsed.sourceTable)) {
+      grouped.set(parsed.sourceTable, []);
+    }
+    grouped.get(parsed.sourceTable).push(parsed.column);
+  });
+
+  return Array.from(grouped.entries()).map(([sourceTable, columns]) => {
+    return makeRuleInput(sourceTable, unique(columns));
+  });
+};
+
 const buildFilterDsl = (config) => {
   if (!hasEffectiveFilter(config)) return undefined;
 
@@ -235,28 +275,6 @@ const toDataSourceDsl = (uploadedFiles = []) => {
   });
 };
 
-const buildMappingConfig = (mappings = {}, sourceTable = 'table_a') => {
-  const rows = Object.entries(mappings)
-    .filter(([, sourceKeys]) => Array.isArray(sourceKeys) && sourceKeys.length > 0)
-    .map(([targetField, sourceKeys]) => ({
-      target_column: targetField,
-      source_columns: sourceKeys,
-      merge_strategy: sourceKeys.length > 1 ? 'concat' : 'direct'
-    }));
-
-  return {
-    index: 'map_fields',
-    rule_input: [makeRuleInput(sourceTable, [])],
-    rule_output: makeRuleOutput('table_mapped'),
-    rule: {
-      ability_name: 'field_mapping',
-      params: [
-        makeParam('mappings', 'array', rows)
-      ]
-    }
-  };
-};
-
 const defaultJoinFields = (tableA = [], tableB = []) => {
   const common = tableA.filter((field) => tableB.includes(field));
   if (common.length === 0) return [];
@@ -340,27 +358,48 @@ const buildDedupDsl = (dedupConfig = {}) => {
   };
 };
 
-const buildDataProcessingDsl = (filters = {}, transforms = {}, sortConfig = {}) => {
-  const fields = new Set([...Object.keys(filters || {}), ...Object.keys(transforms || {})]);
-  const rules = [];
+const resolveTargetFieldNames = (selectedModel = {}, mappings = {}) => {
+  const fromModel = (selectedModel?.fields || [])
+    .map((field) => trimText(field?.name))
+    .filter(Boolean);
 
-  fields.forEach((fieldName, idx) => {
+  if (fromModel.length > 0) return fromModel;
+
+  return Object.keys(mappings || {})
+    .map((name) => trimText(name))
+    .filter(Boolean);
+};
+
+const buildDataProcessingDsl = ({
+  selectedModel,
+  mappings = {},
+  filters = {},
+  transforms = {},
+  sortConfig = {}
+}) => {
+  const modelCode = getModelCode(selectedModel);
+  const targetFields = resolveTargetFieldNames(selectedModel, mappings);
+
+  const rules = targetFields.map((fieldName, idx) => {
+    const sourceKeys = mappings[fieldName] || [];
+    const ruleInputs = toRuleInputsByRawSources(sourceKeys);
+
     const filter = buildFilterDsl(filters[fieldName]);
-    const rule = buildTransformDsl(transforms[fieldName]) || {
-      ability_name: 'transform',
-      params: [
-        makeParam('transform_type', 'enum', 'identity'),
-        makeParam('column', 'string', '$rule_output.output_column')
-      ]
-    };
+    const transform = buildTransformDsl(transforms[fieldName]);
 
     const item = {
       index: `rule_${fieldName.toLowerCase()}_${idx + 1}`,
-      rule_input: [makeRuleInput('table_mapped', [fieldName])],
-      rule_output: makeRuleOutput('table_mapped', fieldName),
-      ...(filter ? { filter } : {}),
-      rule
+      rule_input: ruleInputs.length > 0 ? ruleInputs : [makeRuleInput('', [])],
+      rule_output: makeRuleOutput(modelCode, fieldName)
     };
+
+    if (filter) {
+      item.filter = filter;
+    }
+
+    if (transform) {
+      item.rule = transform;
+    }
 
     if (sortConfig?.field && sortConfig.field === fieldName) {
       item.sort = [
@@ -369,33 +408,14 @@ const buildDataProcessingDsl = (filters = {}, transforms = {}, sortConfig = {}) 
       ];
     }
 
-    rules.push(item);
+    return item;
   });
 
-  if (sortConfig?.field && ![...fields].includes(sortConfig.field)) {
-    rules.push({
-      index: 'rule_global_sort',
-      rule_input: [makeRuleInput('table_mapped', [sortConfig.field])],
-      rule_output: makeRuleOutput('table_mapped'),
-      rule: {
-        ability_name: 'sort',
-        params: [
-          makeParam('column', 'string', '$rule_input[0].key_columns[0]')
-        ]
-      },
-      sort: [
-        makeParam('directions', 'enum', sortConfig.order || 'asc'),
-        makeParam('nulls_position', 'enum', 'last')
-      ]
-    });
-  }
-
   return {
-    source_table: 'table_mapped',
+    source_table: 'raw_sources',
     rules
   };
 };
-
 const buildWriteDsl = (selectedModel, writeConfig = {}, dedupConfig = {}) => {
   const modelCode = getModelCode(selectedModel);
   const partitionBy = [];
@@ -407,7 +427,7 @@ const buildWriteDsl = (selectedModel, writeConfig = {}, dedupConfig = {}) => {
   return {
     index: 'rule_write_final',
     rule_input: [
-      makeRuleInput('table_mapped', dedupConfig?.enabled ? dedupConfig.fields || [] : [])
+      makeRuleInput(modelCode, dedupConfig?.enabled ? dedupConfig.fields || [] : [])
     ],
     rule_output: makeRuleOutput(modelCode),
     rule: {
@@ -441,7 +461,6 @@ export const buildPipelineDsl = ({
 } = {}) => {
   const sourceFiles = toSourceFiles(uploadedFiles);
   const hasJoin = sourceFiles.length >= 2;
-  const sourceTable = hasJoin ? 'table_joined' : (sourceFiles[0]?.source || 'table_a');
 
   const modelCode = getModelCode(selectedModel);
   const dedupDsl = buildDedupDsl(dedupConfig);
@@ -461,11 +480,16 @@ export const buildPipelineDsl = ({
       data_sources: {
         tables: toDataSourceDsl(sourceFiles)
       },
-      mapping_config: buildMappingConfig(mappings, sourceTable),
       ...(hasJoin ? { join_config: buildJoinDsl(sourceFiles, joinConfig) } : {}),
       ...(dedupDsl ? { deduplicate: dedupDsl } : {})
     },
-    data_processing: buildDataProcessingDsl(filters, transforms, sortConfig),
+    data_processing: buildDataProcessingDsl({
+      selectedModel,
+      mappings,
+      filters,
+      transforms,
+      sortConfig
+    }),
     write_config: buildWriteDsl(selectedModel, writeConfig, dedupConfig)
   };
 };
@@ -484,6 +508,4 @@ export const downloadDslFile = (dsl, fileName = 'pipeline_dsl.json') => {
 
   window.URL.revokeObjectURL(url);
 };
-
-
 
