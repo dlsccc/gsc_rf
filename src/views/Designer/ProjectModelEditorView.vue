@@ -1,0 +1,284 @@
+﻿<template>
+  <div class="model-edit-container" style="margin-top: 64px; background: linear-gradient(135deg, #e6f7ff 0%, #fafafa 100%);">
+    <div class="model-edit-header">
+      <div class="back-btn" @click="router.push('/designer/project-models')"><span class="material-icons">arrow_back</span></div>
+      <div class="model-edit-title">{{ isEdit ? '编辑数据模型' : '新建数据模型' }}</div>
+    </div>
+
+    <div class="model-form-section">
+      <div class="section-title"><span class="material-icons">info</span>基本信息</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label"><span class="material-icons">link</span>引用标准数据模型 *</label>
+          <select v-model="form.refStandardModel" class="form-select" @change="onRefModelChange">
+            <option value="">请选择标准数据模型</option>
+            <option v-for="model in modelStore.standardModels" :key="model.id" :value="model.name">{{ model.name }}</option>
+          </select>
+          <div class="form-hint">选择引用的标准数据模型，将自动继承其字段定义</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label"><span class="material-icons">table_chart</span>模型名称 *</label>
+          <input v-model="form.name" class="form-input" type="text" placeholder="请输入模型名称" />
+          <div class="form-hint">模型名称使用大写字母和下划线</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label"><span class="material-icons">label</span>模型描述</label>
+          <input v-model="form.description" class="form-input" type="text" placeholder="请输入模型描述" />
+        </div>
+      </div>
+    </div>
+
+    <div class="model-form-section">
+      <div class="section-title"><span class="material-icons">local_offer</span>模型标签</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label"><span class="material-icons">business</span>厂商</label>
+          <select v-model="form.tags.vendor" class="form-select">
+            <option value="">请选择厂商</option>
+            <option v-for="opt in vendorOptions" :key="opt" :value="opt">{{ opt }}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label"><span class="material-icons">settings_input_antenna</span>制式</label>
+          <select v-model="form.tags.standard" class="form-select">
+            <option value="">请选择制式</option>
+            <option v-for="opt in standardOptions" :key="opt" :value="opt">{{ opt }}</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label"><span class="material-icons">schedule</span>时间粒度</label>
+          <select v-model="form.tags.timeGranularity" class="form-select">
+            <option value="">请选择时间粒度</option>
+            <option v-for="opt in timeGranularityOptions" :key="opt" :value="opt">{{ opt }}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label"><span class="material-icons">category</span>类型</label>
+          <select v-model="form.tags.type" class="form-select">
+            <option value="">请选择类型</option>
+            <option v-for="opt in typeOptions" :key="opt" :value="opt">{{ opt }}</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="model-form-section">
+      <div class="section-title">
+        <span class="material-icons">view_column</span>
+        字段定义
+        <span style="font-size: 12px; color: var(--text-secondary); font-weight: normal; margin-left: 8px;">（基于引用的标准模型，可修改）</span>
+      </div>
+      <div class="field-table-container">
+        <table class="field-table">
+          <thead>
+            <tr>
+              <th style="width: 50px;">#</th>
+              <th style="width: 180px;">字段名称 *</th>
+              <th style="width: 140px;">字段类型 *</th>
+              <th style="width: 140px;">数据格式</th>
+              <th style="width: 100px;">是否维度</th>
+              <th>业务描述</th>
+              <th style="width: 120px;">样例值</th>
+              <th style="width: 80px;">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(field, index) in form.fields" :key="index">
+              <td class="field-index">{{ index + 1 }}</td>
+              <td><input v-model="field.name" class="field-input" type="text" placeholder="字段名称" /></td>
+              <td>
+                <select v-model="field.type" class="field-select">
+                  <option value="">请选择</option>
+                  <option value="STRING">STRING</option>
+                  <option value="INT">INT</option>
+                  <option value="BIGINT">BIGINT</option>
+                  <option value="FLOAT64">FLOAT64</option>
+                  <option value="DECIMAL">DECIMAL</option>
+                  <option value="DATE">DATE</option>
+                  <option value="DATETIME">DATETIME</option>
+                  <option value="BOOLEAN">BOOLEAN</option>
+                </select>
+              </td>
+              <td>
+                <select v-model="field.format" class="field-select">
+                  <option value="YYYY">YYYY</option>
+                  <option value="YYYY-MM">YYYY-MM</option>
+                  <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                  <option value="hh:mm:ss">hh:mm:ss</option>
+                  <option value="浮点数">浮点数</option>
+                  <option value="整数">整数</option>
+                  <option value="百分数">百分数</option>
+                  <option value="YYYY-MM-DD hh:mm:ss">YYYY-MM-DD hh:mm:ss</option>
+                  <option v-if="field.type === 'INT' || field.type === 'BIGINT'" value="INTEGER">整数</option>
+                  <option v-if="field.type === 'FLOAT64' || field.type === 'DECIMAL'" value="FLOAT">浮点数</option>
+                  <option v-if="field.type === 'FLOAT64' || field.type === 'DECIMAL'" value="PERCENT">百分数</option>
+                </select>
+              </td>
+              <td style="text-align: center;"><input v-model="field.isDimension" class="field-checkbox" type="checkbox" /></td>
+              <td><input v-model="field.description" class="field-input" type="text" placeholder="业务含义描述" /></td>
+              <td><input v-model="field.example" class="field-input" type="text" placeholder="样例" /></td>
+              <td class="field-actions">
+                <button class="field-action-btn move" :disabled="index === 0" title="上移" @click="moveFieldUp(index)">
+                  <span class="material-icons" style="font-size: 16px;">arrow_upward</span>
+                </button>
+                <button class="field-action-btn move" :disabled="index === form.fields.length - 1" title="下移" @click="moveFieldDown(index)">
+                  <span class="material-icons" style="font-size: 16px;">arrow_downward</span>
+                </button>
+                <button class="field-action-btn" title="删除" @click="removeField(index)">
+                  <span class="material-icons" style="font-size: 16px;">delete</span>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <button class="btn btn-default" style="margin-top: 16px;" @click="addField">
+        <span class="material-icons" style="font-size: 18px;">add</span>
+        添加字段
+      </button>
+    </div>
+
+    <div class="model-edit-actions">
+      <button class="btn btn-default" @click="router.push('/designer/project-models')">取消</button>
+      <button class="btn btn-default" @click="saveProjectModel">
+        <span class="material-icons" style="font-size: 18px;">save</span>
+        保存模型
+      </button>
+      <button class="btn btn-primary" @click="publishProjectModel">
+        <span class="material-icons" style="font-size: 18px;">publish</span>
+        发布模型
+      </button>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { computed, onMounted, reactive } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { useAppStore } from '../../stores/app.store';
+import { useModelStore } from '../../stores/model.store';
+
+const vendorOptions = ['华为', '中兴', '其他'];
+const standardOptions = ['4G', '5G'];
+const timeGranularityOptions = ['小时级', '天级'];
+const typeOptions = ['Counter', 'KPI', '工参', '配置', '其他'];
+
+const emptyField = () => ({ name: '', type: '', format: '', isDimension: false, description: '', example: '' });
+const emptyModel = () => ({
+  id: '',
+  name: '',
+  description: '',
+  status: 'draft',
+  refStandardModel: '',
+  tags: { vendor: '', standard: '', timeGranularity: '', type: '' },
+  projectId: null,
+  fields: [emptyField()]
+});
+
+const route = useRoute();
+const router = useRouter();
+const appStore = useAppStore();
+const modelStore = useModelStore();
+
+const editId = computed(() => route.params.id || '');
+const isEdit = computed(() => !!editId.value);
+
+const form = reactive(emptyModel());
+
+const fillForm = (data) => {
+  const source = data ? JSON.parse(JSON.stringify(data)) : emptyModel();
+  Object.keys(form).forEach((key) => delete form[key]);
+  Object.assign(form, source);
+  if (!form.tags) {
+    form.tags = { vendor: '', standard: '', timeGranularity: '', type: '' };
+  }
+  if (!Array.isArray(form.fields) || form.fields.length === 0) {
+    form.fields = [emptyField()];
+  }
+};
+
+onMounted(async () => {
+  appStore.setRole('designer');
+  await modelStore.loadStandardModels();
+  await modelStore.loadProjectModels();
+
+  if (isEdit.value) {
+    fillForm(modelStore.getProjectModelById(editId.value));
+    return;
+  }
+  fillForm(null);
+});
+
+const onRefModelChange = () => {
+  const refModel = modelStore.standardModels.find((item) => item.name === form.refStandardModel);
+  if (!refModel) return;
+  form.fields = JSON.parse(JSON.stringify(refModel.fields));
+};
+
+const addField = () => {
+  form.fields.push(emptyField());
+};
+
+const removeField = (index) => {
+  if (form.fields.length <= 1) return;
+  form.fields.splice(index, 1);
+};
+
+const moveFieldUp = (index) => {
+  if (index <= 0) return;
+  const temp = form.fields[index];
+  form.fields[index] = form.fields[index - 1];
+  form.fields[index - 1] = temp;
+};
+
+const moveFieldDown = (index) => {
+  if (index >= form.fields.length - 1) return;
+  const temp = form.fields[index];
+  form.fields[index] = form.fields[index + 1];
+  form.fields[index + 1] = temp;
+};
+
+const validateBase = () => {
+  if (!form.name?.trim()) {
+    window.alert('请输入模型名称');
+    return false;
+  }
+  if (!form.refStandardModel) {
+    window.alert('请选择引用标准数据模型');
+    return false;
+  }
+  if (!Array.isArray(form.fields) || form.fields.length === 0 || !form.fields.some((item) => item.name?.trim())) {
+    window.alert('请至少配置一个字段');
+    return false;
+  }
+  return true;
+};
+
+const save = async (status) => {
+  if (!validateBase()) return;
+
+  if (status === 'active') {
+    const invalid = form.fields.filter((field) => !field.name?.trim() || !field.type?.trim());
+    if (invalid.length > 0) {
+      window.alert('发布前请完善字段名称和字段类型');
+      return;
+    }
+  }
+
+  await modelStore.upsertProjectModel({
+    ...JSON.parse(JSON.stringify(form)),
+    status,
+    projectId: appStore.currentProject
+  });
+
+  router.push('/designer/project-models');
+};
+
+const saveProjectModel = () => save('draft');
+const publishProjectModel = () => save('active');
+</script>
