@@ -1,4 +1,4 @@
-﻿import { defineStore } from 'pinia';
+import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import { createId } from '../core/utils/id';
 import { nowText } from '../core/utils/date';
@@ -77,6 +77,7 @@ const defaultProjectModels = [
   {
     id: 1,
     name: 'UM_4G_HW_小时级Counter',
+    modelCode: 'UM_4G_HW_小时级Counter',
     description: '4G华为小时级Counter数据，时间粒度为小区小时',
     status: 'active',
     refStandardModel: '性能数据',
@@ -114,6 +115,7 @@ const normalizeStandardModel = (model = {}) => ({
 
 const normalizeProjectModel = (model = {}) => ({
   ...model,
+  modelCode: String(model.modelCode || model.code || model.name || ''),
   tags: {
     vendor: model.tags?.vendor || '',
     standard: model.tags?.standard || '',
@@ -122,6 +124,8 @@ const normalizeProjectModel = (model = {}) => ({
   },
   fields: normalizeFields(model.fields)
 });
+
+const enableModelApi = String(import.meta.env.VITE_ENABLE_MODEL_API || 'false').toLowerCase() === 'true';
 
 export const useModelStore = defineStore('model', () => {
   const appStore = useAppStore();
@@ -137,9 +141,11 @@ export const useModelStore = defineStore('model', () => {
   const targetFields = computed(() => selectedProjectModel.value?.fields || []);
 
   const loadStandardModels = async () => {
+    if (!enableModelApi) return;
+
     try {
       const data = await standardModelsApi.list();
-      if (Array.isArray(data)) {
+      if (Array.isArray(data) && data.length > 0) {
         standardModels.value = data.map((item) => normalizeStandardModel(item));
       }
     } catch {
@@ -148,13 +154,15 @@ export const useModelStore = defineStore('model', () => {
   };
 
   const loadProjectModels = async () => {
-    try {
-      const data = await projectModelsApi.list(appStore.currentProject);
-      if (Array.isArray(data) && data.length > 0) {
-        projectModels.value = data.map((item) => normalizeProjectModel(item));
+    if (enableModelApi) {
+      try {
+        const data = await projectModelsApi.list(appStore.currentProject);
+        if (Array.isArray(data) && data.length > 0) {
+          projectModels.value = data.map((item) => normalizeProjectModel(item));
+        }
+      } catch {
+        // 使用本地默认数据。
       }
-    } catch {
-      // 使用本地默认数据。
     }
 
     const available = projectModels.value.filter((item) => Number(item.projectId) === Number(appStore.currentProject));
@@ -278,3 +286,4 @@ export const useModelStore = defineStore('model', () => {
     getProjectModelById
   };
 });
+

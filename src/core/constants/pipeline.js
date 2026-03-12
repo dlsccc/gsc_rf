@@ -8,7 +8,6 @@
 export const JOIN_TYPES = {
   INNER: 'inner',
   LEFT: 'left',
-  RIGHT: 'right',
   FULL: 'full'
 };
 
@@ -42,3 +41,4 @@ export const TRANSFORM_TYPES = {
   REPLACE: 'replace',
   FORMULA: 'formula'
 };
+

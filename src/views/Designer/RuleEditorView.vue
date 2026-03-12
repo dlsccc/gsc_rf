@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div style="margin-top: 64px; height: calc(100vh - 64px); display: flex; flex-direction: column;">
     <div class="rule-edit-header" style="padding: 16px 24px; background: #fff; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 16px;">
       <div class="back-btn" @click="router.push('/designer/rules')"><span class="material-icons">arrow_back</span></div>
@@ -126,6 +126,7 @@
 import { computed, onMounted, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { pipelineApi } from '../../services/api';
+import { buildPipelineDsl, downloadDslFile } from '../../services/dsl/pipeline-dsl';
 import { useAppStore } from '../../stores/app.store';
 import { useModelStore } from '../../stores/model.store';
 import { usePipelineStore } from '../../stores/pipeline.store';
@@ -245,12 +246,56 @@ const saveRule = async () => {
 };
 
 const executeJob = async () => {
-  const payload = pipelineStore.getExecutePayload();
-  try {
-    await pipelineApi.execute(payload);
-  } catch {
-    // 后端未接入时仍返回本地执行反馈。
+  const selectedModel = publishedProjectModels.value.find((item) => String(item.id) === String(pipelineStore.selectedModelId));
+  if (!selectedModel) {
+    window.alert('请先选择已发布的数据模型');
+    return;
   }
+
+  const dsl = buildPipelineDsl({
+    ruleName: form.name || selectedModel.name,
+    projectId: appStore.currentProject,
+    selectedModel,
+    uploadedFiles: pipelineStore.uploadedFiles,
+    mappings: pipelineStore.mappings,
+    joinConfig: pipelineStore.joinConfig,
+    filters: pipelineStore.filters,
+    transforms: pipelineStore.transforms,
+    sortConfig: pipelineStore.sortConfig,
+    dedupConfig: pipelineStore.dedupConfig,
+    writeConfig: pipelineStore.writeConfig
+  });
+
+  const dslFileName = `${form.name || selectedModel.modelCode || selectedModel.name || 'pipeline'}_dsl.json`;
+  downloadDslFile(dsl, dslFileName);
+
+  const executePayload = {
+    ...pipelineStore.getExecutePayload(),
+    dsl
+  };
+
+  let published = false;
+  try {
+    await pipelineApi.publishDsl({
+      dsl,
+      projectId: appStore.currentProject,
+      ruleId: form.id,
+      ruleName: form.name || selectedModel.name
+    });
+    published = true;
+  } catch {
+    try {
+      await pipelineApi.execute(executePayload);
+      published = true;
+    } catch {
+      // 后端未接入时，保持前端可用并输出 DSL 文件。
+    }
+  }
+
   pipelineStore.markExecuted();
+  window.alert(published
+    ? `DSL 已生成并发布成功：${dslFileName}`
+    : `DSL 已生成：${dslFileName}（后端接口暂不可用）`);
 };
 </script>
+

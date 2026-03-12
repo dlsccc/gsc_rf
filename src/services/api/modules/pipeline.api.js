@@ -11,6 +11,10 @@ export const pipelineApi = {
   preview(payload) {
     return httpClient.post('/pipeline/preview', payload);
   },
+  publishDsl(payload) {
+    const endpoint = import.meta.env.VITE_PIPELINE_PUBLISH_ENDPOINT || '/pipeline/publish';
+    return httpClient.post(endpoint, payload);
+  },
   execute(payload) {
     return httpClient.post('/pipeline/execute', payload);
   }
