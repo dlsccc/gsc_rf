@@ -12,7 +12,7 @@
           <label class="form-label"><span class="material-icons">link</span>引用标准数据模型 *</label>
           <select v-model="form.refStandardModel" class="form-select" @change="onRefModelChange">
             <option value="">请选择标准数据模型</option>
-            <option v-for="model in modelStore.standardModels" :key="model.id" :value="model.name">{{ model.name }}</option>
+            <option v-for="model in modelStore.standardModels" :key="model.id" :value="model.modelCode || model.code || model.id">{{ model.name }}</option>
           </select>
           <div class="form-hint">选择引用的标准数据模型，将自动继承其字段定义</div>
         </div>
@@ -171,6 +171,8 @@ const typeOptions = ['Counter', 'KPI', '工参', '配置', '其他'];
 const emptyField = () => ({ name: '', type: '', format: '', isDimension: false, description: '', example: '' });
 const emptyModel = () => ({
   id: '',
+  code: '',
+  modelCode: '',
   name: '',
   description: '',
   status: 'draft',
@@ -190,15 +192,33 @@ const isEdit = computed(() => !!editId.value);
 
 const form = reactive(emptyModel());
 
+const resolveStandardModel = (value) => {
+  const key = String(value ?? '').trim();
+  if (!key) return null;
+
+  return modelStore.standardModels.find((item) => {
+    const id = String(item.id ?? '').trim();
+    const code = String(item.code || item.modelCode || '').trim();
+    const name = String(item.name || '').trim();
+    return key === id || key === code || key === name;
+  }) || null;
+};
+
 const fillForm = (data) => {
   const source = data ? JSON.parse(JSON.stringify(data)) : emptyModel();
   Object.keys(form).forEach((key) => delete form[key]);
   Object.assign(form, source);
+
   if (!form.tags) {
     form.tags = { vendor: '', standard: '', timeGranularity: '', type: '' };
   }
   if (!Array.isArray(form.fields) || form.fields.length === 0) {
     form.fields = [emptyField()];
+  }
+
+  const refModel = resolveStandardModel(form.refStandardModel);
+  if (refModel) {
+    form.refStandardModel = refModel.modelCode || refModel.code || refModel.id;
   }
 };
 
@@ -214,10 +234,18 @@ onMounted(async () => {
   fillForm(null);
 });
 
-const onRefModelChange = () => {
-  const refModel = modelStore.standardModels.find((item) => item.name === form.refStandardModel);
-  if (!refModel) return;
-  form.fields = JSON.parse(JSON.stringify(refModel.fields));
+const onRefModelChange = async () => {
+  if (!form.refStandardModel) return;
+
+  const detail = await modelStore.loadStandardModelDetail(form.refStandardModel);
+  if (!detail) return;
+
+  form.refStandardModel = detail.modelCode || detail.code || form.refStandardModel;
+  form.fields = JSON.parse(JSON.stringify(detail.fields || []));
+
+  if (!Array.isArray(form.fields) || form.fields.length === 0) {
+    form.fields = [emptyField()];
+  }
 };
 
 const addField = () => {
@@ -272,6 +300,7 @@ const save = async (status) => {
 
   await modelStore.upsertProjectModel({
     ...JSON.parse(JSON.stringify(form)),
+    ...(isEdit.value ? { code: form.code || form.modelCode || form.id } : {}),
     status,
     projectId: appStore.currentProject
   });
@@ -282,3 +311,4 @@ const save = async (status) => {
 const saveProjectModel = () => save('draft');
 const publishProjectModel = () => save('active');
 </script>
+

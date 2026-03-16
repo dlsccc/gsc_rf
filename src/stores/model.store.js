@@ -1,4 +1,4 @@
-import { defineStore } from 'pinia';
+﻿import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import { createId } from '../core/utils/id';
 import { nowText } from '../core/utils/date';
@@ -6,67 +6,35 @@ import { standardModelsApi, projectModelsApi } from '../services/api';
 import { useAppStore } from './app.store';
 
 const deepClone = (value) => JSON.parse(JSON.stringify(value));
+const toText = (value) => String(value ?? '').trim();
 
 const baseDimensionFields = [
-  { name: 'TIME_YEAR', type: 'STRING', format: 'YYYY', isDimension: true, description: '年份', example: '2026' },
-  { name: 'TIME_MONTH', type: 'STRING', format: 'YYYY-MM', isDimension: true, description: '月份', example: '2026-02' },
-  { name: 'TIME_DATE', type: 'STRING', format: 'YYYY-MM-DD', isDimension: true, description: '日期', example: '2026-02-14' },
-  { name: 'TIME_TIME', type: 'STRING', format: 'hh:mm:ss', isDimension: true, description: '时间', example: '11:26:43' },
-  { name: 'TIME_DAY', type: 'STRING', format: '整数', isDimension: true, description: '星期几', example: '6' },
-  { name: 'DATE_TIME', type: 'STRING', format: 'YYYY-MM-DD hh:mm:ss', isDimension: true, description: '年月日时分秒', example: '2026-02-14 11:26:43' },
-  { name: 'TIME_WEEK', type: 'STRING', format: '整数', isDimension: true, description: '第几周', example: '6' },
-  { name: 'CLUSTER', type: 'STRING', format: '', isDimension: true, description: '', example: '' },
-  { name: 'SITE_NAME', type: 'STRING', format: '', isDimension: true, description: '站点名称', example: 'ZOONWML_NKL12_(XA)' },
-  { name: 'SITE_ID', type: 'STRING', format: '', isDimension: true, description: '站点ID', example: '811093' },
-  { name: 'CELL_ID', type: 'STRING', format: '', isDimension: true, description: '小区ID', example: '49' },
-  { name: 'CELL_NAME', type: 'STRING', format: '', isDimension: true, description: '小区名称', example: 'ZOONWME_49' },
-  { name: 'BAND', type: 'STRING', format: '', isDimension: true, description: '频段', example: '1' },
-  { name: 'SECTOR', type: 'STRING', format: '', isDimension: true, description: '', example: '' },
-  { name: 'OPERATOR', type: 'STRING', format: '', isDimension: true, description: '', example: '' },
-  { name: 'COMMON1', type: 'STRING', format: '', isDimension: true, description: 'CELL FDD TDD Indication', example: 'CELL_FDD' },
-  { name: 'COMMON2', type: 'STRING', format: '', isDimension: true, description: 'Downlink EARFCN', example: '75' },
-  { name: 'COMMON3', type: 'STRING', format: '', isDimension: true, description: 'eNodeB Function Name', example: 'ZOONWML' },
-  { name: 'COMMON4', type: 'STRING', format: '百分数', isDimension: true, description: 'Integrity', example: '100%' },
-  { name: 'COMMON5', type: 'STRING', format: '', isDimension: true, description: 'VENDOR', example: 'HW' },
-  { name: 'COMMON6', type: 'STRING', format: '', isDimension: true, description: 'Cell ID', example: '49' },
-  { name: 'COMMON7', type: 'STRING', format: '', isDimension: true, description: '', example: '' },
-  { name: 'COMMON8', type: 'STRING', format: '', isDimension: true, description: '', example: '' },
-  { name: 'COMMON9', type: 'STRING', format: '', isDimension: true, description: '', example: '' },
-  { name: 'COMMON10', type: 'STRING', format: '', isDimension: true, description: '', example: '' },
-  { name: 'PARTITION_FIELD', type: 'DATETIME', format: 'YYYY-MM-DD HH:mm:ss', isDimension: true, description: '', example: '2026-02-15 11:26:43' }
+  { name: 'TIME_DATE', type: 'STRING', format: 'YYYY-MM-DD', isDimension: true, description: 'Date', example: '2026-03-16' },
+  { name: 'DATE_TIME', type: 'STRING', format: 'YYYY-MM-DD HH:mm:ss', isDimension: true, description: 'DateTime', example: '2026-03-16 10:00:00' },
+  { name: 'SITE_ID', type: 'STRING', format: '', isDimension: true, description: 'Site ID', example: '811093' },
+  { name: 'CELL_ID', type: 'STRING', format: '', isDimension: true, description: 'Cell ID', example: '49' },
+  { name: 'PARTITION_FIELD', type: 'DATETIME', format: 'YYYY-MM-DD HH:mm:ss', isDimension: true, description: 'Partition Field', example: '2026-03-16 10:00:00' }
 ];
 
 const standardMetricFields = [
-  { name: 'FIELD0001', type: 'FLOAT64', format: '浮点数', isDimension: false, description: 'Counter', example: '5515.0' },
-  { name: 'FIELD0002', type: 'FLOAT64', format: '浮点数', isDimension: false, description: 'Counter', example: '5515.0' },
-  { name: 'FIELD0003', type: 'FLOAT64', format: '浮点数', isDimension: false, description: 'Counter', example: '8.0' },
-  { name: 'FIELD0004', type: 'FLOAT64', format: '浮点数', isDimension: false, description: 'Counter', example: '8.0' },
-  { name: 'FIELD0005', type: 'FLOAT64', format: '浮点数', isDimension: false, description: 'Counter', example: '3768.0' },
-  { name: 'FIELD0006', type: 'FLOAT64', format: '浮点数', isDimension: false, description: 'Counter', example: '3768.0' },
-  { name: 'FIELD0007', type: 'FLOAT64', format: '浮点数', isDimension: false, description: 'Counter', example: '0.0' },
-  { name: 'FIELD0008', type: 'FLOAT64', format: '浮点数', isDimension: false, description: 'Counter', example: '6.0' },
-  { name: 'FIELD0009', type: 'FLOAT64', format: '浮点数', isDimension: false, description: 'Counter', example: '0.0' },
-  { name: 'FIELD00010', type: 'FLOAT64', format: '浮点数', isDimension: false, description: 'Counter', example: '3433.0' }
+  { name: 'FIELD0001', type: 'FLOAT64', format: 'FLOAT', isDimension: false, description: 'Counter', example: '5515.0' },
+  { name: 'FIELD0002', type: 'FLOAT64', format: 'FLOAT', isDimension: false, description: 'Counter', example: '5515.0' },
+  { name: 'FIELD0003', type: 'FLOAT64', format: 'FLOAT', isDimension: false, description: 'Counter', example: '8.0' }
 ];
 
 const projectMetricFields = [
-  { name: 'FIELD0001', type: 'FLOAT64', format: '浮点数', isDimension: false, description: 'L.RRC.ConnReq.Att', example: '5515.0' },
-  { name: 'FIELD0002', type: 'FLOAT64', format: '浮点数', isDimension: false, description: 'L.RRC.ConnReq.Succ', example: '5515.0' },
-  { name: 'FIELD0003', type: 'FLOAT64', format: '浮点数', isDimension: false, description: 'L.E-RAB.AttEst.QCI.1', example: '8.0' },
-  { name: 'FIELD0004', type: 'FLOAT64', format: '浮点数', isDimension: false, description: 'L.E-RAB.SuccEst.QCI.1', example: '8.0' },
-  { name: 'FIELD0005', type: 'FLOAT64', format: '浮点数', isDimension: false, description: 'L.E-RAB.AttEst.QCI.5', example: '3768.0' },
-  { name: 'FIELD0006', type: 'FLOAT64', format: '浮点数', isDimension: false, description: 'L.E-RAB.SuccEst.QCI.5', example: '3768.0' },
-  { name: 'FIELD0007', type: 'FLOAT64', format: '浮点数', isDimension: false, description: 'L.E-RAB.AbnormRel.QCI.1', example: '0.0' },
-  { name: 'FIELD0008', type: 'FLOAT64', format: '浮点数', isDimension: false, description: 'L.E-RAB.NormRel.QCI.1', example: '6.0' },
-  { name: 'FIELD0009', type: 'FLOAT64', format: '浮点数', isDimension: false, description: 'L.E-RAB.AbnormRel.QCI.5', example: '0.0' },
-  { name: 'FIELD00010', type: 'FLOAT64', format: '浮点数', isDimension: false, description: 'L.E-RAB.NormRel.QCI.5', example: '3433.0' }
+  { name: 'FIELD0001', type: 'FLOAT64', format: 'FLOAT', isDimension: false, description: 'L.RRC.ConnReq.Att', example: '5515.0' },
+  { name: 'FIELD0002', type: 'FLOAT64', format: 'FLOAT', isDimension: false, description: 'L.RRC.ConnReq.Succ', example: '5515.0' },
+  { name: 'FIELD0003', type: 'FLOAT64', format: 'FLOAT', isDimension: false, description: 'L.E-RAB.AttEst.QCI.1', example: '8.0' }
 ];
 
 const defaultStandardModels = [
   {
     id: 1,
-    name: '性能数据',
-    description: '承载各个站点各个时间点的无线性能指标数据',
+    code: 'STD_4G_COUNTER',
+    modelCode: 'STD_4G_COUNTER',
+    name: '标准性能模型',
+    description: '标准性能模型示例',
     status: 'active',
     updateTime: '2026-03-04 14:30',
     fields: deepClone([...baseDimensionFields, ...standardMetricFields])
@@ -76,30 +44,33 @@ const defaultStandardModels = [
 const defaultProjectModels = [
   {
     id: 1,
-    name: 'UM_4G_HW_小时级Counter',
-    modelCode: 'UM_4G_HW_小时级Counter',
-    description: '4G华为小时级Counter数据，时间粒度为小区小时',
+    code: 'UM_4G_HW_COUNTER',
+    modelCode: 'UM_4G_HW_COUNTER',
+    name: 'UM_4G_HW_COUNTER',
+    description: '4G 华为小时级 Counter 数据模型',
     status: 'active',
-    refStandardModel: '性能数据',
+    refStandardModel: 'STD_4G_COUNTER',
     tags: {
       vendor: '华为',
       standard: '4G',
       timeGranularity: '小时级',
       type: 'Counter'
     },
-    updateTime: '2024-03-04 16:30',
+    updateTime: '2026-03-04 16:30',
     projectId: 1,
+    projectCode: '1',
     fields: deepClone([...baseDimensionFields, ...projectMetricFields])
   }
 ];
 
 const normalizeField = (field = {}) => ({
-  name: String(field.name || ''),
-  type: String(field.type || ''),
-  format: String(field.format || ''),
+  name: toText(field.name || field.fieldName),
+  type: toText(field.type || field.fieldType),
+  format: toText(field.format || field.dataFormat),
   isDimension: field.isDimension !== undefined ? !!field.isDimension : !!field.required,
-  description: String(field.description || ''),
-  example: String(field.example || field.sampleValue || '')
+  isNull: field.isNull !== undefined ? !!field.isNull : true,
+  description: toText(field.description || field.fieldDesc),
+  example: toText(field.example || field.sampleValue || field.dataExample)
 });
 
 const normalizeFields = (fields) => {
@@ -108,22 +79,79 @@ const normalizeFields = (fields) => {
   return [normalizeField()];
 };
 
-const normalizeStandardModel = (model = {}) => ({
-  ...model,
-  fields: normalizeFields(model.fields)
+const normalizeTags = (model = {}) => ({
+  vendor: model.tags?.vendor || model.factory || '',
+  standard: model.tags?.standard || model.format || '',
+  timeGranularity: model.tags?.timeGranularity || model.timeGranularity || '',
+  type: model.tags?.type || model.businessModelType || ''
 });
 
-const normalizeProjectModel = (model = {}) => ({
-  ...model,
-  modelCode: String(model.modelCode || model.code || model.name || ''),
-  tags: {
-    vendor: model.tags?.vendor || '',
-    standard: model.tags?.standard || '',
-    timeGranularity: model.tags?.timeGranularity || '',
-    type: model.tags?.type || ''
-  },
-  fields: normalizeFields(model.fields)
-});
+const resolveModelCode = (model = {}) => toText(model.code || model.modelCode || model.id);
+
+const normalizeStandardModel = (model = {}) => {
+  const code = toText(model.code || model.modelCode);
+  const name = toText(model.name || model.modelName || code);
+
+  return {
+    ...model,
+    id: toText(model.id || code || name || createId()),
+    code,
+    modelCode: toText(model.modelCode || code || name),
+    name,
+    description: toText(model.description || model.modelDesc),
+    status: toText(model.status || 'active'),
+    refStandardModel: toText(model.refStandardModel || model.referenceModelCode),
+    updateTime: toText(model.updateTime || model.lastUpdatedDate || model.modifyTime || model.creationDate || nowText()),
+    tags: normalizeTags(model),
+    fields: normalizeFields(model.fields || model.fieldList)
+  };
+};
+
+const normalizeProjectModel = (model = {}, projectIdFallback = null, projectCodeFallback = '') => {
+  const base = normalizeStandardModel(model);
+  const numericProjectId = Number(model.projectId);
+  const projectId = Number.isFinite(numericProjectId) ? numericProjectId : (projectIdFallback ?? model.projectId);
+  const projectCode = toText(model.projectCode || projectCodeFallback || model.projectId || projectId);
+
+  return {
+    ...base,
+    projectId,
+    projectCode,
+    refStandardModel: toText(base.refStandardModel || model.referenceModelCode),
+    tags: normalizeTags(model)
+  };
+};
+
+const toFieldListPayload = (fields = [], modelCode = '') => {
+  return (Array.isArray(fields) ? fields : []).map((field, index) => ({
+    modelCode,
+    fieldName: toText(field.name),
+    fieldType: toText(field.type),
+    fieldDesc: toText(field.description),
+    dataFormat: toText(field.format),
+    dataExample: toText(field.example),
+    isNull: field.isNull !== undefined ? !!field.isNull : true,
+    seq: index + 1
+  }));
+};
+
+const toModelSavePayload = ({ entity, modelType, projectCode = '' }) => {
+  const modelCode = toText(entity.code || entity.modelCode);
+
+  return {
+    ...(modelCode ? { code: modelCode } : {}),
+    modelName: toText(entity.name),
+    modelDesc: toText(entity.description),
+    modelType,
+    fieldList: toFieldListPayload(entity.fields, modelCode),
+    referenceModelCode: toText(entity.refStandardModel),
+    factory: toText(entity.tags?.vendor),
+    format: toText(entity.tags?.standard),
+    timeGranularity: toText(entity.tags?.timeGranularity),
+    businessModelType: toText(entity.tags?.type),
+    ...(projectCode ? { projectCode } : {})
+  };
+};
 
 const enableModelApi = String(import.meta.env.VITE_ENABLE_MODEL_API || 'false').toLowerCase() === 'true';
 
@@ -131,8 +159,8 @@ export const useModelStore = defineStore('model', () => {
   const appStore = useAppStore();
 
   const standardModels = ref(defaultStandardModels.map((item) => normalizeStandardModel(deepClone(item))));
-  const projectModels = ref(defaultProjectModels.map((item) => normalizeProjectModel(deepClone(item))));
-  const selectedProjectModelId = ref(defaultProjectModels[0].id);
+  const projectModels = ref(defaultProjectModels.map((item) => normalizeProjectModel(deepClone(item), item.projectId || 1, toText(item.projectId || 1))));
+  const selectedProjectModelId = ref(projectModels.value[0]?.id || '');
 
   const selectedProjectModel = computed(() => {
     return projectModels.value.find((item) => String(item.id) === String(selectedProjectModelId.value)) || null;
@@ -140,28 +168,61 @@ export const useModelStore = defineStore('model', () => {
 
   const targetFields = computed(() => selectedProjectModel.value?.fields || []);
 
+  const resolveCurrentProjectCode = () => {
+    return toText(appStore.currentProjectCode || appStore.currentProject || import.meta.env.VITE_PROJECT_CODE || '');
+  };
+
+  const upsertLocalStandard = (model) => {
+    const index = standardModels.value.findIndex((item) => String(item.id) === String(model.id));
+    if (index >= 0) {
+      standardModels.value[index] = model;
+    } else {
+      standardModels.value.unshift(model);
+    }
+  };
+
+  const upsertLocalProject = (model) => {
+    const index = projectModels.value.findIndex((item) => String(item.id) === String(model.id));
+    if (index >= 0) {
+      projectModels.value[index] = model;
+    } else {
+      projectModels.value.unshift(model);
+    }
+  };
+
+  const getStandardModelById = (id) => {
+    const key = String(id);
+    return standardModels.value.find((item) => String(item.id) === key || toText(item.code) === key || toText(item.modelCode) === key) || null;
+  };
+
+  const getProjectModelById = (id) => {
+    const key = String(id);
+    return projectModels.value.find((item) => String(item.id) === key || toText(item.code) === key || toText(item.modelCode) === key) || null;
+  };
+
   const loadStandardModels = async () => {
     if (!enableModelApi) return;
 
     try {
-      const data = await standardModelsApi.list();
-      if (Array.isArray(data) && data.length > 0) {
-        standardModels.value = data.map((item) => normalizeStandardModel(item));
+      const list = await standardModelsApi.list();
+      if (Array.isArray(list) && list.length > 0) {
+        standardModels.value = list.map((item) => normalizeStandardModel(item));
       }
     } catch {
-      // 使用本地默认数据。
+      // fallback to local mock
     }
   };
 
   const loadProjectModels = async () => {
     if (enableModelApi) {
       try {
-        const data = await projectModelsApi.list(appStore.currentProject);
-        if (Array.isArray(data) && data.length > 0) {
-          projectModels.value = data.map((item) => normalizeProjectModel(item));
+        const projectCode = resolveCurrentProjectCode();
+        const list = await projectModelsApi.list(projectCode);
+        if (Array.isArray(list) && list.length > 0) {
+          projectModels.value = list.map((item) => normalizeProjectModel(item, appStore.currentProject, projectCode));
         }
       } catch {
-        // 使用本地默认数据。
+        // fallback to local mock
       }
     }
 
@@ -171,87 +232,139 @@ export const useModelStore = defineStore('model', () => {
     }
   };
 
+  const loadStandardModelDetail = async (modelCodeOrId) => {
+    const target = getStandardModelById(modelCodeOrId);
+    if (!target) return null;
+
+    if (!enableModelApi) {
+      return target;
+    }
+
+    const code = resolveModelCode(target) || toText(modelCodeOrId);
+    if (!code) return target;
+
+    try {
+      const detail = await standardModelsApi.detail(code);
+      if (!detail) return target;
+
+      const merged = normalizeStandardModel({
+        ...target,
+        ...detail,
+        id: target.id || code
+      });
+      upsertLocalStandard(merged);
+      return merged;
+    } catch {
+      return target;
+    }
+  };
+
+  const loadProjectModelDetail = async (modelCodeOrId) => {
+    const target = getProjectModelById(modelCodeOrId);
+    if (!target) return null;
+
+    if (!enableModelApi) {
+      return target;
+    }
+
+    const code = resolveModelCode(target) || toText(modelCodeOrId);
+    if (!code) return target;
+
+    try {
+      const detail = await projectModelsApi.detail(code);
+      if (!detail) return target;
+
+      const merged = normalizeProjectModel({
+        ...target,
+        ...detail,
+        id: target.id || code
+      }, target.projectId || appStore.currentProject, target.projectCode || resolveCurrentProjectCode());
+      upsertLocalProject(merged);
+      return merged;
+    } catch {
+      return target;
+    }
+  };
+
   const upsertStandardModel = async (payload) => {
     const entity = normalizeStandardModel({
       ...payload,
-      id: payload.id || createId(),
+      id: payload.id || payload.code || payload.modelCode || createId(),
       updateTime: nowText()
     });
 
-    const index = standardModels.value.findIndex((item) => String(item.id) === String(entity.id));
-    if (index >= 0) {
-      standardModels.value[index] = entity;
-    } else {
-      standardModels.value.unshift(entity);
-    }
+    upsertLocalStandard(entity);
 
-    try {
-      if (payload.id) {
-        await standardModelsApi.update(payload.id, entity);
-      } else {
-        await standardModelsApi.create(entity);
+    if (enableModelApi) {
+      try {
+        await standardModelsApi.save(toModelSavePayload({ entity, modelType: 'base' }));
+      } catch {
+        // backend unavailable
       }
-    } catch {
-      // 后端未接入。
     }
 
     return entity;
   };
 
   const publishStandardModel = async (id) => {
-    const model = standardModels.value.find((item) => String(item.id) === String(id));
+    const model = getStandardModelById(id);
     if (!model) return;
+
     model.status = 'active';
     model.updateTime = nowText();
+
     try {
-      await standardModelsApi.publish(id);
+      await standardModelsApi.publish(resolveModelCode(model) || model.id);
     } catch {
-      // 后端未接入。
+      // backend unavailable
     }
   };
 
   const deleteStandardModel = async (id) => {
+    const target = getStandardModelById(id);
     standardModels.value = standardModels.value.filter((item) => String(item.id) !== String(id));
-    try {
-      await standardModelsApi.remove(id);
-    } catch {
-      // 后端未接入。
+
+    if (enableModelApi) {
+      try {
+        await standardModelsApi.remove(resolveModelCode(target || { id }));
+      } catch {
+        // backend unavailable
+      }
     }
   };
 
   const upsertProjectModel = async (payload) => {
     const entity = normalizeProjectModel({
       ...payload,
-      id: payload.id || createId(),
+      id: payload.id || payload.code || payload.modelCode || createId(),
       projectId: payload.projectId || appStore.currentProject,
+      projectCode: payload.projectCode || resolveCurrentProjectCode(),
       updateTime: nowText()
-    });
+    }, payload.projectId || appStore.currentProject, payload.projectCode || resolveCurrentProjectCode());
 
-    const index = projectModels.value.findIndex((item) => String(item.id) === String(entity.id));
-    if (index >= 0) {
-      projectModels.value[index] = entity;
-    } else {
-      projectModels.value.unshift(entity);
-    }
+    upsertLocalProject(entity);
 
     if (!selectedProjectModelId.value) {
       selectedProjectModelId.value = entity.id;
     }
 
-    try {
-      if (payload.id) {
-        await projectModelsApi.update(appStore.currentProject, payload.id, entity);
-      } else {
-        await projectModelsApi.create(appStore.currentProject, entity);
+    if (enableModelApi) {
+      try {
+        await projectModelsApi.save(toModelSavePayload({
+          entity,
+          modelType: 'business',
+          projectCode: entity.projectCode || resolveCurrentProjectCode()
+        }));
+      } catch {
+        // backend unavailable
       }
-    } catch {
-      // 后端未接入。
     }
 
     return entity;
   };
 
   const deleteProjectModel = async (id) => {
+    const target = getProjectModelById(id);
     projectModels.value = projectModels.value.filter((item) => String(item.id) !== String(id));
 
     const available = projectModels.value.filter((item) => Number(item.projectId) === Number(appStore.currentProject));
@@ -259,15 +372,14 @@ export const useModelStore = defineStore('model', () => {
       selectedProjectModelId.value = available[0]?.id || '';
     }
 
-    try {
-      await projectModelsApi.remove(appStore.currentProject, id);
-    } catch {
-      // 后端未接入。
+    if (enableModelApi) {
+      try {
+        await projectModelsApi.remove(resolveCurrentProjectCode(), resolveModelCode(target || { id }));
+      } catch {
+        // backend unavailable
+      }
     }
   };
-
-  const getStandardModelById = (id) => standardModels.value.find((item) => String(item.id) === String(id));
-  const getProjectModelById = (id) => projectModels.value.find((item) => String(item.id) === String(id));
 
   return {
     standardModels,
@@ -277,6 +389,8 @@ export const useModelStore = defineStore('model', () => {
     targetFields,
     loadStandardModels,
     loadProjectModels,
+    loadStandardModelDetail,
+    loadProjectModelDetail,
     upsertStandardModel,
     publishStandardModel,
     deleteStandardModel,
@@ -286,4 +400,3 @@ export const useModelStore = defineStore('model', () => {
     getProjectModelById
   };
 });
-

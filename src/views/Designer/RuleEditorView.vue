@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div style="margin-top: 64px; height: calc(100vh - 64px); display: flex; flex-direction: column;">
     <div class="rule-edit-header" style="padding: 16px 24px; background: #fff; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 16px;">
       <div class="back-btn" @click="router.push('/designer/rules')"><span class="material-icons">arrow_back</span></div>
@@ -18,7 +18,7 @@
         <div class="content-card">
           <div v-show="pipelineStore.currentStep === 0">
             <div class="card-header">
-              <div class="card-title">选择数据模型并上传原始数据</div>
+              <div class="card-title">选择目标模型并上传原始数据</div>
             </div>
             <div class="card-body">
               <div class="form-group">
@@ -125,7 +125,6 @@
 <script setup>
 import { computed, onMounted, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { pipelineApi } from '../../services/api';
 import { buildPipelineDsl, downloadDslFile } from '../../services/dsl/pipeline-dsl';
 import { useAppStore } from '../../stores/app.store';
 import { useModelStore } from '../../stores/model.store';
@@ -186,8 +185,13 @@ const setForm = (rule) => {
   form.projectId = rule?.projectId || appStore.currentProject;
 };
 
-const onSelectModel = (modelId) => {
+const resolveSelectedModel = () => {
+  return publishedProjectModels.value.find((item) => String(item.id) === String(pipelineStore.selectedModelId)) || null;
+};
+
+const onSelectModel = async (modelId) => {
   pipelineStore.setModel(modelId);
+  await modelStore.loadProjectModelDetail(modelId);
 };
 
 onMounted(async () => {
@@ -200,9 +204,15 @@ onMounted(async () => {
   if (isEdit.value) {
     const targetRule = ruleStore.getRuleById(route.params.id);
     setForm(targetRule);
-    const model = publishedProjectModels.value.find((item) => item.name === form.targetModel);
+
+    const model = publishedProjectModels.value.find((item) => {
+      const modelCode = String(item.modelCode || item.code || '').trim();
+      const modelName = String(item.name || '').trim();
+      return modelCode === String(form.targetModel).trim() || modelName === String(form.targetModel).trim();
+    });
+
     if (model) {
-      pipelineStore.setModel(model.id);
+      await onSelectModel(model.id);
     }
     return;
   }
@@ -221,32 +231,47 @@ const autoMap = () => {
   pipelineStore.setMappings(nextMappings);
 };
 
-const saveRule = async () => {
+const saveRuleEntity = async ({ status = 'draft', dsl = null } = {}) => {
   if (!form.name.trim()) {
-    window.alert('请输入规则名称');
-    return;
+    throw new Error('请输入规则名称');
   }
 
-  const selectedModel = publishedProjectModels.value.find((item) => String(item.id) === String(pipelineStore.selectedModelId));
+  const selectedModel = resolveSelectedModel();
   if (!selectedModel) {
-    window.alert('请选择已发布的数据模型');
-    return;
+    throw new Error('请先选择已发布的数据模型');
   }
 
-  await ruleStore.upsertRule({
+  const saved = await ruleStore.upsertRule({
     ...JSON.parse(JSON.stringify(form)),
-    status: 'active',
-    targetModel: selectedModel.name,
+    id: form.id,
+    ruleId: form.id,
+    status,
+    targetModel: selectedModel.modelCode || selectedModel.name,
     inputTables: resolveRuleInputTablesForSave(),
-    projectId: appStore.currentProject
+    projectId: appStore.currentProject,
+    ruleJson: dsl || undefined,
+    dsl
   });
 
-  window.alert('规则保存成功！');
-  router.push('/designer/rules');
+  form.id = saved.id;
+  form.status = saved.status;
+  form.targetModel = saved.targetModel;
+
+  return { saved, selectedModel };
+};
+
+const saveRule = async () => {
+  try {
+    await saveRuleEntity({ status: 'draft' });
+    window.alert('规则保存成功');
+    router.push('/designer/rules');
+  } catch (error) {
+    window.alert(error?.message || '规则保存失败');
+  }
 };
 
 const executeJob = async () => {
-  const selectedModel = publishedProjectModels.value.find((item) => String(item.id) === String(pipelineStore.selectedModelId));
+  const selectedModel = resolveSelectedModel();
   if (!selectedModel) {
     window.alert('请先选择已发布的数据模型');
     return;
@@ -269,33 +294,24 @@ const executeJob = async () => {
   const dslFileName = `${form.name || selectedModel.modelCode || selectedModel.name || 'pipeline'}_dsl.json`;
   downloadDslFile(dsl, dslFileName);
 
-  const executePayload = {
-    ...pipelineStore.getExecutePayload(),
-    dsl
-  };
-
+  let publishError = '';
   let published = false;
+
   try {
-    await pipelineApi.publishDsl({
-      dsl,
-      projectId: appStore.currentProject,
-      ruleId: form.id,
-      ruleName: form.name || selectedModel.name
-    });
+    const { saved } = await saveRuleEntity({ status: 'draft', dsl });
+    await ruleStore.publishRule(saved.ruleCode || saved.id);
+    form.status = 'active';
     published = true;
-  } catch {
-    try {
-      await pipelineApi.execute(executePayload);
-      published = true;
-    } catch {
-      // 后端未接入时，保持前端可用并输出 DSL 文件。
-    }
+  } catch (error) {
+    publishError = error?.message || '发布失败';
   }
 
   pipelineStore.markExecuted();
-  window.alert(published
-    ? `DSL 已生成并发布成功：${dslFileName}`
-    : `DSL 已生成：${dslFileName}（后端接口暂不可用）`);
+
+  if (published) {
+    window.alert(`DSL 已生成并发布成功：${dslFileName}`);
+  } else {
+    window.alert(`DSL 已生成：${dslFileName}，发布失败：${publishError}`);
+  }
 };
 </script>
-
