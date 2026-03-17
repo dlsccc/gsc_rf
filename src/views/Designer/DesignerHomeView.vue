@@ -42,7 +42,7 @@
 <script setup>
 import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAppStore } from '../../store/app.store';
+import { useAppStore } from '../../store/app.store.js';
 
 const router = useRouter();
 const appStore = useAppStore();
@@ -57,4 +57,5 @@ const notifyPlanned = () => {
 
 const goEntrance = () => router.push('/');
 </script>
+
 

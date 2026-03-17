@@ -1,4 +1,4 @@
-﻿import { DEDUP_KEEP, SORT_ORDER, TRANSFORM_TYPES } from '../utils/constants/pipeline';
+﻿import { DEDUP_KEEP, SORT_ORDER, TRANSFORM_TYPES } from '../utils/constants/pipeline.js';
 
 const toText = (value) => (value === null || value === undefined ? '' : String(value));
 
@@ -105,4 +105,5 @@ export const buildProcessedRows = ({ previewRows, filters, transforms, sortConfi
 
   return rows;
 };
+
 

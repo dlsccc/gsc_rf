@@ -1,22 +1,11 @@
-﻿import httpClient from '../axio';
+﻿import { post } from '../../utils/axios.js';
+import baseUrl from '../base-url.js';
 
-export const pipelineApi = {
-  upload(file) {
-    const formData = new FormData();
-    formData.append('file', file);
-    return httpClient.post('/pipeline/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
-  },
-  preview(payload) {
-    return httpClient.post('/pipeline/preview', payload);
-  },
-  publishDsl(payload) {
-    const endpoint = import.meta.env.VITE_PIPELINE_PUBLISH_ENDPOINT || '/pipeline/publish';
-    return httpClient.post(endpoint, payload);
-  },
-  execute(payload) {
-    return httpClient.post('/pipeline/execute', payload);
-  }
+export const apiPipelineService = {
+  upload: (params, config) => post(`${baseUrl.pipeline}/pipeline/upload`, params, config),
+  preview: (params, config) => post(`${baseUrl.pipeline}/pipeline/preview`, params, config),
+  publishDsl: (params, config) => post(`${baseUrl.pipeline}${import.meta.env.VITE_PIPELINE_PUBLISH_ENDPOINT || '/pipeline/publish'}`, params, config),
+  execute: (params, config) => post(`${baseUrl.pipeline}/pipeline/execute`, params, config)
 };
 
+export const pipelineApi = apiPipelineService;

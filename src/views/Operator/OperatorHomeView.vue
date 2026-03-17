@@ -34,7 +34,7 @@
 <script setup>
 import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAppStore } from '../../store/app.store';
+import { useAppStore } from '../../store/app.store.js';
 
 const router = useRouter();
 const appStore = useAppStore();
@@ -46,4 +46,5 @@ onMounted(() => {
 const goEntrance = () => router.push('/');
 const openLakeExecute = () => router.push('/operator/execute');
 </script>
+
 

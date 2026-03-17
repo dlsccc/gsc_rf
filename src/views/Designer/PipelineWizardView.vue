@@ -38,10 +38,10 @@
 <script setup>
 import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { pipelineApi } from '../../api';
-import { useAppStore } from '../../store/app.store';
-import { useModelStore } from '../../store/model.store';
-import { usePipelineStore } from '../../store/pipeline.store';
+import { pipelineApi } from '../../api/index.js';
+import { useAppStore } from '../../store/app.store.js';
+import { useModelStore } from '../../store/model.store.js';
+import { usePipelineStore } from '../../store/pipeline.store.js';
 import FileUploadPanel from '../../components/pipeline/FileUploadPanel.vue';
 import FieldMappingPanel from '../../components/pipeline/FieldMappingPanel.vue';
 import ProcessPanel from '../../components/pipeline/ProcessPanel.vue';
@@ -69,4 +69,5 @@ const executeJob = async () => {
   pipelineStore.markExecuted();
 };
 </script>
+
 

@@ -1,19 +1,11 @@
-﻿import httpClient from '../axio';
+﻿import { post } from '../../utils/axios.js';
+import baseUrl from '../base-url.js';
 
-export const standardModelsApi = {
-  list(payload) {
-    return httpClient.post('/v1/dataSmart/model/queryModel', payload);
-  },
-
-  detail(payload) {
-    return httpClient.post('/v1/dataSmart/model/queryModelDetail', payload);
-  },
-
-  save(payload) {
-    return httpClient.post('/v1/dataSmart/model/saveModel', payload);
-  },
-
-  remove(payload) {
-    return httpClient.post('/v1/dataSmart/model/deleteModel', payload);
-  }
+export const apiStandardModelsService = {
+  list: (params, config) => post(`${baseUrl.dataSmart}/v1/dataSmart/model/queryModel`, params, config),
+  detail: (params, config) => post(`${baseUrl.dataSmart}/v1/dataSmart/model/queryModelDetail`, params, config),
+  save: (params, config) => post(`${baseUrl.dataSmart}/v1/dataSmart/model/saveModel`, params, config),
+  remove: (params, config) => post(`${baseUrl.dataSmart}/v1/dataSmart/model/deleteModel`, params, config)
 };
+
+export const standardModelsApi = apiStandardModelsService;

@@ -1,19 +1,11 @@
-﻿import httpClient from '../axio';
+﻿import { get, post, del } from '../../utils/axios.js';
+import baseUrl from '../base-url.js';
 
-export const rulesApi = {
-  list(params) {
-    return httpClient.get('/v1/projectDesign/datalake/getList', { params });
-  },
-
-  save(payload) {
-    return httpClient.post('/v1/projectDesign/datalake/saveRule', payload);
-  },
-
-  remove(id) {
-    return httpClient.delete(`/v1/projectDesign/datalake/delete/${id}`);
-  },
-
-  publish(payload) {
-    return httpClient.post('/v1/projectDesign/datalake/ruleRelease', payload);
-  }
+export const apiRulesService = {
+  list: (params, config) => get(`${baseUrl.projectDesign}/v1/projectDesign/datalake/getList`, params, config),
+  save: (params, config) => post(`${baseUrl.projectDesign}/v1/projectDesign/datalake/saveRule`, params, config),
+  remove: (params, config) => del(`${baseUrl.projectDesign}/v1/projectDesign/datalake/delete/${params}`, {}, config),
+  publish: (params, config) => post(`${baseUrl.projectDesign}/v1/projectDesign/datalake/ruleRelease`, params, config)
 };
+
+export const rulesApi = apiRulesService;

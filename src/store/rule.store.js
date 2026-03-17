@@ -1,9 +1,9 @@
 ﻿import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
-import { rulesApi } from '../api';
-import { createId } from '../utils/id';
-import { nowText } from '../utils/date';
-import { useAppStore } from './app.store';
+import { rulesApi } from '../api/index.js';
+import { createId } from '../utils/id.js';
+import { nowText } from '../utils/date.js';
+import { useAppStore } from './app.store.js';
 
 export const RULE_INPUT_TABLES = [
   { id: 'table_a', label: '数据表A' },
@@ -260,5 +260,6 @@ export const useRuleStore = defineStore('rule', () => {
     getRuleById
   };
 });
+
 
 

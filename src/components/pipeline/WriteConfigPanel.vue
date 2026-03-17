@@ -87,7 +87,7 @@
 
 <script setup>
 import { computed } from 'vue';
-import { useModelStore } from '../../store/model.store';
+import { useModelStore } from '../../store/model.store.js';
 
 const props = defineProps({
   store: { type: Object, required: true }
@@ -157,3 +157,4 @@ const setMode = (mode) => {
   props.store.writeConfig.mode = mode;
 };
 </script>
+
