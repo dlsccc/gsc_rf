@@ -1,8 +1,8 @@
 ﻿import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
-import { createId } from '../core/utils/id';
-import { nowText } from '../core/utils/date';
-import { standardModelsApi, projectModelsApi } from '../services/api';
+import { createId } from '../utils/id';
+import { nowText } from '../utils/date';
+import { standardModelsApi, projectModelsApi } from '../api';
 import { useAppStore } from './app.store';
 
 const deepClone = (value) => JSON.parse(JSON.stringify(value));
@@ -155,6 +155,20 @@ const toModelSavePayload = ({ entity, modelType, projectCode = '' }) => {
 
 const enableModelApi = String(import.meta.env.VITE_ENABLE_MODEL_API || 'false').toLowerCase() === 'true';
 
+const unwrapApiData = (response) => {
+  if (response && typeof response === 'object' && Object.prototype.hasOwnProperty.call(response, 'data')) {
+    return response.data;
+  }
+  return response;
+};
+
+const unwrapApiList = (response) => {
+  const data = unwrapApiData(response);
+  if (Array.isArray(data?.list)) return data.list;
+  if (Array.isArray(data)) return data;
+  return [];
+};
+
 export const useModelStore = defineStore('model', () => {
   const appStore = useAppStore();
 
@@ -204,8 +218,9 @@ export const useModelStore = defineStore('model', () => {
     if (!enableModelApi) return;
 
     try {
-      const list = await standardModelsApi.list();
-      if (Array.isArray(list) && list.length > 0) {
+      const response = await standardModelsApi.list({ modelType: 'base' });
+      const list = unwrapApiList(response);
+      if (list.length > 0) {
         standardModels.value = list.map((item) => normalizeStandardModel(item));
       }
     } catch {
@@ -217,8 +232,9 @@ export const useModelStore = defineStore('model', () => {
     if (enableModelApi) {
       try {
         const projectCode = resolveCurrentProjectCode();
-        const list = await projectModelsApi.list(projectCode);
-        if (Array.isArray(list) && list.length > 0) {
+        const response = await projectModelsApi.list({ modelType: 'business', ...(projectCode ? { projectCode } : {}) });
+        const list = unwrapApiList(response);
+        if (list.length > 0) {
           projectModels.value = list.map((item) => normalizeProjectModel(item, appStore.currentProject, projectCode));
         }
       } catch {
@@ -244,7 +260,8 @@ export const useModelStore = defineStore('model', () => {
     if (!code) return target;
 
     try {
-      const detail = await standardModelsApi.detail(code);
+      const response = await standardModelsApi.detail({ code });
+      const detail = unwrapApiData(response);
       if (!detail) return target;
 
       const merged = normalizeStandardModel({
@@ -271,7 +288,8 @@ export const useModelStore = defineStore('model', () => {
     if (!code) return target;
 
     try {
-      const detail = await projectModelsApi.detail(code);
+      const response = await projectModelsApi.detail({ code });
+      const detail = unwrapApiData(response);
       if (!detail) return target;
 
       const merged = normalizeProjectModel({
@@ -314,7 +332,7 @@ export const useModelStore = defineStore('model', () => {
     model.updateTime = nowText();
 
     try {
-      await standardModelsApi.publish(resolveModelCode(model) || model.id);
+      await standardModelsApi.save(toModelSavePayload({ entity: { ...model, status: 'active' }, modelType: 'base' }));
     } catch {
       // backend unavailable
     }
@@ -326,7 +344,7 @@ export const useModelStore = defineStore('model', () => {
 
     if (enableModelApi) {
       try {
-        await standardModelsApi.remove(resolveModelCode(target || { id }));
+        await standardModelsApi.remove({ modelCodeList: [resolveModelCode(target || { id })].filter(Boolean) });
       } catch {
         // backend unavailable
       }
@@ -374,7 +392,7 @@ export const useModelStore = defineStore('model', () => {
 
     if (enableModelApi) {
       try {
-        await projectModelsApi.remove(resolveCurrentProjectCode(), resolveModelCode(target || { id }));
+        await projectModelsApi.remove({ modelCodeList: [resolveModelCode(target || { id })].filter(Boolean) });
       } catch {
         // backend unavailable
       }
@@ -400,3 +418,6 @@ export const useModelStore = defineStore('model', () => {
     getProjectModelById
   };
 });
+
+
+

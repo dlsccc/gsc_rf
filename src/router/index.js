@@ -1,5 +1,5 @@
 ﻿import { createRouter, createWebHistory } from 'vue-router';
-import AppLayout from '../layouts/AppLayout.vue';
+import AppLayout from '../views/layouts/AppLayout.vue';
 
 const router = createRouter({
   history: createWebHistory(),
@@ -34,3 +34,4 @@ const router = createRouter({
 });
 
 export default router;
+

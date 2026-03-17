@@ -160,8 +160,8 @@
 <script setup>
 import { computed, onMounted, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useAppStore } from '../../stores/app.store';
-import { useModelStore } from '../../stores/model.store';
+import { useAppStore } from '../../store/app.store';
+import { useModelStore } from '../../store/model.store';
 
 const vendorOptions = ['华为', '中兴', '其他'];
 const standardOptions = ['4G', '5G'];
@@ -311,4 +311,5 @@ const save = async (status) => {
 const saveProjectModel = () => save('draft');
 const publishProjectModel = () => save('active');
 </script>
+
 

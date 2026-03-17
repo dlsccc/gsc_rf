@@ -1,6 +1,6 @@
 ﻿import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
-import { ROLES, ROLE_LABEL } from '../core/enums/roles';
+import { ROLES, ROLE_LABEL } from '../utils/roles';
 
 export const useAppStore = defineStore('app', () => {
   const currentRole = ref(null);
@@ -38,3 +38,4 @@ export const useAppStore = defineStore('app', () => {
     setProject
   };
 });
+

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section>
     <div class="summary-grid">
       <div class="summary-card">
@@ -87,7 +87,7 @@
 
 <script setup>
 import { computed } from 'vue';
-import { useModelStore } from '../../stores/model.store';
+import { useModelStore } from '../../store/model.store';
 
 const props = defineProps({
   store: { type: Object, required: true }

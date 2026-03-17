@@ -1,20 +1,20 @@
-<template>
+﻿<template>
   <div style="margin-top: 64px; height: calc(100vh - 64px); display: flex; flex-direction: column;">
     <div class="main-container">
       <main class="content">
         <div class="content-card">
           <div class="card-header">
-            <div class="card-title">入湖规则设计</div>
+            <div class="card-title">鍏ユ箹瑙勫垯璁捐</div>
             <div class="toolbar">
-              <button class="btn btn-default" @click="router.push('/designer')">返回</button>
-              <button class="btn btn-default" @click="pipelineStore.resetPipeline">重置</button>
+              <button class="btn btn-default" @click="router.push('/designer')">杩斿洖</button>
+              <button class="btn btn-default" @click="pipelineStore.resetPipeline">閲嶇疆</button>
             </div>
           </div>
           <div class="card-body">
             <div class="form-group" style="max-width: 420px; margin-bottom: 16px;">
-              <label class="form-label">目标项目模型</label>
+              <label class="form-label">鐩爣椤圭洰妯″瀷</label>
               <select class="form-select" :value="pipelineStore.selectedModelId" @change="pipelineStore.setModel($event.target.value)">
-                <option value="">请选择模型</option>
+                <option value="">璇烽€夋嫨妯″瀷</option>
                 <option v-for="item in modelStore.projectModels" :key="item.id" :value="item.id">{{ item.name }}</option>
               </select>
             </div>
@@ -25,8 +25,8 @@
             <WriteConfigPanel v-else :store="pipelineStore" @execute="executeJob" />
 
             <div class="model-edit-actions" style="margin-top: 12px;">
-              <button class="btn btn-default" @click="pipelineStore.prevStep" :disabled="pipelineStore.currentStep === 0">上一步</button>
-              <button class="btn btn-primary" @click="pipelineStore.nextStep" :disabled="!pipelineStore.canProceed || pipelineStore.currentStep === pipelineStore.steps.length - 1">下一步</button>
+              <button class="btn btn-default" @click="pipelineStore.prevStep" :disabled="pipelineStore.currentStep === 0">涓婁竴姝?/button>
+              <button class="btn btn-primary" @click="pipelineStore.nextStep" :disabled="!pipelineStore.canProceed || pipelineStore.currentStep === pipelineStore.steps.length - 1">涓嬩竴姝?/button>
             </div>
           </div>
         </div>
@@ -38,10 +38,10 @@
 <script setup>
 import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { pipelineApi } from '../../services/api';
-import { useAppStore } from '../../stores/app.store';
-import { useModelStore } from '../../stores/model.store';
-import { usePipelineStore } from '../../stores/pipeline.store';
+import { pipelineApi } from '../../api';
+import { useAppStore } from '../../store/app.store';
+import { useModelStore } from '../../store/model.store';
+import { usePipelineStore } from '../../store/pipeline.store';
 import FileUploadPanel from '../../components/pipeline/FileUploadPanel.vue';
 import FieldMappingPanel from '../../components/pipeline/FieldMappingPanel.vue';
 import ProcessPanel from '../../components/pipeline/ProcessPanel.vue';
@@ -65,8 +65,8 @@ const executeJob = async () => {
   try {
     await pipelineApi.execute(payload);
   } catch {
-    // 后端未接入时仍返回本地执行反馈。
-  }
+    // 鍚庣鏈帴鍏ユ椂浠嶈繑鍥炴湰鍦版墽琛屽弽棣堛€?  }
   pipelineStore.markExecuted();
 };
 </script>
+

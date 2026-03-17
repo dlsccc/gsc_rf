@@ -92,3 +92,8 @@ httpClient.interceptors.response.use(
 );
 
 export default httpClient;
+
+export const get = (url, config = {}) => httpClient.get(url, config);
+export const post = (url, data = {}, config = {}) => httpClient.post(url, data, config);
+export { httpClient };
+

@@ -147,8 +147,8 @@
 <script setup>
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAppStore } from '../../stores/app.store';
-import { RULE_INPUT_TABLES, normalizeRuleInputTables, useRuleStore } from '../../stores/rule.store';
+import { useAppStore } from '../../store/app.store';
+import { RULE_INPUT_TABLES, normalizeRuleInputTables, useRuleStore } from '../../store/rule.store';
 
 const router = useRouter();
 const appStore = useAppStore();
@@ -426,3 +426,4 @@ onMounted(async () => {
   await ruleStore.loadRules();
 });
 </script>
+

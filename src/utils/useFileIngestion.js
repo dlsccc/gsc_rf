@@ -1,5 +1,5 @@
 ﻿import * as XLSX from 'xlsx';
-import { createId } from '../core/utils/id';
+import { createId } from '../utils/id';
 
 const normalizeRows = (rows) => {
   return rows.map((row) => {
@@ -51,3 +51,4 @@ export const parseLocalFiles = async (fileList) => {
   const tasks = files.map((file, index) => parseLocalFile(file, index === 0 ? 'table_a' : 'table_b'));
   return Promise.all(tasks);
 };
+

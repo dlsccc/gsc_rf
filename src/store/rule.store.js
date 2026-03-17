@@ -1,8 +1,8 @@
 ﻿import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
-import { rulesApi } from '../services/api';
-import { createId } from '../core/utils/id';
-import { nowText } from '../core/utils/date';
+import { rulesApi } from '../api';
+import { createId } from '../utils/id';
+import { nowText } from '../utils/date';
 import { useAppStore } from './app.store';
 
 export const RULE_INPUT_TABLES = [
@@ -11,6 +11,20 @@ export const RULE_INPUT_TABLES = [
 ];
 
 const toText = (value) => String(value ?? '').trim();
+
+const unwrapApiData = (response) => {
+  if (response && typeof response === 'object' && Object.prototype.hasOwnProperty.call(response, 'data')) {
+    return response.data;
+  }
+  return response;
+};
+
+const unwrapApiList = (response) => {
+  const data = unwrapApiData(response);
+  if (Array.isArray(data?.list)) return data.list;
+  if (Array.isArray(data)) return data;
+  return [];
+};
 
 export const normalizeRuleInputTables = (rule) => {
   if (!rule || !Array.isArray(rule.inputTables) || rule.inputTables.length === 0) {
@@ -161,8 +175,8 @@ export const useRuleStore = defineStore('rule', () => {
   const loadRules = async () => {
     loading.value = true;
     try {
-      const page = await rulesApi.list({ pageNum: 1, pageSize: 200 });
-      const list = Array.isArray(page?.list) ? page.list : (Array.isArray(page) ? page : []);
+      const response = await rulesApi.list({ pageNum: 1, pageSize: 200 });
+      const list = unwrapApiList(response);
       if (list.length > 0) {
         rules.value = list.map((item) => mapApiRuleToEntity(item, appStore.currentProject));
       }
@@ -212,7 +226,7 @@ export const useRuleStore = defineStore('rule', () => {
       throw new Error('规则编码为空，无法发布');
     }
 
-    await rulesApi.publish(ruleCode);
+    await rulesApi.publish({ ruleCode });
 
     if (target) {
       target.status = 'active';
@@ -223,7 +237,7 @@ export const useRuleStore = defineStore('rule', () => {
   const deleteRule = async (id) => {
     rules.value = rules.value.filter((item) => String(item.id) !== String(id));
     try {
-      await rulesApi.remove(appStore.currentProject, id);
+      await rulesApi.remove(id);
     } catch {
       // 后端未接入时忽略错误。
     }
@@ -246,3 +260,5 @@ export const useRuleStore = defineStore('rule', () => {
     getRuleById
   };
 });
+
+

@@ -597,8 +597,8 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
-import { DEDUP_KEEP, SORT_ORDER, TRANSFORM_TYPES } from '../../core/constants/pipeline';
-import { useModelStore } from '../../stores/model.store';
+import { DEDUP_KEEP, SORT_ORDER, TRANSFORM_TYPES } from '../../utils/constants/pipeline';
+import { useModelStore } from '../../store/model.store';
 
 const props = defineProps({
   store: { type: Object, required: true }
@@ -1741,4 +1741,5 @@ onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside);
 });
 </script>
+
 

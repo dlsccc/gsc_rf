@@ -1,8 +1,8 @@
-import { computed, reactive, ref } from 'vue';
+锘縤mport { computed, reactive, ref } from 'vue';
 import { defineStore } from 'pinia';
-import { PIPELINE_STEPS, SORT_ORDER, DEDUP_KEEP, JOIN_TYPES } from '../core/constants/pipeline';
-import { buildPreviewRows, buildProcessedRows } from '../composables/useDataPipeline';
-import { parseLocalFile } from '../composables/useFileIngestion';
+import { PIPELINE_STEPS, SORT_ORDER, DEDUP_KEEP, JOIN_TYPES } from '../utils/constants/pipeline';
+import { buildPreviewRows, buildProcessedRows } from '../utils/useDataPipeline';
+import { parseLocalFile } from '../utils/useFileIngestion';
 import { useModelStore } from './model.store';
 
 export const usePipelineStore = defineStore('pipeline', () => {
@@ -261,7 +261,7 @@ export const usePipelineStore = defineStore('pipeline', () => {
 
   const markExecuted = () => {
     const count = executeCount.value || processedRows.value.length;
-    executionMessage.value = `执行完成，共 ${count} 条数据`;
+    executionMessage.value = `鎵ц瀹屾垚锛屽叡 ${count} 鏉℃暟鎹甡;
   };
 
   const setExecuteCount = (count) => {
@@ -333,5 +333,6 @@ export const usePipelineStore = defineStore('pipeline', () => {
     resetPipeline
   };
 });
+
 
 

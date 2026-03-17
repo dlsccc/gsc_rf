@@ -107,8 +107,8 @@
 <script setup>
 import { computed, onMounted, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useModelStore } from '../../stores/model.store';
-import { useAppStore } from '../../stores/app.store';
+import { useModelStore } from '../../store/model.store';
+import { useAppStore } from '../../store/app.store';
 
 const emptyField = () => ({ name: '', type: '', format: '', isDimension: false, description: '', example: '' });
 const emptyModel = () => ({ id: '', name: '', description: '', status: 'draft', fields: [emptyField()] });
@@ -196,3 +196,4 @@ const saveModel = async () => {
   router.push('/owner/standard-models');
 };
 </script>
+

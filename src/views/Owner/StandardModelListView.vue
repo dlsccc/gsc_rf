@@ -66,8 +66,8 @@
 <script setup>
 import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAppStore } from '../../stores/app.store';
-import { useModelStore } from '../../stores/model.store';
+import { useAppStore } from '../../store/app.store';
+import { useModelStore } from '../../store/model.store';
 
 const router = useRouter();
 const appStore = useAppStore();
@@ -85,3 +85,4 @@ const remove = async (id) => {
   await modelStore.deleteStandardModel(id);
 };
 </script>
+

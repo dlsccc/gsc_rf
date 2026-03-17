@@ -1,4 +1,4 @@
-import httpClient from '../../http/client';
+﻿import httpClient from '../axio';
 
 export const pipelineApi = {
   upload(file) {
@@ -19,3 +19,4 @@ export const pipelineApi = {
     return httpClient.post('/pipeline/execute', payload);
   }
 };
+

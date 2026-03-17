@@ -45,7 +45,7 @@
 
 <script setup>
 import { useRouter } from 'vue-router';
-import { useAppStore } from '../stores/app.store';
+import { useAppStore } from '../store/app.store';
 
 const router = useRouter();
 const appStore = useAppStore();
@@ -55,3 +55,4 @@ const go = (path, role) => {
   router.push(path);
 };
 </script>
+
