@@ -125,15 +125,15 @@
 <script setup>
 import { computed, onMounted, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { buildPipelineDsl, downloadDslFile } from '../../utils/pipeline-dsl.js';
-import { useAppStore } from '../../store/app.store.js';
-import { useModelStore } from '../../store/model.store.js';
-import { usePipelineStore } from '../../store/pipeline.store.js';
-import { RULE_INPUT_TABLES, useRuleStore } from '../../store/rule.store.js';
-import FileUploadPanel from '../../components/pipeline/FileUploadPanel.vue';
-import FieldMappingPanel from '../../components/pipeline/FieldMappingPanel.vue';
-import ProcessPanel from '../../components/pipeline/ProcessPanel.vue';
-import WriteConfigPanel from '../../components/pipeline/WriteConfigPanel.vue';
+import { buildPipelineDsl, downloadDslFile } from '@/utils/pipeline-dsl.js';
+import { useAppStore } from '@/store/app.store.js';
+import { useModelStore } from '@/store/model.store.js';
+import { usePipelineStore } from '@/store/pipeline.store.js';
+import { RULE_INPUT_TABLES, useRuleStore } from '@/store/rule.store.js';
+import FileUploadPanel from '@/components/pipeline/FileUploadPanel.vue';
+import FieldMappingPanel from '@/components/pipeline/FieldMappingPanel.vue';
+import ProcessPanel from '@/components/pipeline/ProcessPanel.vue';
+import WriteConfigPanel from '@/components/pipeline/WriteConfigPanel.vue';
 
 const route = useRoute();
 const router = useRouter();

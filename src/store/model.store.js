@@ -1,9 +1,9 @@
 ﻿import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
-import { createId } from '../utils/id.js';
-import { nowText } from '../utils/date.js';
-import { standardModelsApi, projectModelsApi } from '../api/index.js';
-import { useAppStore } from './app.store.js';
+import { createId } from '@/utils/id.js';
+import { nowText } from '@/utils/date.js';
+import { standardModelsApi, projectModelsApi } from '@/api/index.js';
+import { useAppStore } from '@/store/app.store.js';
 
 const deepClone = (value) => JSON.parse(JSON.stringify(value));
 const toText = (value) => String(value ?? '').trim();

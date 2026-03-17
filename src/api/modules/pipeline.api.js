@@ -1,5 +1,5 @@
-﻿import { post } from '../../utils/axios.js';
-import baseUrl from '../base-url.js';
+﻿import { post } from '@/utils/axios.js';
+import baseUrl from '@/api/base-url.js';
 
 export const apiPipelineService = {
   upload: (params, config) => post(`${baseUrl.pipeline}/pipeline/upload`, params, config),

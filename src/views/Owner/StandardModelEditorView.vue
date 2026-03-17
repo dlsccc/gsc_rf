@@ -107,8 +107,8 @@
 <script setup>
 import { computed, onMounted, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useModelStore } from '../../store/model.store.js';
-import { useAppStore } from '../../store/app.store.js';
+import { useModelStore } from '@/store/model.store.js';
+import { useAppStore } from '@/store/app.store.js';
 
 const emptyField = () => ({ name: '', type: '', format: '', isDimension: false, description: '', example: '' });
 const emptyModel = () => ({ id: '', name: '', description: '', status: 'draft', fields: [emptyField()] });

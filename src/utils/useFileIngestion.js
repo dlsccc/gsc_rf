@@ -1,5 +1,5 @@
 ﻿import * as XLSX from 'xlsx';
-import { createId } from '../utils/id.js';
+import { createId } from '@/utils/id.js';
 
 const normalizeRows = (rows) => {
   return rows.map((row) => {

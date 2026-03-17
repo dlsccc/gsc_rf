@@ -31,8 +31,8 @@
 <script setup>
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useAppStore } from '../../store/app.store.js';
-import { usePipelineStore } from '../../store/pipeline.store.js';
+import { useAppStore } from '@/store/app.store.js';
+import { usePipelineStore } from '@/store/pipeline.store.js';
 
 const router = useRouter();
 const route = useRoute();

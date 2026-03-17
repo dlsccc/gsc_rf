@@ -1,5 +1,5 @@
-﻿import { post } from '../../utils/axios.js';
-import baseUrl from '../base-url.js';
+﻿import { post } from '@/utils/axios.js';
+import baseUrl from '@/api/base-url.js';
 
 export const apiProjectModelsService = {
   list: (params, config) => post(`${baseUrl.dataSmart}/v1/dataSmart/model/queryModel`, params, config),

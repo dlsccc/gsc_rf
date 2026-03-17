@@ -87,7 +87,7 @@
 
 <script setup>
 import { computed } from 'vue';
-import { useModelStore } from '../../store/model.store.js';
+import { useModelStore } from '@/store/model.store.js';
 
 const props = defineProps({
   store: { type: Object, required: true }

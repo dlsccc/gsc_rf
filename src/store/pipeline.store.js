@@ -1,9 +1,9 @@
 ﻿import { computed, reactive, ref } from 'vue';
 import { defineStore } from 'pinia';
-import { PIPELINE_STEPS, SORT_ORDER, DEDUP_KEEP, JOIN_TYPES } from '../utils/constants/pipeline.js';
-import { buildPreviewRows, buildProcessedRows } from '../utils/useDataPipeline.js';
-import { parseLocalFile } from '../utils/useFileIngestion.js';
-import { useModelStore } from './model.store.js';
+import { PIPELINE_STEPS, SORT_ORDER, DEDUP_KEEP, JOIN_TYPES } from '@/utils/constants/pipeline.js';
+import { buildPreviewRows, buildProcessedRows } from '@/utils/useDataPipeline.js';
+import { parseLocalFile } from '@/utils/useFileIngestion.js';
+import { useModelStore } from '@/store/model.store.js';
 
 export const usePipelineStore = defineStore('pipeline', () => {
   const modelStore = useModelStore();

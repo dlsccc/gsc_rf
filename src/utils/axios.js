@@ -1,4 +1,4 @@
-﻿import httpClient from '../api/axio.js';
+﻿import httpClient from '@/api/axio.js';
 
 export const get = (url, params = {}, config = {}) => {
   return httpClient.get(url, {

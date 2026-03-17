@@ -45,7 +45,7 @@
 
 <script setup>
 import { useRouter } from 'vue-router';
-import { useAppStore } from '../store/app.store.js';
+import { useAppStore } from '@/store/app.store.js';
 
 const router = useRouter();
 const appStore = useAppStore();

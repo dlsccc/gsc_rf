@@ -1,5 +1,5 @@
-﻿import { get, post, del } from '../../utils/axios.js';
-import baseUrl from '../base-url.js';
+﻿import { get, post, del } from '@/utils/axios.js';
+import baseUrl from '@/api/base-url.js';
 
 export const apiRulesService = {
   list: (params, config) => get(`${baseUrl.projectDesign}/v1/projectDesign/datalake/getList`, params, config),

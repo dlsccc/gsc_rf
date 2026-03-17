@@ -160,8 +160,8 @@
 <script setup>
 import { computed, onMounted, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useAppStore } from '../../store/app.store.js';
-import { useModelStore } from '../../store/model.store.js';
+import { useAppStore } from '@/store/app.store.js';
+import { useModelStore } from '@/store/model.store.js';
 
 const vendorOptions = ['华为', '中兴', '其他'];
 const standardOptions = ['4G', '5G'];
