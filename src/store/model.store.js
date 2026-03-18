@@ -136,10 +136,11 @@ const toFieldListPayload = (fields = [], modelCode = '') => {
 };
 
 const toModelSavePayload = ({ entity, modelType, projectCode = '' }) => {
-  const modelCode = toText(entity.code || entity.modelCode);
+  // 后端约定：新建模型 code 为空，编辑模型 code 为已有编码
+  const modelCode = toText(entity.code);
 
   return {
-    ...(modelCode ? { code: modelCode } : {}),
+    code: modelCode,
     modelName: toText(entity.name),
     modelDesc: toText(entity.description),
     modelType,
@@ -396,7 +397,6 @@ export const useModelStore = defineStore('model', () => {
     getProjectModelById
   };
 });
-
 
 
 
