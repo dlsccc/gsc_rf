@@ -27,7 +27,11 @@ export default defineConfig({
     ]
   },
   server: {
+    disableHostCheck: true,
+    allowedHosts:['itsc-fs80-dev.sd.huawei.com'],
+    open: false,
     port: 5173,
-    open: true
+    host:'localhost.huawei.com',
+    hot: true,
   }
 });
