@@ -56,7 +56,7 @@ npm run dev
 当前项目已改为固定配置，不再读取 `.env.example`：
 
 - axios `baseURL`：`/api`
-- 模型接口开关：`false`（使用内置 mock 模型数据）
+- 模型接口：始终尝试调用后端，失败时回退本地数据
 - 请求日志开关：`true`
 
 ## Join 连接方式
@@ -74,5 +74,6 @@ npm run dev
 当前 DSL 已移除 `mapping_config`，并且在 `data_processing` 中不再显式提供 mapping 节点；映射关系由 `rule_input -> rule_output` 隐式表达。
 
 完整参数模板见：`dsl_full_parameters.json`。
+
 
 

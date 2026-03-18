@@ -153,8 +153,6 @@ const toModelSavePayload = ({ entity, modelType, projectCode = '' }) => {
   };
 };
 
-const enableModelApi = false;
-
 const unwrapApiData = (response) => {
   if (response && typeof response === 'object' && Object.prototype.hasOwnProperty.call(response, 'data')) {
     return response.data;
@@ -215,8 +213,6 @@ export const useModelStore = defineStore('model', () => {
   };
 
   const loadStandardModels = async () => {
-    if (!enableModelApi) return;
-
     try {
       const response = await standardModelsApi.list({ modelType: 'base' });
       const list = unwrapApiList(response);
@@ -229,17 +225,15 @@ export const useModelStore = defineStore('model', () => {
   };
 
   const loadProjectModels = async () => {
-    if (enableModelApi) {
-      try {
-        const projectCode = resolveCurrentProjectCode();
-        const response = await projectModelsApi.list({ modelType: 'business', ...(projectCode ? { projectCode } : {}) });
-        const list = unwrapApiList(response);
-        if (list.length > 0) {
-          projectModels.value = list.map((item) => normalizeProjectModel(item, appStore.currentProject, projectCode));
-        }
-      } catch {
-        // fallback to local mock
+    try {
+      const projectCode = resolveCurrentProjectCode();
+      const response = await projectModelsApi.list({ modelType: 'business', ...(projectCode ? { projectCode } : {}) });
+      const list = unwrapApiList(response);
+      if (list.length > 0) {
+        projectModels.value = list.map((item) => normalizeProjectModel(item, appStore.currentProject, projectCode));
       }
+    } catch {
+      // fallback to local mock
     }
 
     const available = projectModels.value.filter((item) => Number(item.projectId) === Number(appStore.currentProject));
@@ -251,10 +245,6 @@ export const useModelStore = defineStore('model', () => {
   const loadStandardModelDetail = async (modelCodeOrId) => {
     const target = getStandardModelById(modelCodeOrId);
     if (!target) return null;
-
-    if (!enableModelApi) {
-      return target;
-    }
 
     const code = resolveModelCode(target) || toText(modelCodeOrId);
     if (!code) return target;
@@ -279,10 +269,6 @@ export const useModelStore = defineStore('model', () => {
   const loadProjectModelDetail = async (modelCodeOrId) => {
     const target = getProjectModelById(modelCodeOrId);
     if (!target) return null;
-
-    if (!enableModelApi) {
-      return target;
-    }
 
     const code = resolveModelCode(target) || toText(modelCodeOrId);
     if (!code) return target;
@@ -313,12 +299,10 @@ export const useModelStore = defineStore('model', () => {
 
     upsertLocalStandard(entity);
 
-    if (enableModelApi) {
-      try {
-        await standardModelsApi.save(toModelSavePayload({ entity, modelType: 'base' }));
-      } catch {
-        // backend unavailable
-      }
+    try {
+      await standardModelsApi.save(toModelSavePayload({ entity, modelType: 'base' }));
+    } catch {
+      // backend unavailable
     }
 
     return entity;
@@ -342,12 +326,10 @@ export const useModelStore = defineStore('model', () => {
     const target = getStandardModelById(id);
     standardModels.value = standardModels.value.filter((item) => String(item.id) !== String(id));
 
-    if (enableModelApi) {
-      try {
-        await standardModelsApi.remove({ modelCodeList: [resolveModelCode(target || { id })].filter(Boolean) });
-      } catch {
-        // backend unavailable
-      }
+    try {
+      await standardModelsApi.remove({ modelCodeList: [resolveModelCode(target || { id })].filter(Boolean) });
+    } catch {
+      // backend unavailable
     }
   };
 
@@ -366,16 +348,14 @@ export const useModelStore = defineStore('model', () => {
       selectedProjectModelId.value = entity.id;
     }
 
-    if (enableModelApi) {
-      try {
-        await projectModelsApi.save(toModelSavePayload({
-          entity,
-          modelType: 'business',
-          projectCode: entity.projectCode || resolveCurrentProjectCode()
-        }));
-      } catch {
-        // backend unavailable
-      }
+    try {
+      await projectModelsApi.save(toModelSavePayload({
+        entity,
+        modelType: 'business',
+        projectCode: entity.projectCode || resolveCurrentProjectCode()
+      }));
+    } catch {
+      // backend unavailable
     }
 
     return entity;
@@ -390,12 +370,10 @@ export const useModelStore = defineStore('model', () => {
       selectedProjectModelId.value = available[0]?.id || '';
     }
 
-    if (enableModelApi) {
-      try {
-        await projectModelsApi.remove({ modelCodeList: [resolveModelCode(target || { id })].filter(Boolean) });
-      } catch {
-        // backend unavailable
-      }
+    try {
+      await projectModelsApi.remove({ modelCodeList: [resolveModelCode(target || { id })].filter(Boolean) });
+    } catch {
+      // backend unavailable
     }
   };
 
