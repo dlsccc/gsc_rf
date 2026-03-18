@@ -2,13 +2,14 @@
 import AppLayout from '@/views/layouts/AppLayout.vue';
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHashHistory(),
   routes: [
     {
       path: '/',
       component: AppLayout,
       children: [
-        { path: '', name: 'entrance', component: () => import('@/views/EntranceView.vue') },
+        { path: '', redirect: 'entrance' },
+        { path: 'entrance', name: 'entrance', component: () => import('@/views/EntranceView.vue') },
         { path: 'owner', name: 'owner-home', component: () => import('@/views/Owner/OwnerHomeView.vue') },
         { path: 'owner/standard-models', name: 'standard-model-list', component: () => import('@/views/Owner/StandardModelListView.vue') },
         { path: 'owner/standard-models/new', name: 'standard-model-new', component: () => import('@/views/Owner/StandardModelEditorView.vue') },

@@ -153,7 +153,7 @@ const toModelSavePayload = ({ entity, modelType, projectCode = '' }) => {
   };
 };
 
-const enableModelApi = String(import.meta.env.VITE_ENABLE_MODEL_API || 'false').toLowerCase() === 'true';
+const enableModelApi = false;
 
 const unwrapApiData = (response) => {
   if (response && typeof response === 'object' && Object.prototype.hasOwnProperty.call(response, 'data')) {
@@ -183,7 +183,7 @@ export const useModelStore = defineStore('model', () => {
   const targetFields = computed(() => selectedProjectModel.value?.fields || []);
 
   const resolveCurrentProjectCode = () => {
-    return toText(appStore.currentProjectCode || appStore.currentProject || import.meta.env.VITE_PROJECT_CODE || '');
+    return toText(appStore.currentProjectCode || appStore.currentProject || '');
   };
 
   const upsertLocalStandard = (model) => {

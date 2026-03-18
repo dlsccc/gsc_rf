@@ -1,6 +1,6 @@
 ﻿import axios from 'axios';
 
-const enableHttpDebug = String(import.meta.env.VITE_HTTP_DEBUG || 'true').toLowerCase() === 'true';
+const enableHttpDebug = true;
 
 const normalizeValue = (value) => {
   if (value instanceof FormData) {
@@ -26,7 +26,7 @@ const pushHttpLog = (entry) => {
 };
 
 const httpClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+  baseURL: '/api',
   timeout: 15000
 });
 

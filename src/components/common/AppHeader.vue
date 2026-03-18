@@ -50,7 +50,7 @@ const currentUserInitial = computed(() => {
 });
 
 const goToEntrance = () => {
-  router.push('/');
+  router.push({name:'entrance'});
 };
 </script>
 

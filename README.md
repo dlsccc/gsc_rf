@@ -51,14 +51,13 @@ npm run dev
 
 日志里包含：method、url、params、body、status、response。
 
-## 环境变量
+## 固定配置
 
-可参考 `.env.example`：
+当前项目已改为固定配置，不再读取 `.env.example`：
 
-- `VITE_API_BASE_URL`：后端基础地址。
-- `VITE_ENABLE_MODEL_API`：是否启用后端模型接口（`true/false`）。
-- `VITE_PROJECT_CODE`：项目模型查询时可选项目编码。
-- `VITE_HTTP_DEBUG`：是否输出请求日志（`true/false`）。
+- axios `baseURL`：`/api`
+- 模型接口开关：`false`（使用内置 mock 模型数据）
+- 请求日志开关：`true`
 
 ## Join 连接方式
 
@@ -75,3 +74,5 @@ npm run dev
 当前 DSL 已移除 `mapping_config`，并且在 `data_processing` 中不再显式提供 mapping 节点；映射关系由 `rule_input -> rule_output` 隐式表达。
 
 完整参数模板见：`dsl_full_parameters.json`。
+
+
