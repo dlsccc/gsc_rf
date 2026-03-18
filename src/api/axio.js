@@ -26,7 +26,6 @@ const pushHttpLog = (entry) => {
 };
 
 const httpClient = axios.create({
-  baseURL: '/api',
   timeout: 15000
 });
 
