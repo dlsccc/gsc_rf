@@ -1,6 +1,8 @@
 ﻿import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 const path = require('path');
+import requireTransform from 'vite-plugin-require-transform';
+import commonjs from '@rollup/plugin-commonjs';
 
 export default defineConfig({
   experimental: {
@@ -17,21 +19,44 @@ export default defineConfig({
       }
     },
   },
-  plugins: [vue()],
+  plugins: [
+    commonjs(),
+    vue(),
+    requireTransform({
+      fileRegex: /.js$|.vue$/,
+    }),
+  ],
+  css: {
+    preprocessorOptions: {
+      less: {
+        additionalData: '@import "@hw-itsc/common/src/style/less-varables.less";', // 引入多个文件以；分割
+        javascriptEnabled: true,
+      },
+    },
+  },
   resolve: {
     alias: [
       {
         find: '@',
         replacement: path.resolve(__dirname, './src'),
       },
+      {
+        find: '@hw-itsc/common',
+        replacement: path.resolve(__dirname, './node_modules/@hw-itsc/common/'),
+      },
     ]
   },
   server: {
     disableHostCheck: true,
-    allowedHosts:['itsc-fs80-dev.sd.huawei.com'],
+    allowedHosts: ['itsc-fs80-dev.sd.huawei.com'],
     open: false,
     port: 5173,
-    host:'localhost.huawei.com',
+    host: 'localhost.huawei.com',
     hot: true,
+    hmr: {
+      host: 'localhost',
+      protocol: 'ws',
+      port: 5173,
+    },
   }
 });
