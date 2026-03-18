@@ -1,9 +1,9 @@
-﻿const trimSlash = (value = '') => String(value || '').replace(/\/$/, '');
+const BASE_PREFIX = '/itsc/datatransformerservice';
 
 const baseUrl = {
-  dataSmart: trimSlash(''),
-  projectDesign: trimSlash(''),
-  pipeline: trimSlash('')
+  dataSmart: BASE_PREFIX,
+  projectDesign: BASE_PREFIX,
+  pipeline: BASE_PREFIX
 };
 
 export default baseUrl;
