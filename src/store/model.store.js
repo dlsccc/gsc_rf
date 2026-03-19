@@ -300,7 +300,10 @@ export const useModelStore = defineStore('model', () => {
     standardModels.value = standardModels.value.filter((item) => String(item.id) !== String(id));
 
     try {
-      await standardModelsApi.remove({ modelCodeList: [resolveModelCode(target || { id })].filter(Boolean) });
+      await standardModelsApi.remove({
+        modelCodeList: [resolveModelCode(target || { id })].filter(Boolean),
+        modelType: 'base'
+      });
     } catch {
       // backend unavailable
     }
@@ -344,7 +347,10 @@ export const useModelStore = defineStore('model', () => {
     }
 
     try {
-      await projectModelsApi.remove({ modelCodeList: [resolveModelCode(target || { id })].filter(Boolean) });
+      await projectModelsApi.remove({
+        modelCodeList: [resolveModelCode(target || { id })].filter(Boolean),
+        modelType: 'business'
+      });
     } catch {
       // backend unavailable
     }

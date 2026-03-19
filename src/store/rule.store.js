@@ -11,6 +11,7 @@ export const RULE_INPUT_TABLES = [
 ];
 
 const toText = (value) => String(value ?? '').trim();
+const DEFAULT_CREATE_BY = 'system';
 const toCamelKey = (key) => String(key ?? '').replace(/_([a-zA-Z0-9])/g, (_, char) => char.toUpperCase());
 const isPlainObject = (value) => Object.prototype.toString.call(value) === '[object Object]';
 
@@ -28,6 +29,19 @@ const deepMapObjectKeys = (value, keyMapper) => {
 };
 
 const normalizeRuleJsonForApi = (ruleJson) => deepMapObjectKeys(ruleJson || {}, toCamelKey);
+const normalizeEdmList = (payload = {}) => {
+  if (Array.isArray(payload.edmList)) {
+    return payload.edmList.map((item) => toText(item)).filter(Boolean);
+  }
+
+  if (Array.isArray(payload.uploadedFiles)) {
+    return payload.uploadedFiles
+      .map((file) => toText(file?.edmId || file?.edmID || file?.edmCode || file?.edm))
+      .filter(Boolean);
+  }
+
+  return [];
+};
 
 const unwrapApiData = (response) => {
   if (response && typeof response === 'object' && Object.prototype.hasOwnProperty.call(response, 'data')) {
@@ -164,6 +178,8 @@ const mapApiRuleToEntity = (item = {}, projectId) => {
 const toSaveRulePayload = (entity = {}, payload = {}) => {
   const ruleCode = toText(entity.ruleCode || entity.id);
   const normalizedRuleJson = normalizeRuleJsonForApi(payload.ruleJson || payload.dsl || entity.ruleJson || {});
+  const edmList = normalizeEdmList(payload);
+  const createBy = toText(payload.createBy) || DEFAULT_CREATE_BY;
 
   return {
     ruleId: ruleCode,
@@ -175,7 +191,8 @@ const toSaveRulePayload = (entity = {}, payload = {}) => {
     ruleInput: JSON.stringify((entity.inputTables || []).map((item) => item.id)),
     ruleOutput: toText(entity.targetModel),
     status: toText(entity.status || payload.status || 'draft'),
-    createBy: toText(payload.createBy),
+    createBy,
+    edmList,
     lastUpdatedBy: toText(payload.lastUpdatedBy)
   };
 };

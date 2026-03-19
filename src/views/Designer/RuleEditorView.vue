@@ -266,6 +266,7 @@ const saveRuleEntity = async ({ status = 'draft', dsl = null } = {}) => {
     status,
     targetModel: selectedModel.modelCode || selectedModel.name,
     inputTables: resolveRuleInputTablesForSave(),
+    uploadedFiles: pipelineStore.uploadedFiles,
     projectId: appStore.currentProject,
     ruleJson: nextDsl,
     dsl: nextDsl
