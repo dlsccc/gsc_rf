@@ -1,6 +1,5 @@
-﻿import { defineStore } from 'pinia';
+import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
-import { rulesApi } from '@/api/index.js';
 import { createId } from '@/utils/id.js';
 import { nowText } from '@/utils/date.js';
 import { useAppStore } from '@/store/app.store.js';
@@ -29,6 +28,7 @@ const deepMapObjectKeys = (value, keyMapper) => {
 };
 
 const normalizeRuleJsonForApi = (ruleJson) => deepMapObjectKeys(ruleJson || {}, toCamelKey);
+
 const normalizeEdmList = (payload = {}) => {
   if (Array.isArray(payload.edmList)) {
     return payload.edmList.map((item) => toText(item)).filter(Boolean);
@@ -43,14 +43,14 @@ const normalizeEdmList = (payload = {}) => {
   return [];
 };
 
-const unwrapApiData = (response) => {
+export const unwrapApiData = (response) => {
   if (response && typeof response === 'object' && Object.prototype.hasOwnProperty.call(response, 'data')) {
     return response.data;
   }
   return response;
 };
 
-const unwrapApiList = (response) => {
+export const unwrapApiList = (response) => {
   const data = unwrapApiData(response);
   if (Array.isArray(data?.list)) return data.list;
   if (Array.isArray(data)) return data;
@@ -130,7 +130,7 @@ const defaultRules = [
   }
 ];
 
-const normalizeRule = (rule = {}) => ({
+export const normalizeRule = (rule = {}) => ({
   ...rule,
   id: toText(rule.id || rule.ruleId || rule.ruleCode || createId()),
   ruleCode: toText(rule.ruleCode || rule.ruleId || rule.id),
@@ -138,7 +138,7 @@ const normalizeRule = (rule = {}) => ({
   ruleJson: rule.ruleJson || {}
 });
 
-const mapApiRuleToEntity = (item = {}, projectId) => {
+export const mapApiRuleToEntity = (item = {}, projectId) => {
   const id = toText(item.ruleId || item.id || item.ruleCode || createId());
   const ruleJson = normalizeRuleJsonForApi(item.ruleJson || {});
 
@@ -175,7 +175,7 @@ const mapApiRuleToEntity = (item = {}, projectId) => {
   });
 };
 
-const toSaveRulePayload = (entity = {}, payload = {}) => {
+export const toSaveRulePayload = (entity = {}, payload = {}) => {
   const ruleCode = toText(entity.ruleCode || entity.id);
   const normalizedRuleJson = normalizeRuleJsonForApi(payload.ruleJson || payload.dsl || entity.ruleJson || {});
   const edmList = normalizeEdmList(payload);
@@ -210,33 +210,20 @@ export const useRuleStore = defineStore('rule', () => {
     return [...filteredRules.value].sort((a, b) => (a.updateTime < b.updateTime ? 1 : -1));
   });
 
-  const loadRules = async () => {
-    loading.value = true;
-    try {
-      const response = await rulesApi.list({ pageNum: 1, pageSize: 200 });
-      const list = unwrapApiList(response);
-      if (list.length > 0) {
-        rules.value = list.map((item) => mapApiRuleToEntity(item, appStore.currentProject));
-      }
-    } catch {
-      // 无后端时保留本地样例数据。
-    } finally {
-      loading.value = false;
-    }
+  const setLoading = (value) => {
+    loading.value = !!value;
   };
 
-  const upsertRule = async (payload) => {
+  const setRules = (list = []) => {
+    rules.value = (Array.isArray(list) ? list : []).map((item) => normalizeRule(item));
+  };
+
+  const upsertRuleLocal = (payload = {}) => {
     const entity = normalizeRule({
+      ...payload,
       id: payload.id || payload.ruleCode || payload.ruleId || createId(),
       ruleCode: payload.ruleCode || payload.ruleId || payload.id,
-      name: payload.name,
-      description: payload.description || '',
-      status: payload.status || 'draft',
-      targetModel: payload.targetModel || '',
-      projectId: payload.projectId || appStore.currentProject,
-      inputTables: payload.inputTables,
-      updateTime: nowText(),
-      ruleJson: payload.ruleJson || payload.dsl || payload.ruleJson || {}
+      updateTime: payload.updateTime || nowText()
     });
 
     const index = rules.value.findIndex((item) => String(item.id) === String(entity.id));
@@ -246,39 +233,11 @@ export const useRuleStore = defineStore('rule', () => {
       rules.value.unshift(entity);
     }
 
-    try {
-      await rulesApi.save(toSaveRulePayload(entity, payload));
-    } catch {
-      // 后端未接入时忽略错误。
-    }
-
     return entity;
   };
 
-  const publishRule = async (ruleCodeOrId) => {
-    const key = toText(ruleCodeOrId);
-    const target = rules.value.find((item) => item.ruleCode === key || String(item.id) === key);
-    const ruleCode = toText(target?.ruleCode || target?.id || ruleCodeOrId);
-
-    if (!ruleCode) {
-      throw new Error('规则编码为空，无法发布');
-    }
-
-    await rulesApi.publish({ ruleCode });
-
-    if (target) {
-      target.status = 'active';
-      target.updateTime = nowText();
-    }
-  };
-
-  const deleteRule = async (id) => {
+  const removeRuleById = (id) => {
     rules.value = rules.value.filter((item) => String(item.id) !== String(id));
-    try {
-      await rulesApi.remove({ id: toText(id) });
-    } catch {
-      // 后端未接入时忽略错误。
-    }
   };
 
   const getRuleById = (id) => {
@@ -291,13 +250,10 @@ export const useRuleStore = defineStore('rule', () => {
     loading,
     filteredRules,
     sortedRules,
-    loadRules,
-    upsertRule,
-    publishRule,
-    deleteRule,
+    setLoading,
+    setRules,
+    upsertRuleLocal,
+    removeRuleById,
     getRuleById
   };
 });
-
-
-

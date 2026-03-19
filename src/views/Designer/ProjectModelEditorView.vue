@@ -160,8 +160,11 @@
 <script setup>
 import { computed, onMounted, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { projectModelsApi, standardModelsApi } from '@/api/index.js';
+import { nowText } from '@/utils/date.js';
+import { createId } from '@/utils/id.js';
 import { useAppStore } from '@/store/app.store.js';
-import { useModelStore } from '@/store/model.store.js';
+import { normalizeProjectModel, normalizeStandardModel, resolveModelCode, toModelSavePayload, unwrapApiData, unwrapApiList, useModelStore } from '@/store/model.store.js';
 
 const vendorOptions = ['华为', '中兴', '其他'];
 const standardOptions = ['4G', '5G'];
@@ -191,6 +194,57 @@ const editId = computed(() => route.params.id || '');
 const isEdit = computed(() => !!editId.value);
 
 const form = reactive(emptyModel());
+
+const resolveCurrentProjectCode = () => {
+  return String(appStore.currentProjectCode || appStore.currentProject || '').trim();
+};
+
+const loadStandardModels = async () => {
+  try {
+    const response = await standardModelsApi.list({ modelType: 'base' });
+    const list = unwrapApiList(response);
+    if (list.length > 0) {
+      modelStore.setStandardModels(list.map((item) => normalizeStandardModel(item)));
+    }
+  } catch {
+    // 无后端时保留本地状态。
+  }
+};
+
+const loadProjectModels = async () => {
+  try {
+    const projectCode = resolveCurrentProjectCode();
+    const response = await projectModelsApi.list({ modelType: 'business', ...(projectCode ? { projectCode } : {}) });
+    const list = unwrapApiList(response);
+    modelStore.setProjectModels(list.map((item) => normalizeProjectModel(item, appStore.currentProject, projectCode)));
+  } catch {
+    modelStore.setProjectModels([]);
+  }
+};
+
+const loadStandardModelDetail = async (modelCodeOrId) => {
+  const target = modelStore.getStandardModelById(modelCodeOrId);
+  if (!target) return null;
+
+  const code = resolveModelCode(target) || String(modelCodeOrId || '').trim();
+  if (!code) return target;
+
+  try {
+    const response = await standardModelsApi.detail({ code });
+    const detail = unwrapApiData(response);
+    if (!detail) return target;
+
+    const merged = normalizeStandardModel({
+      ...target,
+      ...detail,
+      id: target.id || code
+    });
+    modelStore.upsertStandardModelLocal(merged);
+    return merged;
+  } catch {
+    return target;
+  }
+};
 
 const resolveStandardModel = (value) => {
   const key = String(value ?? '').trim();
@@ -224,8 +278,8 @@ const fillForm = (data) => {
 
 onMounted(async () => {
   appStore.setRole('designer');
-  await modelStore.loadStandardModels();
-  await modelStore.loadProjectModels();
+  await loadStandardModels();
+  await loadProjectModels();
 
   if (isEdit.value) {
     fillForm(modelStore.getProjectModelById(editId.value));
@@ -237,7 +291,7 @@ onMounted(async () => {
 const onRefModelChange = async () => {
   if (!form.refStandardModel) return;
 
-  const detail = await modelStore.loadStandardModelDetail(form.refStandardModel);
+  const detail = await loadStandardModelDetail(form.refStandardModel);
   if (!detail) return;
 
   form.refStandardModel = detail.modelCode || detail.code || form.refStandardModel;
@@ -298,12 +352,26 @@ const save = async (status) => {
     }
   }
 
-  await modelStore.upsertProjectModel({
+  const projectCode = resolveCurrentProjectCode();
+  const entity = modelStore.upsertProjectModelLocal(normalizeProjectModel({
     ...JSON.parse(JSON.stringify(form)),
     ...(isEdit.value ? { code: form.code || form.modelCode || form.id } : {}),
+    id: form.id || form.code || form.modelCode || createId(),
     status,
-    projectId: appStore.currentProject
-  });
+    projectId: appStore.currentProject,
+    projectCode,
+    updateTime: nowText()
+  }, appStore.currentProject, projectCode));
+
+  try {
+    await projectModelsApi.save(toModelSavePayload({
+      entity,
+      modelType: 'business',
+      projectCode: entity.projectCode || projectCode
+    }));
+  } catch {
+    // 无后端时忽略错误。
+  }
 
   router.push('/designer/project-models');
 };
@@ -311,6 +379,3 @@ const save = async (status) => {
 const saveProjectModel = () => save('draft');
 const publishProjectModel = () => save('active');
 </script>
-
-
-

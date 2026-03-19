@@ -147,12 +147,28 @@
 <script setup>
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import { rulesApi } from '@/api/index.js';
 import { useAppStore } from '@/store/app.store.js';
-import { RULE_INPUT_TABLES, normalizeRuleInputTables, useRuleStore } from '@/store/rule.store.js';
+import { RULE_INPUT_TABLES, mapApiRuleToEntity, normalizeRuleInputTables, unwrapApiList, useRuleStore } from '@/store/rule.store.js';
 
 const router = useRouter();
 const appStore = useAppStore();
 const ruleStore = useRuleStore();
+
+const loadRules = async () => {
+  ruleStore.setLoading(true);
+  try {
+    const response = await rulesApi.list({ pageNum: 1, pageSize: 200 });
+    const list = unwrapApiList(response);
+    if (list.length > 0) {
+      ruleStore.setRules(list.map((item) => mapApiRuleToEntity(item, appStore.currentProject)));
+    }
+  } catch {
+    // 无后端时保留本地状态。
+  } finally {
+    ruleStore.setLoading(false);
+  }
+};
 
 const taskFileInput = ref(null);
 const lakeTaskRuns = ref([]);
@@ -194,7 +210,7 @@ watch(
 watch(
   () => appStore.currentProject,
   async () => {
-    await ruleStore.loadRules();
+    await loadRules();
     if (!publishedLakeRules.value.some((item) => String(item.id) === String(lakeTaskDraft.ruleId))) {
       lakeTaskDraft.ruleId = '';
     }
@@ -423,8 +439,9 @@ const executeLakeTask = () => {
 
 onMounted(async () => {
   appStore.setRole('operator');
-  await ruleStore.loadRules();
+  await loadRules();
 });
 </script>
+
 
 

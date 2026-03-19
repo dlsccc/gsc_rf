@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div style="margin-top: 64px; height: calc(100vh - 64px); display: flex; flex-direction: column;">
     <div class="main-container">
       <main class="content">
@@ -38,9 +38,9 @@
 <script setup>
 import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { pipelineApi } from '@/api/index.js';
+import { pipelineApi, projectModelsApi } from '@/api/index.js';
 import { useAppStore } from '@/store/app.store.js';
-import { useModelStore } from '@/store/model.store.js';
+import { normalizeProjectModel, unwrapApiList, useModelStore } from '@/store/model.store.js';
 import { usePipelineStore } from '@/store/pipeline.store.js';
 import FileUploadPanel from '@/components/pipeline/FileUploadPanel.vue';
 import FieldMappingPanel from '@/components/pipeline/FieldMappingPanel.vue';
@@ -52,9 +52,24 @@ const appStore = useAppStore();
 const modelStore = useModelStore();
 const pipelineStore = usePipelineStore();
 
+const resolveCurrentProjectCode = () => {
+  return String(appStore.currentProjectCode || appStore.currentProject || '').trim();
+};
+
+const loadProjectModels = async () => {
+  try {
+    const projectCode = resolveCurrentProjectCode();
+    const response = await projectModelsApi.list({ modelType: 'business', ...(projectCode ? { projectCode } : {}) });
+    const list = unwrapApiList(response);
+    modelStore.setProjectModels(list.map((item) => normalizeProjectModel(item, appStore.currentProject, projectCode)));
+  } catch {
+    modelStore.setProjectModels([]);
+  }
+};
+
 onMounted(async () => {
   appStore.setRole('designer');
-  await modelStore.loadProjectModels();
+  await loadProjectModels();
   if (!pipelineStore.selectedModelId && modelStore.projectModels[0]) {
     pipelineStore.setModel(modelStore.projectModels[0].id);
   }
@@ -65,7 +80,7 @@ const executeJob = async () => {
   try {
     await pipelineApi.execute(payload);
   } catch {
-    // 后端未接入时，保持本地执行反馈。
+    // 后端未接入时，保留本地执行反馈。
   }
   pipelineStore.markExecuted();
 };

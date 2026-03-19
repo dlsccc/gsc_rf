@@ -1,9 +1,7 @@
-﻿import { defineStore } from 'pinia';
+import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import { createId } from '@/utils/id.js';
 import { nowText } from '@/utils/date.js';
-import { standardModelsApi, projectModelsApi } from '@/api/index.js';
-import { useAppStore } from '@/store/app.store.js';
 
 const deepClone = (value) => JSON.parse(JSON.stringify(value));
 const toText = (value) => String(value ?? '').trim();
@@ -60,9 +58,9 @@ const normalizeTags = (model = {}) => ({
   type: model.tags?.type || model.businessModelType || ''
 });
 
-const resolveModelCode = (model = {}) => toText(model.code || model.modelCode || model.id);
+export const resolveModelCode = (model = {}) => toText(model.code || model.modelCode || model.id);
 
-const normalizeStandardModel = (model = {}) => {
+export const normalizeStandardModel = (model = {}) => {
   const code = toText(model.code || model.modelCode);
   const name = toText(model.name || model.modelName || code);
 
@@ -81,7 +79,7 @@ const normalizeStandardModel = (model = {}) => {
   };
 };
 
-const normalizeProjectModel = (model = {}, projectIdFallback = null, projectCodeFallback = '') => {
+export const normalizeProjectModel = (model = {}, projectIdFallback = null, projectCodeFallback = '') => {
   const base = normalizeStandardModel(model);
   const numericProjectId = Number(model.projectId);
   const projectId = Number.isFinite(numericProjectId) ? numericProjectId : (projectIdFallback ?? model.projectId);
@@ -109,8 +107,7 @@ const toFieldListPayload = (fields = [], modelCode = '') => {
   }));
 };
 
-const toModelSavePayload = ({ entity, modelType, projectCode = '' }) => {
-  // 后端约定：新建模型 code 为空，编辑模型 code 为已有编码
+export const toModelSavePayload = ({ entity, modelType, projectCode = '' }) => {
   const modelCode = toText(entity.code);
 
   return {
@@ -128,14 +125,14 @@ const toModelSavePayload = ({ entity, modelType, projectCode = '' }) => {
   };
 };
 
-const unwrapApiData = (response) => {
+export const unwrapApiData = (response) => {
   if (response && typeof response === 'object' && Object.prototype.hasOwnProperty.call(response, 'data')) {
     return response.data;
   }
   return response;
 };
 
-const unwrapApiList = (response) => {
+export const unwrapApiList = (response) => {
   const data = unwrapApiData(response);
   if (Array.isArray(data?.list)) return data.list;
   if (Array.isArray(data)) return data;
@@ -143,8 +140,6 @@ const unwrapApiList = (response) => {
 };
 
 export const useModelStore = defineStore('model', () => {
-  const appStore = useAppStore();
-
   const standardModels = ref(defaultStandardModels.map((item) => normalizeStandardModel(deepClone(item))));
   const projectModels = ref(defaultProjectModels.map((item) => normalizeProjectModel(deepClone(item), item.projectId || 1, toText(item.projectId || 1))));
   const selectedProjectModelId = ref(projectModels.value[0]?.id || '');
@@ -155,26 +150,60 @@ export const useModelStore = defineStore('model', () => {
 
   const targetFields = computed(() => selectedProjectModel.value?.fields || []);
 
-  const resolveCurrentProjectCode = () => {
-    return toText(appStore.currentProjectCode || appStore.currentProject || '');
+  const ensureSelectedProjectModel = () => {
+    if (projectModels.value.some((item) => String(item.id) === String(selectedProjectModelId.value))) {
+      return;
+    }
+    selectedProjectModelId.value = projectModels.value[0]?.id || '';
   };
 
-  const upsertLocalStandard = (model) => {
-    const index = standardModels.value.findIndex((item) => String(item.id) === String(model.id));
-    if (index >= 0) {
-      standardModels.value[index] = model;
-    } else {
-      standardModels.value.unshift(model);
-    }
+  const setStandardModels = (models = []) => {
+    standardModels.value = (Array.isArray(models) ? models : []).map((item) => normalizeStandardModel(item));
   };
 
-  const upsertLocalProject = (model) => {
-    const index = projectModels.value.findIndex((item) => String(item.id) === String(model.id));
+  const setProjectModels = (models = []) => {
+    projectModels.value = (Array.isArray(models) ? models : []).map((item) => normalizeProjectModel(item));
+    ensureSelectedProjectModel();
+  };
+
+  const setSelectedProjectModelId = (id) => {
+    selectedProjectModelId.value = toText(id);
+    ensureSelectedProjectModel();
+  };
+
+  const upsertStandardModelLocal = (model) => {
+    const normalized = normalizeStandardModel(model);
+    const index = standardModels.value.findIndex((item) => String(item.id) === String(normalized.id));
     if (index >= 0) {
-      projectModels.value[index] = model;
+      standardModels.value[index] = normalized;
     } else {
-      projectModels.value.unshift(model);
+      standardModels.value.unshift(normalized);
     }
+    return normalized;
+  };
+
+  const upsertProjectModelLocal = (model) => {
+    const normalized = normalizeProjectModel(model);
+    const index = projectModels.value.findIndex((item) => String(item.id) === String(normalized.id));
+    if (index >= 0) {
+      projectModels.value[index] = normalized;
+    } else {
+      projectModels.value.unshift(normalized);
+    }
+    ensureSelectedProjectModel();
+    if (!selectedProjectModelId.value) {
+      selectedProjectModelId.value = normalized.id;
+    }
+    return normalized;
+  };
+
+  const removeStandardModelById = (id) => {
+    standardModels.value = standardModels.value.filter((item) => String(item.id) !== String(id));
+  };
+
+  const removeProjectModelById = (id) => {
+    projectModels.value = projectModels.value.filter((item) => String(item.id) !== String(id));
+    ensureSelectedProjectModel();
   };
 
   const getStandardModelById = (id) => {
@@ -187,190 +216,19 @@ export const useModelStore = defineStore('model', () => {
     return projectModels.value.find((item) => String(item.id) === key || toText(item.code) === key || toText(item.modelCode) === key) || null;
   };
 
-  const loadStandardModels = async () => {
-    try {
-      const response = await standardModelsApi.list({ modelType: 'base' });
-      const list = unwrapApiList(response);
-      if (list.length > 0) {
-        standardModels.value = list.map((item) => normalizeStandardModel(item));
-      }
-    } catch {
-      // fallback to local mock
-    }
-  };
-
-  const loadProjectModels = async () => {
-    try {
-      const projectCode = resolveCurrentProjectCode();
-      const response = await projectModelsApi.list({ modelType: 'business', ...(projectCode ? { projectCode } : {}) });
-      const list = unwrapApiList(response);
-      projectModels.value = list.map((item) => normalizeProjectModel(item, appStore.currentProject, projectCode));
-    } catch {
-      projectModels.value = [];
-    }
-
-    const available = projectModels.value.filter((item) => Number(item.projectId) === Number(appStore.currentProject));
-    if (!available.some((item) => String(item.id) === String(selectedProjectModelId.value))) {
-      selectedProjectModelId.value = available[0]?.id || '';
-    }
-  };
-
-  const loadStandardModelDetail = async (modelCodeOrId) => {
-    const target = getStandardModelById(modelCodeOrId);
-    if (!target) return null;
-
-    const code = resolveModelCode(target) || toText(modelCodeOrId);
-    if (!code) return target;
-
-    try {
-      const response = await standardModelsApi.detail({ code });
-      const detail = unwrapApiData(response);
-      if (!detail) return target;
-
-      const merged = normalizeStandardModel({
-        ...target,
-        ...detail,
-        id: target.id || code
-      });
-      upsertLocalStandard(merged);
-      return merged;
-    } catch {
-      return target;
-    }
-  };
-
-  const loadProjectModelDetail = async (modelCodeOrId) => {
-    const target = getProjectModelById(modelCodeOrId);
-    if (!target) return null;
-
-    const code = resolveModelCode(target) || toText(modelCodeOrId);
-    if (!code) return target;
-
-    try {
-      const response = await projectModelsApi.detail({ code });
-      const detail = unwrapApiData(response);
-      if (!detail) return target;
-
-      const merged = normalizeProjectModel({
-        ...target,
-        ...detail,
-        id: target.id || code
-      }, target.projectId || appStore.currentProject, target.projectCode || resolveCurrentProjectCode());
-      upsertLocalProject(merged);
-      return merged;
-    } catch {
-      return target;
-    }
-  };
-
-  const upsertStandardModel = async (payload) => {
-    const entity = normalizeStandardModel({
-      ...payload,
-      id: payload.id || payload.code || payload.modelCode || createId(),
-      updateTime: nowText()
-    });
-
-    upsertLocalStandard(entity);
-
-    try {
-      await standardModelsApi.save(toModelSavePayload({ entity, modelType: 'base' }));
-    } catch {
-      // backend unavailable
-    }
-
-    return entity;
-  };
-
-  const publishStandardModel = async (id) => {
-    const model = getStandardModelById(id);
-    if (!model) return;
-
-    model.status = 'active';
-    model.updateTime = nowText();
-
-    try {
-      await standardModelsApi.save(toModelSavePayload({ entity: { ...model, status: 'active' }, modelType: 'base' }));
-    } catch {
-      // backend unavailable
-    }
-  };
-
-  const deleteStandardModel = async (id) => {
-    const target = getStandardModelById(id);
-    standardModels.value = standardModels.value.filter((item) => String(item.id) !== String(id));
-
-    try {
-      await standardModelsApi.remove({
-        modelCodeList: [resolveModelCode(target || { id })].filter(Boolean),
-        modelType: 'base'
-      });
-    } catch {
-      // backend unavailable
-    }
-  };
-
-  const upsertProjectModel = async (payload) => {
-    const entity = normalizeProjectModel({
-      ...payload,
-      id: payload.id || payload.code || payload.modelCode || createId(),
-      projectId: payload.projectId || appStore.currentProject,
-      projectCode: payload.projectCode || resolveCurrentProjectCode(),
-      updateTime: nowText()
-    }, payload.projectId || appStore.currentProject, payload.projectCode || resolveCurrentProjectCode());
-
-    upsertLocalProject(entity);
-
-    if (!selectedProjectModelId.value) {
-      selectedProjectModelId.value = entity.id;
-    }
-
-    try {
-      await projectModelsApi.save(toModelSavePayload({
-        entity,
-        modelType: 'business',
-        projectCode: entity.projectCode || resolveCurrentProjectCode()
-      }));
-    } catch {
-      // backend unavailable
-    }
-
-    return entity;
-  };
-
-  const deleteProjectModel = async (id) => {
-    const target = getProjectModelById(id);
-    projectModels.value = projectModels.value.filter((item) => String(item.id) !== String(id));
-
-    const available = projectModels.value.filter((item) => Number(item.projectId) === Number(appStore.currentProject));
-    if (!available.some((item) => String(item.id) === String(selectedProjectModelId.value))) {
-      selectedProjectModelId.value = available[0]?.id || '';
-    }
-
-    try {
-      await projectModelsApi.remove({
-        modelCodeList: [resolveModelCode(target || { id })].filter(Boolean),
-        modelType: 'business'
-      });
-    } catch {
-      // backend unavailable
-    }
-  };
-
   return {
     standardModels,
     projectModels,
     selectedProjectModelId,
     selectedProjectModel,
     targetFields,
-    loadStandardModels,
-    loadProjectModels,
-    loadStandardModelDetail,
-    loadProjectModelDetail,
-    upsertStandardModel,
-    publishStandardModel,
-    deleteStandardModel,
-    upsertProjectModel,
-    deleteProjectModel,
+    setStandardModels,
+    setProjectModels,
+    setSelectedProjectModelId,
+    upsertStandardModelLocal,
+    upsertProjectModelLocal,
+    removeStandardModelById,
+    removeProjectModelById,
     getStandardModelById,
     getProjectModelById
   };

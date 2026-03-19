@@ -107,7 +107,10 @@
 <script setup>
 import { computed, onMounted, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useModelStore } from '@/store/model.store.js';
+import { standardModelsApi } from '@/api/index.js';
+import { nowText } from '@/utils/date.js';
+import { createId } from '@/utils/id.js';
+import { normalizeStandardModel, toModelSavePayload, unwrapApiList, useModelStore } from '@/store/model.store.js';
 import { useAppStore } from '@/store/app.store.js';
 
 const emptyField = () => ({ name: '', type: '', format: '', isDimension: false, description: '', example: '' });
@@ -132,9 +135,21 @@ const fillForm = (data) => {
   }
 };
 
+const loadStandardModels = async () => {
+  try {
+    const response = await standardModelsApi.list({ modelType: 'base' });
+    const list = unwrapApiList(response);
+    if (list.length > 0) {
+      modelStore.setStandardModels(list.map((item) => normalizeStandardModel(item)));
+    }
+  } catch {
+    // 无后端时保留本地状态。
+  }
+};
+
 onMounted(async () => {
   appStore.setRole('owner');
-  await modelStore.loadStandardModels();
+  await loadStandardModels();
   if (isEdit.value) {
     fillForm(modelStore.getStandardModelById(editId.value));
     return;
@@ -188,13 +203,19 @@ const validate = () => {
 const saveModel = async () => {
   if (!validate()) return;
 
-  await modelStore.upsertStandardModel({
+  const entity = modelStore.upsertStandardModelLocal(normalizeStandardModel({
     ...JSON.parse(JSON.stringify(form)),
-    status: 'active'
-  });
+    id: form.id || form.code || form.modelCode || createId(),
+    status: 'active',
+    updateTime: nowText()
+  }));
+
+  try {
+    await standardModelsApi.save(toModelSavePayload({ entity, modelType: 'base' }));
+  } catch {
+    // 无后端时忽略错误。
+  }
 
   router.push('/owner/standard-models');
 };
 </script>
-
-

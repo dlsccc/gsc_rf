@@ -125,11 +125,13 @@
 <script setup>
 import { computed, onMounted, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { projectModelsApi, rulesApi } from '@/api/index.js';
+import { nowText } from '@/utils/date.js';
 import { buildPipelineDsl } from '@/utils/pipeline-dsl.js';
 import { useAppStore } from '@/store/app.store.js';
-import { useModelStore } from '@/store/model.store.js';
+import { normalizeProjectModel, resolveModelCode, unwrapApiData, unwrapApiList, useModelStore } from '@/store/model.store.js';
+import { RULE_INPUT_TABLES, mapApiRuleToEntity, toSaveRulePayload, useRuleStore } from '@/store/rule.store.js';
 import { usePipelineStore } from '@/store/pipeline.store.js';
-import { RULE_INPUT_TABLES, useRuleStore } from '@/store/rule.store.js';
 import FileUploadPanel from '@/components/pipeline/FileUploadPanel.vue';
 import FieldMappingPanel from '@/components/pipeline/FieldMappingPanel.vue';
 import ProcessPanel from '@/components/pipeline/ProcessPanel.vue';
@@ -167,6 +169,60 @@ const targetModelPreviewFields = computed(() => {
   }));
 });
 
+const resolveCurrentProjectCode = () => {
+  return String(appStore.currentProjectCode || appStore.currentProject || '').trim();
+};
+
+const loadProjectModels = async () => {
+  try {
+    const projectCode = resolveCurrentProjectCode();
+    const response = await projectModelsApi.list({ modelType: 'business', ...(projectCode ? { projectCode } : {}) });
+    const list = unwrapApiList(response);
+    modelStore.setProjectModels(list.map((item) => normalizeProjectModel(item, appStore.currentProject, projectCode)));
+  } catch {
+    modelStore.setProjectModels([]);
+  }
+};
+
+const loadProjectModelDetail = async (modelCodeOrId) => {
+  const target = modelStore.getProjectModelById(modelCodeOrId);
+  if (!target) return null;
+
+  const code = resolveModelCode(target) || String(modelCodeOrId || '').trim();
+  if (!code) return target;
+
+  try {
+    const response = await projectModelsApi.detail({ code });
+    const detail = unwrapApiData(response);
+    if (!detail) return target;
+
+    const merged = normalizeProjectModel({
+      ...target,
+      ...detail,
+      id: target.id || code
+    }, target.projectId || appStore.currentProject, target.projectCode || resolveCurrentProjectCode());
+    modelStore.upsertProjectModelLocal(merged);
+    return merged;
+  } catch {
+    return target;
+  }
+};
+
+const loadRules = async () => {
+  ruleStore.setLoading(true);
+  try {
+    const response = await rulesApi.list({ pageNum: 1, pageSize: 200 });
+    const list = unwrapApiList(response);
+    if (list.length > 0) {
+      ruleStore.setRules(list.map((item) => mapApiRuleToEntity(item, appStore.currentProject)));
+    }
+  } catch {
+    // 无后端时保留本地状态。
+  } finally {
+    ruleStore.setLoading(false);
+  }
+};
+
 const resolveRuleInputTablesForSave = () => {
   if (pipelineStore.uploadedFiles.length > 0) {
     return RULE_INPUT_TABLES
@@ -191,13 +247,13 @@ const resolveSelectedModel = () => {
 
 const onSelectModel = async (modelId) => {
   pipelineStore.setModel(modelId);
-  await modelStore.loadProjectModelDetail(modelId);
+  await loadProjectModelDetail(modelId);
 };
 
 onMounted(async () => {
   appStore.setRole('designer');
-  await modelStore.loadProjectModels();
-  await ruleStore.loadRules();
+  await loadProjectModels();
+  await loadRules();
 
   pipelineStore.resetPipeline();
 
@@ -258,8 +314,7 @@ const saveRuleEntity = async ({ status = 'draft', dsl = null } = {}) => {
   }
 
   const nextDsl = dsl || buildCurrentDsl(selectedModel);
-
-  const saved = await ruleStore.upsertRule({
+  const saved = ruleStore.upsertRuleLocal({
     ...JSON.parse(JSON.stringify(form)),
     id: form.id,
     ruleId: form.id,
@@ -271,6 +326,21 @@ const saveRuleEntity = async ({ status = 'draft', dsl = null } = {}) => {
     ruleJson: nextDsl,
     dsl: nextDsl
   });
+
+  try {
+    await rulesApi.save(toSaveRulePayload(saved, {
+      ...JSON.parse(JSON.stringify(form)),
+      status,
+      targetModel: selectedModel.modelCode || selectedModel.name,
+      inputTables: resolveRuleInputTablesForSave(),
+      uploadedFiles: pipelineStore.uploadedFiles,
+      projectId: appStore.currentProject,
+      ruleJson: nextDsl,
+      dsl: nextDsl
+    }));
+  } catch {
+    // 无后端时忽略错误。
+  }
 
   form.id = saved.id;
   form.status = saved.status;
@@ -298,13 +368,17 @@ const executeJob = async () => {
 
   const dsl = buildCurrentDsl(selectedModel);
 
-
   let publishError = '';
   let published = false;
 
   try {
     const { saved } = await saveRuleEntity({ status: 'draft', dsl });
-    await ruleStore.publishRule(saved.ruleCode || saved.id);
+    const ruleCode = String(saved.ruleCode || saved.id || '').trim();
+    await rulesApi.publish({ ruleCode });
+    const target = ruleStore.getRuleById(ruleCode) || ruleStore.getRuleById(saved.id);
+    if (target) {
+      ruleStore.upsertRuleLocal({ ...target, status: 'active', updateTime: nowText() });
+    }
     form.status = 'active';
     published = true;
   } catch (error) {
@@ -320,4 +394,3 @@ const executeJob = async () => {
   }
 };
 </script>
-

@@ -65,8 +65,9 @@
 <script setup>
 import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { projectModelsApi } from '@/api/index.js';
 import { useAppStore } from '@/store/app.store.js';
-import { useModelStore } from '@/store/model.store.js';
+import { normalizeProjectModel, resolveModelCode, unwrapApiList, useModelStore } from '@/store/model.store.js';
 
 const router = useRouter();
 const appStore = useAppStore();
@@ -76,18 +77,41 @@ const projectModels = computed(() => {
   return modelStore.projectModels.filter((item) => Number(item.projectId) === Number(appStore.currentProject));
 });
 
-onMounted(() => {
+const resolveCurrentProjectCode = () => {
+  return String(appStore.currentProjectCode || appStore.currentProject || '').trim();
+};
+
+const loadProjectModels = async () => {
+  try {
+    const projectCode = resolveCurrentProjectCode();
+    const response = await projectModelsApi.list({ modelType: 'business', ...(projectCode ? { projectCode } : {}) });
+    const list = unwrapApiList(response);
+    modelStore.setProjectModels(list.map((item) => normalizeProjectModel(item, appStore.currentProject, projectCode)));
+  } catch {
+    modelStore.setProjectModels([]);
+  }
+};
+
+onMounted(async () => {
   appStore.setRole('designer');
-  modelStore.loadProjectModels();
+  await loadProjectModels();
 });
 
 const remove = async (id) => {
   if (!window.confirm('确定要删除该数据模型吗？此操作不可恢复。')) {
     return;
   }
-  await modelStore.deleteProjectModel(id);
+
+  const target = modelStore.getProjectModelById(id);
+  modelStore.removeProjectModelById(id);
+
+  try {
+    await projectModelsApi.remove({
+      modelCodeList: [resolveModelCode(target || { id })].filter(Boolean),
+      modelType: 'business'
+    });
+  } catch {
+    // 无后端时忽略错误。
+  }
 };
 </script>
-
-
-

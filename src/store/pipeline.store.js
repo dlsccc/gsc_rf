@@ -105,7 +105,7 @@ export const usePipelineStore = defineStore('pipeline', () => {
 
   const setModel = (modelId) => {
     selectedModelId.value = modelId;
-    modelStore.selectedProjectModelId = modelId;
+    modelStore.setSelectedProjectModelId(modelId);
     mappings.value = {};
   };
 

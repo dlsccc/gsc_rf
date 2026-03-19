@@ -66,24 +66,46 @@
 <script setup>
 import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { standardModelsApi } from '@/api/index.js';
 import { useAppStore } from '@/store/app.store.js';
-import { useModelStore } from '@/store/model.store.js';
+import { normalizeStandardModel, resolveModelCode, unwrapApiList, useModelStore } from '@/store/model.store.js';
 
 const router = useRouter();
 const appStore = useAppStore();
 const modelStore = useModelStore();
 
-onMounted(() => {
+const loadStandardModels = async () => {
+  try {
+    const response = await standardModelsApi.list({ modelType: 'base' });
+    const list = unwrapApiList(response);
+    if (list.length > 0) {
+      modelStore.setStandardModels(list.map((item) => normalizeStandardModel(item)));
+    }
+  } catch {
+    // 无后端时保留本地状态。
+  }
+};
+
+onMounted(async () => {
   appStore.setRole('owner');
-  modelStore.loadStandardModels();
+  await loadStandardModels();
 });
 
 const remove = async (id) => {
   if (!window.confirm('确定要删除该标准数据模型吗？此操作不可恢复。')) {
     return;
   }
-  await modelStore.deleteStandardModel(id);
+
+  const target = modelStore.getStandardModelById(id);
+  modelStore.removeStandardModelById(id);
+
+  try {
+    await standardModelsApi.remove({
+      modelCodeList: [resolveModelCode(target || { id })].filter(Boolean),
+      modelType: 'base'
+    });
+  } catch {
+    // 无后端时忽略错误。
+  }
 };
 </script>
-
-

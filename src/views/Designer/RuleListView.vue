@@ -64,24 +64,44 @@
 <script setup>
 import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { useRuleStore } from '@/store/rule.store.js';
+import { rulesApi } from '@/api/index.js';
+import { useRuleStore, mapApiRuleToEntity, unwrapApiList } from '@/store/rule.store.js';
 import { useAppStore } from '@/store/app.store.js';
 
 const router = useRouter();
 const appStore = useAppStore();
 const ruleStore = useRuleStore();
 
-onMounted(() => {
+const loadRules = async () => {
+  ruleStore.setLoading(true);
+  try {
+    const response = await rulesApi.list({ pageNum: 1, pageSize: 200 });
+    const list = unwrapApiList(response);
+    if (list.length > 0) {
+      ruleStore.setRules(list.map((item) => mapApiRuleToEntity(item, appStore.currentProject)));
+    }
+  } catch {
+    // 无后端时保留本地状态。
+  } finally {
+    ruleStore.setLoading(false);
+  }
+};
+
+onMounted(async () => {
   appStore.setRole('designer');
-  ruleStore.loadRules();
+  await loadRules();
 });
 
 const remove = async (id) => {
   if (!window.confirm('确定要删除该入湖规则吗？此操作不可恢复。')) {
     return;
   }
-  await ruleStore.deleteRule(id);
+
+  ruleStore.removeRuleById(id);
+  try {
+    await rulesApi.remove({ id: String(id) });
+  } catch {
+    // 无后端时忽略错误。
+  }
 };
 </script>
-
-
