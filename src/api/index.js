@@ -6,3 +6,4 @@ export { projectModelsApi } from '@/api/modules/project-models.api.js';
 export { apiProjectModelsService } from '@/api/modules/project-models.api.js';
 export { pipelineApi } from '@/api/modules/pipeline.api.js';
 export { apiPipelineService } from '@/api/modules/pipeline.api.js';
+export { apiSystemService } from '@/api/modules/systemservice.api.js';
