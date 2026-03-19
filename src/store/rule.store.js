@@ -11,6 +11,23 @@ export const RULE_INPUT_TABLES = [
 ];
 
 const toText = (value) => String(value ?? '').trim();
+const toCamelKey = (key) => String(key ?? '').replace(/_([a-zA-Z0-9])/g, (_, char) => char.toUpperCase());
+const isPlainObject = (value) => Object.prototype.toString.call(value) === '[object Object]';
+
+const deepMapObjectKeys = (value, keyMapper) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => deepMapObjectKeys(item, keyMapper));
+  }
+  if (!isPlainObject(value)) {
+    return value;
+  }
+  return Object.entries(value).reduce((acc, [key, next]) => {
+    acc[keyMapper(key)] = deepMapObjectKeys(next, keyMapper);
+    return acc;
+  }, {});
+};
+
+const normalizeRuleJsonForApi = (ruleJson) => deepMapObjectKeys(ruleJson || {}, toCamelKey);
 
 const unwrapApiData = (response) => {
   if (response && typeof response === 'object' && Object.prototype.hasOwnProperty.call(response, 'data')) {
@@ -50,14 +67,16 @@ export const normalizeRuleInputTables = (rule) => {
 };
 
 const ruleJsonToInputTables = (ruleJson = {}) => {
-  const sourceTables = (ruleJson?.global_setting?.data_sources?.tables || [])
+  const sourceTables = (ruleJson?.globalSetting?.dataSources?.tables
+    || ruleJson?.global_setting?.data_sources?.tables
+    || [])
     .map((item, index) => {
-      const sourceId = toText(item?.source_id);
+      const sourceId = toText(item?.sourceId || item?.source_id);
       if (!sourceId) return null;
       const fallback = RULE_INPUT_TABLES[index] || RULE_INPUT_TABLES[RULE_INPUT_TABLES.length - 1];
       return {
         id: sourceId,
-        label: toText(item?.source_name) || fallback.label || sourceId
+        label: toText(item?.sourceName || item?.source_name) || fallback.label || sourceId
       };
     })
     .filter(Boolean)
@@ -107,7 +126,7 @@ const normalizeRule = (rule = {}) => ({
 
 const mapApiRuleToEntity = (item = {}, projectId) => {
   const id = toText(item.ruleId || item.id || item.ruleCode || createId());
-  const ruleJson = item.ruleJson || {};
+  const ruleJson = normalizeRuleJsonForApi(item.ruleJson || {});
 
   const fromRuleInput = parseRuleInputString(item.ruleInput);
   const parsedInputTables = Array.isArray(fromRuleInput)
@@ -124,6 +143,7 @@ const mapApiRuleToEntity = (item = {}, projectId) => {
   const targetModel = toText(
     item.targetModel
     || item.ruleOutput
+    || ruleJson?.modelSelection?.modelCode
     || ruleJson?.model_selection?.model_code
   );
 
@@ -143,12 +163,13 @@ const mapApiRuleToEntity = (item = {}, projectId) => {
 
 const toSaveRulePayload = (entity = {}, payload = {}) => {
   const ruleCode = toText(entity.ruleCode || entity.id);
+  const normalizedRuleJson = normalizeRuleJsonForApi(payload.ruleJson || payload.dsl || entity.ruleJson || {});
 
   return {
     ruleId: ruleCode,
     ruleName: toText(entity.name),
     ruleDesc: toText(entity.description),
-    ruleJson: payload.ruleJson || payload.dsl || entity.ruleJson || {},
+    ruleJson: normalizedRuleJson,
     sqlList: toText(payload.sqlList),
     datacubeFlowId: toText(payload.datacubeFlowId),
     ruleInput: JSON.stringify((entity.inputTables || []).map((item) => item.id)),
@@ -237,7 +258,7 @@ export const useRuleStore = defineStore('rule', () => {
   const deleteRule = async (id) => {
     rules.value = rules.value.filter((item) => String(item.id) !== String(id));
     try {
-      await rulesApi.remove(id);
+      await rulesApi.remove({ id: toText(id) });
     } catch {
       // 后端未接入时忽略错误。
     }
