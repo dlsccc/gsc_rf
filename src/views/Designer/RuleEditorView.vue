@@ -125,7 +125,7 @@
 <script setup>
 import { computed, onMounted, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { buildPipelineDsl, downloadDslFile } from '@/utils/pipeline-dsl.js';
+import { buildPipelineDsl } from '@/utils/pipeline-dsl.js';
 import { useAppStore } from '@/store/app.store.js';
 import { useModelStore } from '@/store/model.store.js';
 import { usePipelineStore } from '@/store/pipeline.store.js';
@@ -231,6 +231,22 @@ const autoMap = () => {
   pipelineStore.setMappings(nextMappings);
 };
 
+const buildCurrentDsl = (selectedModel) => {
+  return buildPipelineDsl({
+    ruleName: form.name || selectedModel.name,
+    projectId: appStore.currentProject,
+    selectedModel,
+    uploadedFiles: pipelineStore.uploadedFiles,
+    mappings: pipelineStore.mappings,
+    joinConfig: pipelineStore.joinConfig,
+    filters: pipelineStore.filters,
+    transforms: pipelineStore.transforms,
+    sortConfig: pipelineStore.sortConfig,
+    dedupConfig: pipelineStore.dedupConfig,
+    writeConfig: pipelineStore.writeConfig
+  });
+};
+
 const saveRuleEntity = async ({ status = 'draft', dsl = null } = {}) => {
   if (!form.name.trim()) {
     throw new Error('请输入规则名称');
@@ -241,6 +257,8 @@ const saveRuleEntity = async ({ status = 'draft', dsl = null } = {}) => {
     throw new Error('请先选择已发布的数据模型');
   }
 
+  const nextDsl = dsl || buildCurrentDsl(selectedModel);
+
   const saved = await ruleStore.upsertRule({
     ...JSON.parse(JSON.stringify(form)),
     id: form.id,
@@ -249,8 +267,8 @@ const saveRuleEntity = async ({ status = 'draft', dsl = null } = {}) => {
     targetModel: selectedModel.modelCode || selectedModel.name,
     inputTables: resolveRuleInputTablesForSave(),
     projectId: appStore.currentProject,
-    ruleJson: dsl || undefined,
-    dsl
+    ruleJson: nextDsl,
+    dsl: nextDsl
   });
 
   form.id = saved.id;
@@ -277,22 +295,8 @@ const executeJob = async () => {
     return;
   }
 
-  const dsl = buildPipelineDsl({
-    ruleName: form.name || selectedModel.name,
-    projectId: appStore.currentProject,
-    selectedModel,
-    uploadedFiles: pipelineStore.uploadedFiles,
-    mappings: pipelineStore.mappings,
-    joinConfig: pipelineStore.joinConfig,
-    filters: pipelineStore.filters,
-    transforms: pipelineStore.transforms,
-    sortConfig: pipelineStore.sortConfig,
-    dedupConfig: pipelineStore.dedupConfig,
-    writeConfig: pipelineStore.writeConfig
-  });
+  const dsl = buildCurrentDsl(selectedModel);
 
-  const dslFileName = `${form.name || selectedModel.modelCode || selectedModel.name || 'pipeline'}_dsl.json`;
-  downloadDslFile(dsl, dslFileName);
 
   let publishError = '';
   let published = false;
@@ -309,11 +313,10 @@ const executeJob = async () => {
   pipelineStore.markExecuted();
 
   if (published) {
-    window.alert(`DSL 已生成并发布成功：${dslFileName}`);
+    window.alert('规则发布成功');
   } else {
-    window.alert(`DSL 已生成：${dslFileName}，发布失败：${publishError}`);
+    window.alert(`规则发布失败：${publishError}`);
   }
 };
 </script>
-
 
