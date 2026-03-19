@@ -5,9 +5,13 @@ import { ROLES, ROLE_LABEL } from '@/utils/roles.js';
 export const useAppStore = defineStore('app', () => {
   const currentRole = ref(null);
   const projectList = ref([
-    { id: 1, name: '马来UM项目' }
+    { id: 1, code: 'project11111111', name: '马来UM项目' }
   ]);
   const currentProject = ref(1);
+  const currentProjectCode = computed(() => {
+    const project = projectList.value.find((item) => Number(item.id) === Number(currentProject.value));
+    return project?.code || '';
+  });
 
   const currentRoleLabel = computed(() => {
     if (!currentRole.value) return '未选择角色';
@@ -34,6 +38,7 @@ export const useAppStore = defineStore('app', () => {
     currentRoleLabel,
     projectList,
     currentProject,
+    currentProjectCode,
     setRole,
     setProject
   };

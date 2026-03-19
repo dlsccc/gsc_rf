@@ -78,7 +78,6 @@ const projectModels = computed(() => {
 
 onMounted(() => {
   appStore.setRole('designer');
-  modelStore.loadStandardModels();
   modelStore.loadProjectModels();
 });
 
@@ -89,5 +88,6 @@ const remove = async (id) => {
   await modelStore.deleteProjectModel(id);
 };
 </script>
+
 
 

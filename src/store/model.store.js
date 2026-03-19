@@ -22,12 +22,6 @@ const standardMetricFields = [
   { name: 'FIELD0003', type: 'FLOAT64', format: 'FLOAT', isDimension: false, description: 'Counter', example: '8.0' }
 ];
 
-const projectMetricFields = [
-  { name: 'FIELD0001', type: 'FLOAT64', format: 'FLOAT', isDimension: false, description: 'L.RRC.ConnReq.Att', example: '5515.0' },
-  { name: 'FIELD0002', type: 'FLOAT64', format: 'FLOAT', isDimension: false, description: 'L.RRC.ConnReq.Succ', example: '5515.0' },
-  { name: 'FIELD0003', type: 'FLOAT64', format: 'FLOAT', isDimension: false, description: 'L.E-RAB.AttEst.QCI.1', example: '8.0' }
-];
-
 const defaultStandardModels = [
   {
     id: 1,
@@ -41,27 +35,7 @@ const defaultStandardModels = [
   }
 ];
 
-const defaultProjectModels = [
-  {
-    id: 1,
-    code: 'UM_4G_HW_COUNTER',
-    modelCode: 'UM_4G_HW_COUNTER',
-    name: 'UM_4G_HW_COUNTER',
-    description: '4G 华为小时级 Counter 数据模型',
-    status: 'active',
-    refStandardModel: 'STD_4G_COUNTER',
-    tags: {
-      vendor: '华为',
-      standard: '4G',
-      timeGranularity: '小时级',
-      type: 'Counter'
-    },
-    updateTime: '2026-03-04 16:30',
-    projectId: 1,
-    projectCode: '1',
-    fields: deepClone([...baseDimensionFields, ...projectMetricFields])
-  }
-];
+const defaultProjectModels = [];
 
 const normalizeField = (field = {}) => ({
   name: toText(field.name || field.fieldName),
@@ -96,7 +70,7 @@ const normalizeStandardModel = (model = {}) => {
     ...model,
     id: toText(model.id || code || name || createId()),
     code,
-    modelCode: toText(model.modelCode || code || name),
+    modelCode: toText(model.modelCode || code),
     name,
     description: toText(model.description || model.modelDesc),
     status: toText(model.status || 'active'),
@@ -230,11 +204,9 @@ export const useModelStore = defineStore('model', () => {
       const projectCode = resolveCurrentProjectCode();
       const response = await projectModelsApi.list({ modelType: 'business', ...(projectCode ? { projectCode } : {}) });
       const list = unwrapApiList(response);
-      if (list.length > 0) {
-        projectModels.value = list.map((item) => normalizeProjectModel(item, appStore.currentProject, projectCode));
-      }
+      projectModels.value = list.map((item) => normalizeProjectModel(item, appStore.currentProject, projectCode));
     } catch {
-      // fallback to local mock
+      projectModels.value = [];
     }
 
     const available = projectModels.value.filter((item) => Number(item.projectId) === Number(appStore.currentProject));
@@ -397,6 +369,3 @@ export const useModelStore = defineStore('model', () => {
     getProjectModelById
   };
 });
-
-
-
