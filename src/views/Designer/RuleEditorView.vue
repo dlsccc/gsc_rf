@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div style="margin-top: 64px; height: calc(100vh - 64px); display: flex; flex-direction: column;">
     <div class="rule-edit-header" style="padding: 16px 24px; background: #fff; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 16px;">
       <div class="back-btn" @click="router.push('/designer/rules')"><span class="material-icons">arrow_back</span></div>
@@ -34,7 +34,7 @@
                       <tr>
                         <th>字段名称</th>
                         <th>字段类型</th>
-                        <th>是否维度</th>
+                        <th>业务类型</th>
                         <th>说明</th>
                         <th>样例值</th>
                       </tr>
@@ -43,7 +43,7 @@
                       <tr v-for="field in targetModelPreviewFields" :key="field.name">
                         <td>{{ field.name }}</td>
                         <td><span class="tag" :class="field.type === 'STRING' ? 'tag-primary' : 'tag-warning'">{{ field.type }}</span></td>
-                        <td>{{ field.isDimension ? '是' : '否' }}</td>
+                        <td>{{ field.businessType || '-' }}</td>
                         <td>{{ field.description }}</td>
                         <td style="color: var(--text-secondary); font-family: monospace;">{{ field.sampleValue }}</td>
                       </tr>
@@ -166,7 +166,7 @@ const targetModelPreviewFields = computed(() => {
   return pipelineStore.targetFields.map((field) => ({
     name: field.name,
     type: field.type,
-    isDimension: !!field.isDimension,
+    businessType: field.businessType || '指标',
     description: field.description,
     sampleValue: field.sampleValue || field.example || ''
   }));
@@ -793,4 +793,3 @@ const executeJob = async () => {
   }
 };
 </script>
-

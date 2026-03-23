@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="model-edit-container" style="margin-top: 64px; background: linear-gradient(135deg, #e6f7ff 0%, #fafafa 100%);">
     <div class="model-edit-header">
       <div class="back-btn" @click="router.push('/designer/project-models')"><span class="material-icons">arrow_back</span></div>
@@ -80,7 +80,7 @@
               <th style="width: 180px;">字段名称 *</th>
               <th style="width: 140px;">字段类型 *</th>
               <th style="width: 140px;">数据格式</th>
-              <th style="width: 100px;">是否维度</th>
+              <th style="width: 120px;">业务类型</th>
               <th>业务描述</th>
               <th style="width: 120px;">样例值</th>
               <th style="width: 80px;">操作</th>
@@ -118,7 +118,11 @@
                   <option v-if="field.type === 'FLOAT64' || field.type === 'DECIMAL'" value="PERCENT">百分数</option>
                 </select>
               </td>
-              <td style="text-align: center;"><input v-model="field.isDimension" class="field-checkbox" type="checkbox" /></td>
+              <td>
+                <select v-model="field.businessType" class="field-select">
+                  <option v-for="type in businessTypeOptions" :key="type" :value="type">{{ type }}</option>
+                </select>
+              </td>
               <td><input v-model="field.description" class="field-input" type="text" placeholder="业务含义描述" /></td>
               <td><input v-model="field.example" class="field-input" type="text" placeholder="样例" /></td>
               <td class="field-actions">
@@ -170,8 +174,9 @@ const vendorOptions = ['华为', '中兴', '其他'];
 const standardOptions = ['4G', '5G'];
 const timeGranularityOptions = ['小时级', '天级'];
 const typeOptions = ['Counter', 'KPI', '工参', '配置', '其他'];
+const businessTypeOptions = ['时间', '空间', '指标'];
 
-const emptyField = () => ({ name: '', type: '', format: '', isDimension: false, description: '', example: '' });
+const emptyField = () => ({ name: '', type: '', format: '', businessType: '指标', description: '', example: '' });
 const emptyModel = () => ({
   id: '',
   code: '',

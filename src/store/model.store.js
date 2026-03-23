@@ -6,18 +6,41 @@ import { nowText } from '@/utils/date.js';
 const deepClone = (value) => JSON.parse(JSON.stringify(value));
 const toText = (value) => String(value ?? '').trim();
 
+const BUSINESS_FIELD_TYPES = {
+  TIME: '\u65f6\u95f4',
+  SPACE: '\u7a7a\u95f4',
+  METRIC: '\u6307\u6807'
+};
+
+const inferBusinessType = (field = {}) => {
+  const businessType = toText(field.businessType || field.business_type);
+  if (Object.values(BUSINESS_FIELD_TYPES).includes(businessType)) {
+    return businessType;
+  }
+
+  const type = toText(field.type || field.fieldType).toUpperCase();
+  const name = toText(field.name || field.fieldName).toUpperCase();
+  if (['DATE', 'DATETIME', 'TIMESTAMP'].includes(type) || /DATE|TIME/.test(name)) {
+    return BUSINESS_FIELD_TYPES.TIME;
+  }
+  if (/SITE|CELL|REGION|AREA|LON|LAT/.test(name)) {
+    return BUSINESS_FIELD_TYPES.SPACE;
+  }
+
+  return BUSINESS_FIELD_TYPES.METRIC;
+};
 const baseDimensionFields = [
-  { name: 'TIME_DATE', type: 'STRING', format: 'YYYY-MM-DD', isDimension: true, description: 'Date', example: '2026-03-16' },
-  { name: 'DATE_TIME', type: 'STRING', format: 'YYYY-MM-DD HH:mm:ss', isDimension: true, description: 'DateTime', example: '2026-03-16 10:00:00' },
-  { name: 'SITE_ID', type: 'STRING', format: '', isDimension: true, description: 'Site ID', example: '811093' },
-  { name: 'CELL_ID', type: 'STRING', format: '', isDimension: true, description: 'Cell ID', example: '49' },
-  { name: 'PARTITION_FIELD', type: 'DATETIME', format: 'YYYY-MM-DD HH:mm:ss', isDimension: true, description: 'Partition Field', example: '2026-03-16 10:00:00' }
+  { name: 'TIME_DATE', type: 'STRING', format: 'YYYY-MM-DD', businessType: BUSINESS_FIELD_TYPES.TIME, description: 'Date', example: '2026-03-16' },
+  { name: 'DATE_TIME', type: 'STRING', format: 'YYYY-MM-DD HH:mm:ss', businessType: BUSINESS_FIELD_TYPES.TIME, description: 'DateTime', example: '2026-03-16 10:00:00' },
+  { name: 'SITE_ID', type: 'STRING', format: '', businessType: BUSINESS_FIELD_TYPES.SPACE, description: 'Site ID', example: '811093' },
+  { name: 'CELL_ID', type: 'STRING', format: '', businessType: BUSINESS_FIELD_TYPES.SPACE, description: 'Cell ID', example: '49' },
+  { name: 'PARTITION_FIELD', type: 'DATETIME', format: 'YYYY-MM-DD HH:mm:ss', businessType: BUSINESS_FIELD_TYPES.TIME, description: 'Partition Field', example: '2026-03-16 10:00:00' }
 ];
 
 const standardMetricFields = [
-  { name: 'FIELD0001', type: 'FLOAT64', format: 'FLOAT', isDimension: false, description: 'Counter', example: '5515.0' },
-  { name: 'FIELD0002', type: 'FLOAT64', format: 'FLOAT', isDimension: false, description: 'Counter', example: '5515.0' },
-  { name: 'FIELD0003', type: 'FLOAT64', format: 'FLOAT', isDimension: false, description: 'Counter', example: '8.0' }
+  { name: 'FIELD0001', type: 'FLOAT64', format: 'FLOAT', businessType: BUSINESS_FIELD_TYPES.METRIC, description: 'Counter', example: '5515.0' },
+  { name: 'FIELD0002', type: 'FLOAT64', format: 'FLOAT', businessType: BUSINESS_FIELD_TYPES.METRIC, description: 'Counter', example: '5515.0' },
+  { name: 'FIELD0003', type: 'FLOAT64', format: 'FLOAT', businessType: BUSINESS_FIELD_TYPES.METRIC, description: 'Counter', example: '8.0' }
 ];
 
 const defaultStandardModels = [
@@ -25,8 +48,8 @@ const defaultStandardModels = [
     id: 1,
     code: 'STD_4G_COUNTER',
     modelCode: 'STD_4G_COUNTER',
-    name: '标准性能模型',
-    description: '标准性能模型示例',
+    name: '\u6807\u51c6\u6027\u80fd\u6a21\u578b',
+    description: '\u6807\u51c6\u6027\u80fd\u6a21\u578b\u793a\u4f8b',
     status: 'active',
     updateTime: '2026-03-04 14:30',
     fields: deepClone([...baseDimensionFields, ...standardMetricFields])
@@ -35,15 +58,18 @@ const defaultStandardModels = [
 
 const defaultProjectModels = [];
 
-const normalizeField = (field = {}) => ({
-  name: toText(field.name || field.fieldName),
-  type: toText(field.type || field.fieldType),
-  format: toText(field.format || field.dataFormat),
-  isDimension: field.isDimension !== undefined ? !!field.isDimension : !!field.required,
-  isNull: field.isNull !== undefined ? !!field.isNull : true,
-  description: toText(field.description || field.fieldDesc),
-  example: toText(field.example || field.sampleValue || field.dataExample)
-});
+const normalizeField = (field = {}) => {
+  const businessType = inferBusinessType(field);
+  return {
+    name: toText(field.name || field.fieldName),
+    type: toText(field.type || field.fieldType),
+    format: toText(field.format || field.dataFormat),
+    businessType,
+    isNull: field.isNull !== undefined ? !!field.isNull : true,
+    description: toText(field.description || field.fieldDesc),
+    example: toText(field.example || field.sampleValue || field.dataExample)
+  };
+};
 
 const normalizeFields = (fields) => {
   const normalized = (Array.isArray(fields) ? fields : []).map((field) => normalizeField(field));
