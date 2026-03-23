@@ -167,6 +167,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { projectModelsApi, standardModelsApi } from '@/api/index.js';
 import { nowText } from '@/utils/date.js';
 import { createId } from '@/utils/id.js';
+import { $warning } from '@/utils/message.js';
 import { useAppStore } from '@/store/app.store.js';
 import { normalizeProjectModel, normalizeStandardModel, resolveModelCode, toModelSavePayload, unwrapApiData, unwrapApiList, useModelStore } from '@/store/model.store.js';
 
@@ -336,15 +337,15 @@ const moveFieldDown = (index) => {
 
 const validateBase = () => {
   if (!form.name?.trim()) {
-    window.alert('请输入模型名称');
+    $warning('请输入模型名称');
     return false;
   }
   if (!form.refStandardModel) {
-    window.alert('请选择引用标准数据模型');
+    $warning('请选择引用标准数据模型');
     return false;
   }
   if (!Array.isArray(form.fields) || form.fields.length === 0 || !form.fields.some((item) => item.name?.trim())) {
-    window.alert('请至少配置一个字段');
+    $warning('请至少配置一个字段');
     return false;
   }
   return true;
@@ -356,7 +357,7 @@ const save = async (status) => {
   if (status === 'active') {
     const invalid = form.fields.filter((field) => !field.name?.trim() || !field.type?.trim());
     if (invalid.length > 0) {
-      window.alert('发布前请完善字段名称和字段类型');
+      $warning('发布前请完善字段名称和字段类型');
       return;
     }
   }

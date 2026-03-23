@@ -128,6 +128,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { projectModelsApi, rulesApi } from '@/api/index.js';
 import { nowText } from '@/utils/date.js';
 import { buildPipelineDsl } from '@/utils/pipeline-dsl.js';
+import { $error, $success, $warning } from '@/utils/message.js';
 import { extractFieldsFromRows, findParsedDataSet, normalizeObjectRows, parseEdmFile, resolveEdmId } from '@/utils/fileUtils.js';
 import { useAppStore } from '@/store/app.store.js';
 import { normalizeProjectModel, resolveModelCode, toBusinessTypeLabel, unwrapApiData, unwrapApiList, useModelStore } from '@/store/model.store.js';
@@ -177,6 +178,12 @@ const resolveCurrentProjectCode = () => {
 };
 
 const toText = (value) => String(value ?? '').trim();
+
+const createValidationError = (message) => {
+  const error = new Error(message);
+  error.isValidationError = true;
+  return error;
+};
 
 const resolvePersistedRuleIdForSave = () => {
   return toText(persistedRuleId.value);
@@ -654,7 +661,7 @@ const parseUploadedFilesForMapping = async () => {
     pipelineStore.setUploadedFiles(parsedFiles);
     return true;
   } catch (error) {
-    window.alert(`文件解析失败：${error?.message || '未知错误'}`);
+    $error(`文件解析失败：${error?.message || '未知错误'}`);
     return false;
   } finally {
     parsingForStep.value = false;
@@ -690,12 +697,12 @@ const buildCurrentDsl = (selectedModel) => {
 
 const saveRuleEntity = async ({ status = 'draft', dsl = null } = {}) => {
   if (!form.name.trim()) {
-    throw new Error('请输入规则名称');
+    throw createValidationError('请输入规则名称');
   }
 
   const selectedModel = resolveSelectedModel();
   if (!selectedModel) {
-    throw new Error('请先选择已发布的数据模型');
+    throw createValidationError('请先选择已发布的数据模型');
   }
 
   const nextDsl = dsl || buildCurrentDsl(selectedModel);
@@ -751,17 +758,21 @@ const saveRuleEntity = async ({ status = 'draft', dsl = null } = {}) => {
 const saveRule = async () => {
   try {
     await saveRuleEntity({ status: 'draft' });
-    window.alert('规则保存成功');
+    $success('规则保存成功');
     router.push('/designer/rules');
   } catch (error) {
-    window.alert(error?.message || '规则保存失败');
+    if (error?.isValidationError) {
+      $warning(error?.message || '请完善规则配置');
+      return;
+    }
+    $error(error?.message || '规则保存失败');
   }
 };
 
 const executeJob = async () => {
   const selectedModel = resolveSelectedModel();
   if (!selectedModel) {
-    window.alert('请先选择已发布的数据模型');
+    $warning('请先选择已发布的数据模型');
     return;
   }
 
@@ -769,6 +780,7 @@ const executeJob = async () => {
 
   let publishError = '';
   let published = false;
+  let publishValidationError = false;
 
   try {
     const { saved } = await saveRuleEntity({ status: 'draft', dsl });
@@ -782,14 +794,19 @@ const executeJob = async () => {
     published = true;
   } catch (error) {
     publishError = error?.message || '发布失败';
+    publishValidationError = !!error?.isValidationError;
   }
 
   pipelineStore.markExecuted();
 
   if (published) {
-    window.alert('规则发布成功');
+    $success('规则发布成功');
   } else {
-    window.alert(`规则发布失败：${publishError}`);
+    if (publishValidationError) {
+      $warning(publishError || '请完善规则配置');
+    } else {
+      $error(`规则发布失败：${publishError}`);
+    }
   }
 };
 </script>

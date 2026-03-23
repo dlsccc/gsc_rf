@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div style="margin-top: 64px; height: calc(100vh - 64px); display: flex; flex-direction: column;">
     <div class="main-container">
       <main class="content">
@@ -39,6 +39,7 @@
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { pipelineApi, projectModelsApi } from '@/api/index.js';
+import { $error } from '@/utils/message.js';
 import { extractFieldsFromRows, findParsedDataSet, normalizeObjectRows, parseEdmFile, resolveEdmId } from '@/utils/fileUtils.js';
 import { useAppStore } from '@/store/app.store.js';
 import { normalizeProjectModel, unwrapApiList, useModelStore } from '@/store/model.store.js';
@@ -106,7 +107,7 @@ const parseUploadedFilesForMapping = async () => {
     pipelineStore.setUploadedFiles(parsedFiles);
     return true;
   } catch (error) {
-    window.alert(`文件解析失败：${error?.message || '未知错误'}`);
+    $error(`文件解析失败：${error?.message || '未知错误'}`);
     return false;
   } finally {
     parsingForStep.value = false;

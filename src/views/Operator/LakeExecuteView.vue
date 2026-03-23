@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="model-list-container" style="margin-top: 64px; background: linear-gradient(135deg, #f6ffed 0%, #fafafa 100%);">
     <div class="model-edit-header">
       <div class="back-btn" @click="router.push('/operator')">
@@ -148,6 +148,7 @@
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { rulesApi } from '@/api/index.js';
+import { $success, $warning } from '@/utils/message.js';
 import { useAppStore } from '@/store/app.store.js';
 import { RULE_INPUT_TABLES, mapApiRuleToEntity, normalizeRuleInputTables, unwrapApiList, useRuleStore } from '@/store/rule.store.js';
 
@@ -288,21 +289,21 @@ const closeLakeTaskModal = () => {
 
 const addTaskFiles = (files, tableId) => {
   if (!lakeTaskDraft.id) {
-    window.alert('请先创建入湖任务');
+    $warning('请先创建入湖任务');
     return;
   }
   if (!lakeTaskDraft.ruleId) {
-    window.alert('请先选择入湖规则');
+    $warning('请先选择入湖规则');
     return;
   }
 
   const requiredTables = taskRequiredTables.value;
   if (requiredTables.length === 0) {
-    window.alert('当前规则未配置原始数据表，请检查规则定义');
+    $warning('当前规则未配置原始数据表，请检查规则定义');
     return;
   }
   if (!requiredTables.some((table) => table.id === tableId)) {
-    window.alert('当前规则不需要该数据表，请重新选择');
+    $warning('当前规则不需要该数据表，请重新选择');
     return;
   }
 
@@ -311,7 +312,7 @@ const addTaskFiles = (files, tableId) => {
 
   const tableMeta = getTaskTableMeta(tableId);
   if (selectedFiles.length > 1) {
-    window.alert(`${tableMeta.label} 每次仅支持上传 1 个文件，本次将使用第一个文件`);
+    $warning(`${tableMeta.label} 每次仅支持上传 1 个文件，本次将使用第一个文件`);
   }
 
   const file = selectedFiles[0];
@@ -342,11 +343,11 @@ const addTaskFiles = (files, tableId) => {
 
 const triggerTaskFileInput = (tableId) => {
   if (!lakeTaskDraft.id) {
-    window.alert('请先创建入湖任务');
+    $warning('请先创建入湖任务');
     return;
   }
   if (!lakeTaskDraft.ruleId) {
-    window.alert('请先选择入湖规则');
+    $warning('请先选择入湖规则');
     return;
   }
   taskUploadTableId.value = tableId;
@@ -386,33 +387,33 @@ const canExecuteLakeTask = computed(() => {
 
 const executeLakeTask = () => {
   if (!lakeTaskDraft.id) {
-    window.alert('请先创建入湖任务');
+    $warning('请先创建入湖任务');
     return;
   }
   if (!String(lakeTaskDraft.name).trim()) {
-    window.alert('请输入任务名称');
+    $warning('请输入任务名称');
     return;
   }
   if (!lakeTaskDraft.ruleId) {
-    window.alert('请选择入湖规则');
+    $warning('请选择入湖规则');
     return;
   }
 
   const selectedRule = selectedLakeTaskRule.value;
   if (!selectedRule) {
-    window.alert('请选择已发布的入湖规则');
+    $warning('请选择已发布的入湖规则');
     return;
   }
 
   const requiredTables = taskRequiredTables.value;
   if (requiredTables.length === 0) {
-    window.alert('当前规则未配置原始数据表，请先完善规则定义');
+    $warning('当前规则未配置原始数据表，请先完善规则定义');
     return;
   }
 
   const missingTables = requiredTables.filter((table) => !getTaskFileByTable(table.id));
   if (missingTables.length > 0) {
-    window.alert(`请上传 ${missingTables.map((table) => table.label).join('、')} 的原始数据`);
+    $warning(`请上传 ${missingTables.map((table) => table.label).join('、')} 的原始数据`);
     return;
   }
 
@@ -432,7 +433,7 @@ const executeLakeTask = () => {
     })
     .join('；');
 
-  window.alert(`任务执行成功！\n任务：${lakeTaskDraft.name.trim()}\n规则：${selectedRule.name}\n原始数据：${uploadSummary}`);
+  $success(`任务执行成功！\n任务：${lakeTaskDraft.name.trim()}\n规则：${selectedRule.name}\n原始数据：${uploadSummary}`);
   lakeTaskModal.show = false;
   resetLakeTaskDraft();
 };
@@ -442,6 +443,3 @@ onMounted(async () => {
   await loadRules();
 });
 </script>
-
-
-

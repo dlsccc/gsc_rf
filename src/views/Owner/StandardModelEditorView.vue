@@ -114,6 +114,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { standardModelsApi } from '@/api/index.js';
 import { nowText } from '@/utils/date.js';
 import { createId } from '@/utils/id.js';
+import { $warning } from '@/utils/message.js';
 import { normalizeStandardModel, toModelSavePayload, unwrapApiList, useModelStore } from '@/store/model.store.js';
 import { useAppStore } from '@/store/app.store.js';
 
@@ -192,18 +193,18 @@ const moveFieldDown = (index) => {
 
 const validate = () => {
   if (!form.name?.trim()) {
-    window.alert('请输入模型名称');
+    $warning('请输入模型名称');
     return false;
   }
 
   if (!Array.isArray(form.fields) || form.fields.length === 0 || !form.fields.some((item) => item.name?.trim())) {
-    window.alert('请至少配置一个字段');
+    $warning('请至少配置一个字段');
     return false;
   }
 
   const invalid = form.fields.filter((field) => !field.name?.trim() || !field.type?.trim());
   if (invalid.length > 0) {
-    window.alert('保存前请完善字段名称和字段类型');
+    $warning('保存前请完善字段名称和字段类型');
     return false;
   }
 

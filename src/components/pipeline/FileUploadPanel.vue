@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <section>
     <div class="form-group">
       <label class="form-label"><span class="material-icons">upload_file</span>上传原始数据 (支持多个文件)</label>
@@ -55,6 +55,7 @@
 
 <script setup>
 import { ref } from 'vue';
+import { $error, $warning } from '@/utils/message.js';
 import {
   fileUtilUploadFile,
   normalizeUploadResult,
@@ -131,13 +132,13 @@ const handleSelectedFiles = async (fileList) => {
 
   const availableSlots = resolveAvailableSlots();
   if (availableSlots <= 0) {
-    window.alert('最多仅支持 2 个源文件（主表/从表）');
+    $warning('最多仅支持 2 个源文件（主表/从表）');
     return;
   }
 
   const files = allFiles.slice(0, availableSlots);
   if (files.length < allFiles.length) {
-    window.alert(`最多仅支持 2 个源文件，本次仅上传前 ${files.length} 个文件`);
+    $warning(`最多仅支持 2 个源文件，本次仅上传前 ${files.length} 个文件`);
   }
 
   uploading.value = true;
@@ -172,7 +173,7 @@ const handleSelectedFiles = async (fileList) => {
 
     props.store.appendUploadedFiles(uploadedFiles);
   } catch (error) {
-    window.alert(`文件上传失败：${error?.message || '未知错误'}`);
+    $error(`文件上传失败：${error?.message || '未知错误'}`);
   } finally {
     uploading.value = false;
   }
