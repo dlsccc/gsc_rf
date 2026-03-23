@@ -29,7 +29,7 @@
         <div class="function-status active"><span class="material-icons">check_circle</span><span>可使用</span></div>
       </div>
 
-      <div class="function-card" @click="notifyPlanned">
+      <div class="function-card" @click="goReportTemplate">
         <div class="function-icon monitor"><span class="material-icons" style="font-size: 24px;">description</span></div>
         <div class="function-name">报告模板制作</div>
         <div class="function-desc">制作数据报告模板，定义报告格式与数据绑定</div>
@@ -51,11 +51,12 @@ onMounted(() => {
   appStore.setRole('designer');
 });
 
-const notifyPlanned = () => {
-  window.alert('该功能在当前 Vue3 项目中暂未实现页面。');
+const REPORT_TEMPLATE_URL = 'https://astr-lab.gts.huawei.com/dacs/rfreport#/';
+
+const goReportTemplate = () => {
+  window.location.href = REPORT_TEMPLATE_URL;
 };
 
 const goEntrance = () => router.push('/');
 </script>
-
 

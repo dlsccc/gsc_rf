@@ -7,10 +7,6 @@
         <span v-if="isEdit" class="tag tag-success">编辑中</span>
         <span v-else class="tag tag-warning">新建</span>
       </div>
-      <button class="btn btn-primary" @click="saveRule">
-        <span class="material-icons" style="font-size: 18px;">save</span>
-        保存规则
-      </button>
     </div>
 
     <div class="main-container" style="display: flex; flex: 1; overflow: hidden;">
@@ -100,7 +96,11 @@
                 上一步
               </button>
             </div>
-            <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <button class="btn btn-default" @click="saveRule">
+                <span class="material-icons" style="font-size: 18px;">save</span>
+                保存规则
+              </button>
               <button
                 v-if="pipelineStore.currentStep < pipelineStore.steps.length - 1"
                 class="btn btn-primary"
