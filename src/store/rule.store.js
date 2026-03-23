@@ -29,6 +29,21 @@ const deepMapObjectKeys = (value, keyMapper) => {
 
 const normalizeRuleJsonForApi = (ruleJson) => deepMapObjectKeys(ruleJson || {}, toCamelKey);
 
+const parseRuleJson = (ruleJson) => {
+  if (typeof ruleJson === 'string') {
+    try {
+      const parsed = JSON.parse(ruleJson);
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+  if (ruleJson && typeof ruleJson === 'object') {
+    return ruleJson;
+  }
+  return {};
+};
+
 export const unwrapApiData = (response) => {
   if (response && typeof response === 'object' && Object.prototype.hasOwnProperty.call(response, 'data')) {
     return response.data;
@@ -126,7 +141,7 @@ export const normalizeRule = (rule = {}) => ({
 
 export const mapApiRuleToEntity = (item = {}, projectId) => {
   const id = toText(item.ruleId || item.id || item.ruleCode || createId());
-  const ruleJson = normalizeRuleJsonForApi(item.ruleJson || {});
+  const ruleJson = normalizeRuleJsonForApi(parseRuleJson(item.ruleJson));
 
   const fromRuleInput = parseRuleInputString(item.ruleInput);
   const parsedInputTables = Array.isArray(fromRuleInput)

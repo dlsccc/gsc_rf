@@ -201,6 +201,302 @@ const extractRuleIdFromSaveResponse = (saveResponse) => {
   return '';
 };
 
+const toArrayValue = (value) => (Array.isArray(value) ? value : []);
+
+const pickValue = (...values) => {
+  for (const value of values) {
+    const text = toText(value);
+    if (text) return text;
+  }
+  return '';
+};
+
+const toParamMap = (params = []) => {
+  return toArrayValue(params).reduce((acc, item) => {
+    const name = pickValue(item?.paramName, item?.param_name);
+    if (!name) return acc;
+    acc[name] = item?.paramValue ?? item?.param_value;
+    return acc;
+  }, {});
+};
+
+const REVERSE_OPERATOR_MAP = {
+  equal: 'equals',
+  not_equal: 'not_equals',
+  contains: 'contains',
+  is_empty: 'is_empty',
+  is_not_empty: 'is_not_empty',
+  greater_than: 'greater_than',
+  less_than: 'less_than'
+};
+
+const REVERSE_TRANSFORM_TYPE_MAP = {
+  to_upper: 'uppercase',
+  to_lower: 'lowercase',
+  trim: 'trim',
+  format_datetime: 'format_datetime',
+  extract_year: 'extract_year',
+  extract_month: 'extract_month',
+  extract_time: 'extract_time',
+  format_time: 'format_time',
+  calc_week: 'calc_week',
+  calc_weekday: 'calc_weekday',
+  to_number: 'to_number',
+  remove_thousand_sep: 'remove_thousand_sep',
+  remove_percent: 'remove_percent',
+  set_value: 'set_value',
+  concat: 'concat',
+  replace: 'replace',
+  formula: 'formula'
+};
+
+const readRuleJsonSections = (ruleJson = {}) => {
+  const globalSetting = ruleJson?.globalSetting || ruleJson?.global_setting || {};
+  const dataSources = globalSetting?.dataSources || globalSetting?.data_sources || {};
+  const dataProcessing = ruleJson?.dataProcessing || ruleJson?.data_processing || {};
+  const writeConfigDsl = ruleJson?.writeConfig || ruleJson?.write_config || null;
+
+  return {
+    tables: toArrayValue(dataSources?.tables),
+    joinConfig: globalSetting?.joinConfig || globalSetting?.join_config || null,
+    deduplicate: globalSetting?.deduplicate || globalSetting?.deduplicate_data || null,
+    rules: toArrayValue(dataProcessing?.rules),
+    writeConfigDsl
+  };
+};
+
+const buildUploadedFilesFromTables = (tables = []) => {
+  return tables.slice(0, 2).map((table, index) => {
+    const source = pickValue(table?.sourceId, table?.source_id, index === 0 ? 'table_a' : 'table_b');
+    const edmId = pickValue(table?.edmId, table?.edmID, table?.fileCode);
+    const fields = toArrayValue(table?.columns).map((item) => pickValue(item?.name)).filter(Boolean);
+
+    return {
+      id: edmId || `${source}_${index + 1}`,
+      edmId,
+      fileCode: edmId,
+      name: pickValue(table?.sourceName, table?.source_name, source),
+      size: 0,
+      rows: [],
+      fields,
+      parsed: false,
+      source
+    };
+  });
+};
+
+const parseMappingsAndConfigsFromRules = (rules = []) => {
+  const mappings = {};
+  const filters = {};
+  const transforms = {};
+  const sortConfig = { field: '', order: 'asc' };
+
+  toArrayValue(rules).forEach((ruleItem) => {
+    const ruleOutput = ruleItem?.ruleOutput || ruleItem?.rule_output || {};
+    const outputField = pickValue(ruleOutput?.outputColumn, ruleOutput?.output_column);
+    if (!outputField) return;
+
+    const inputs = toArrayValue(ruleItem?.ruleInput || ruleItem?.rule_input);
+    const sourceKeys = [];
+
+    inputs.forEach((inputItem) => {
+      const source = pickValue(inputItem?.sourceTable, inputItem?.source_table);
+      const columns = toArrayValue(inputItem?.keyColumns || inputItem?.key_columns);
+      columns.forEach((column) => {
+        const col = toText(column);
+        if (source && col) {
+          sourceKeys.push(`${source}.${col}`);
+        }
+      });
+    });
+
+    if (sourceKeys.length > 0) {
+      mappings[outputField] = [...new Set(sourceKeys)];
+    }
+
+    const filterParams = toParamMap(ruleItem?.filter || []);
+    const filterOperator = toText(filterParams.operator).toLowerCase();
+    if (filterOperator) {
+      if (filterOperator === 'formula') {
+        filters[outputField] = {
+          mode: 'formula',
+          formula: toText(filterParams.formula)
+        };
+      } else if (filterOperator === 'compound') {
+        filters[outputField] = {
+          mode: 'compound',
+          logic: pickValue(filterParams.logic, 'AND') || 'AND',
+          conditions: toArrayValue(filterParams.conditions).map((item) => ({
+            operator: REVERSE_OPERATOR_MAP[toText(item?.operator).toLowerCase()] || toText(item?.operator),
+            value: item?.value ?? ''
+          }))
+        };
+      } else {
+        filters[outputField] = {
+          mode: 'simple',
+          operator: REVERSE_OPERATOR_MAP[filterOperator] || filterOperator,
+          value: filterParams.value ?? ''
+        };
+      }
+    }
+
+    const rawRule = ruleItem?.rule || {};
+    const ability = pickValue(rawRule?.abilityName, rawRule?.ability_name);
+    const ruleParams = toParamMap(rawRule?.params || []);
+
+    if (ability === 'transform') {
+      const transformType = pickValue(ruleParams.transform_type).toLowerCase();
+      if (transformType === 'chain') {
+        transforms[outputField] = {
+          chain: toArrayValue(ruleParams.steps).map((step) => ({
+            type: REVERSE_TRANSFORM_TYPE_MAP[toText(step?.transform_type).toLowerCase()] || toText(step?.transform_type),
+            delimiter: step?.delimiter ?? '',
+            fixedValue: step?.value ?? '',
+            search: step?.search_value ?? '',
+            replace: step?.replace_value ?? '',
+            formula: step?.formula ?? ''
+          }))
+        };
+      } else if (transformType) {
+        transforms[outputField] = {
+          type: REVERSE_TRANSFORM_TYPE_MAP[transformType] || transformType,
+          delimiter: ruleParams.delimiter ?? '',
+          fixedValue: ruleParams.value ?? '',
+          search: ruleParams.search_value ?? '',
+          replace: ruleParams.replace_value ?? '',
+          formula: ruleParams.formula ?? '',
+          inputFormat: ruleParams.input_format ?? '',
+          outputFormat: ruleParams.output_format ?? ''
+        };
+      }
+    }
+
+    if (ability === 'conditional_transform') {
+      transforms[outputField] = {
+        rules: toArrayValue(ruleParams.rules).map((item) => ({
+          operator: REVERSE_OPERATOR_MAP[toText(item?.operator).toLowerCase()] || toText(item?.operator),
+          value: item?.value ?? '',
+          type: REVERSE_TRANSFORM_TYPE_MAP[toText(item?.transform_type).toLowerCase()] || toText(item?.transform_type),
+          delimiter: item?.delimiter ?? '',
+          fixedValue: item?.fixed_value ?? '',
+          search: item?.search_value ?? '',
+          replace: item?.replace_value ?? '',
+          formula: item?.formula ?? ''
+        }))
+      };
+    }
+
+    const sortParams = toParamMap(ruleItem?.sort || []);
+    if (Object.keys(sortParams).length > 0) {
+      sortConfig.field = outputField;
+      sortConfig.order = pickValue(sortParams.directions, 'asc').toLowerCase() === 'desc' ? 'desc' : 'asc';
+    }
+  });
+
+  return { mappings, filters, transforms, sortConfig };
+};
+
+const parseJoinConfigFromDsl = (joinDsl) => {
+  const fallback = { type: 'left', fields: [{ leftField: '', rightField: '' }] };
+  if (!joinDsl) return fallback;
+
+  const inputs = toArrayValue(joinDsl?.ruleInput || joinDsl?.rule_input);
+  if (inputs.length < 2) return fallback;
+
+  const leftColumns = toArrayValue(inputs[0]?.keyColumns || inputs[0]?.key_columns).map((item) => toText(item)).filter(Boolean);
+  const rightColumns = toArrayValue(inputs[1]?.keyColumns || inputs[1]?.key_columns).map((item) => toText(item)).filter(Boolean);
+  const maxLength = Math.max(leftColumns.length, rightColumns.length, 1);
+  const fields = Array.from({ length: maxLength }, (_, index) => ({
+    leftField: leftColumns[index] || '',
+    rightField: rightColumns[index] || ''
+  }));
+
+  const params = toParamMap(joinDsl?.rule?.params || []);
+  const joinType = pickValue(params.join_type, 'left').toLowerCase();
+
+  return {
+    type: ['inner', 'left', 'full'].includes(joinType) ? joinType : 'left',
+    fields
+  };
+};
+
+const parseDedupConfigFromDsl = (deduplicateDsl) => {
+  const fallback = { enabled: true, fields: [], keep: 'first' };
+  if (!deduplicateDsl) return fallback;
+
+  const input = toArrayValue(deduplicateDsl?.ruleInput || deduplicateDsl?.rule_input)[0] || {};
+  const fields = toArrayValue(input?.keyColumns || input?.key_columns).map((item) => toText(item)).filter(Boolean);
+  const params = toParamMap(deduplicateDsl?.rule?.params || []);
+  const keep = pickValue(params.keep, 'first');
+
+  return {
+    enabled: fields.length > 0,
+    fields,
+    keep: keep || 'first'
+  };
+};
+
+const parseWriteConfigFromDsl = (writeConfigDsl) => {
+  const fallback = {
+    mode: 'append',
+    deduplication: false,
+    dedupFields: [],
+    conflictStrategy: 'keep_old'
+  };
+  if (!writeConfigDsl) return fallback;
+
+  const params = toParamMap(writeConfigDsl?.rule?.params || []);
+  const writeMode = pickValue(params.write_mode);
+  const overwrite = params.overwrite === true;
+
+  return {
+    mode: writeMode || (overwrite ? 'replace' : 'append'),
+    deduplication: !!params.deduplication,
+    dedupFields: toArrayValue(params.dedup_fields || params.dedupFields).map((item) => toText(item)).filter(Boolean),
+    conflictStrategy: pickValue(params.conflict_strategy, params.conflictStrategy, 'keep_old') || 'keep_old'
+  };
+};
+
+const applyRuleJsonToPipeline = (ruleJson = {}) => {
+  if (!ruleJson || typeof ruleJson !== 'object') return;
+
+  const sections = readRuleJsonSections(ruleJson);
+  const uploadedFiles = buildUploadedFilesFromTables(sections.tables);
+  if (uploadedFiles.length > 0) {
+    pipelineStore.setUploadedFiles(uploadedFiles);
+  }
+
+  const parsed = parseMappingsAndConfigsFromRules(sections.rules);
+  pipelineStore.setMappings(parsed.mappings);
+
+  const joinConfig = parseJoinConfigFromDsl(sections.joinConfig);
+  pipelineStore.joinConfig.type = joinConfig.type;
+  pipelineStore.joinConfig.fields = joinConfig.fields;
+
+  Object.keys(pipelineStore.filters).forEach((key) => delete pipelineStore.filters[key]);
+  Object.entries(parsed.filters).forEach(([field, config]) => {
+    pipelineStore.filters[field] = { ...config };
+  });
+
+  Object.keys(pipelineStore.transforms).forEach((key) => delete pipelineStore.transforms[key]);
+  Object.entries(parsed.transforms).forEach(([field, config]) => {
+    pipelineStore.transforms[field] = { ...config };
+  });
+
+  pipelineStore.sortConfig.field = parsed.sortConfig.field;
+  pipelineStore.sortConfig.order = parsed.sortConfig.order;
+
+  const dedupConfig = parseDedupConfigFromDsl(sections.deduplicate);
+  pipelineStore.dedupConfig.enabled = dedupConfig.enabled;
+  pipelineStore.dedupConfig.fields = [...dedupConfig.fields];
+  pipelineStore.dedupConfig.keep = dedupConfig.keep;
+
+  const writeConfig = parseWriteConfigFromDsl(sections.writeConfigDsl);
+  pipelineStore.writeConfig.mode = writeConfig.mode;
+  pipelineStore.writeConfig.deduplication = writeConfig.deduplication;
+  pipelineStore.writeConfig.dedupFields = [...writeConfig.dedupFields];
+  pipelineStore.writeConfig.conflictStrategy = writeConfig.conflictStrategy;
+};
 const loadProjectModels = async () => {
   try {
     const projectCode = resolveCurrentProjectCode();
@@ -298,10 +594,11 @@ onMounted(async () => {
       const modelName = String(item.name || '').trim();
       return modelCode === String(form.targetModel).trim() || modelName === String(form.targetModel).trim();
     });
-
     if (model) {
       await onSelectModel(model.id);
     }
+
+    applyRuleJsonToPipeline(targetRule?.ruleJson || {});
     return;
   }
 
@@ -496,3 +793,4 @@ const executeJob = async () => {
   }
 };
 </script>
+
