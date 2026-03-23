@@ -130,7 +130,7 @@ import { nowText } from '@/utils/date.js';
 import { buildPipelineDsl } from '@/utils/pipeline-dsl.js';
 import { extractFieldsFromRows, findParsedDataSet, normalizeObjectRows, parseEdmFile, resolveEdmId } from '@/utils/fileUtils.js';
 import { useAppStore } from '@/store/app.store.js';
-import { normalizeProjectModel, resolveModelCode, unwrapApiData, unwrapApiList, useModelStore } from '@/store/model.store.js';
+import { normalizeProjectModel, resolveModelCode, toBusinessTypeLabel, unwrapApiData, unwrapApiList, useModelStore } from '@/store/model.store.js';
 import { RULE_INPUT_TABLES, mapApiRuleToEntity, toSaveRulePayload, useRuleStore } from '@/store/rule.store.js';
 import { usePipelineStore } from '@/store/pipeline.store.js';
 import FileUploadPanel from '@/components/pipeline/FileUploadPanel.vue';
@@ -166,7 +166,7 @@ const targetModelPreviewFields = computed(() => {
   return pipelineStore.targetFields.map((field) => ({
     name: field.name,
     type: field.type,
-    businessType: field.businessType || '指标',
+    businessType: toBusinessTypeLabel(field.businessType),
     description: field.description,
     sampleValue: field.sampleValue || field.example || ''
   }));

@@ -7,14 +7,40 @@ const deepClone = (value) => JSON.parse(JSON.stringify(value));
 const toText = (value) => String(value ?? '').trim();
 
 const BUSINESS_FIELD_TYPES = {
-  TIME: '\u65f6\u95f4',
-  SPACE: '\u7a7a\u95f4',
-  METRIC: '\u6307\u6807'
+  TIME: 'time',
+  SPACE: 'space',
+  METRIC: 'metric'
 };
 
+const BUSINESS_FIELD_TYPE_LABELS = {
+  [BUSINESS_FIELD_TYPES.TIME]: '\u65f6\u95f4',
+  [BUSINESS_FIELD_TYPES.SPACE]: '\u7a7a\u95f4',
+  [BUSINESS_FIELD_TYPES.METRIC]: '\u6307\u6807'
+};
+
+const normalizeBusinessTypeCode = (value) => {
+  const code = toText(value).toLowerCase();
+  if (Object.values(BUSINESS_FIELD_TYPES).includes(code)) {
+    return code;
+  }
+
+  const text = toText(value);
+  const matched = Object.entries(BUSINESS_FIELD_TYPE_LABELS)
+    .find(([, label]) => label === text);
+  if (matched) {
+    return matched[0];
+  }
+
+  return '';
+};
+
+export const toBusinessTypeLabel = (value) => {
+  const code = normalizeBusinessTypeCode(value) || BUSINESS_FIELD_TYPES.METRIC;
+  return BUSINESS_FIELD_TYPE_LABELS[code] || BUSINESS_FIELD_TYPE_LABELS[BUSINESS_FIELD_TYPES.METRIC];
+};
 const inferBusinessType = (field = {}) => {
-  const businessType = toText(field.businessType || field.business_type);
-  if (Object.values(BUSINESS_FIELD_TYPES).includes(businessType)) {
+  const businessType = normalizeBusinessTypeCode(field.fieldBusinessType || field.businessType || field.business_type);
+  if (businessType) {
     return businessType;
   }
 
@@ -129,6 +155,7 @@ const toFieldListPayload = (fields = [], modelCode = '') => {
     dataFormat: toText(field.format),
     dataExample: toText(field.example),
     isNull: field.isNull !== undefined ? !!field.isNull : true,
+    fieldBusinessType: inferBusinessType(field),
     seq: index + 1
   }));
 };

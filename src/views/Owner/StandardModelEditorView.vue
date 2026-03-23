@@ -71,7 +71,7 @@
               </td>
               <td>
                 <select v-model="field.businessType" class="field-select">
-                  <option v-for="type in businessTypeOptions" :key="type" :value="type">{{ type }}</option>
+                  <option v-for="type in businessTypeOptions" :key="type.value" :value="type.value">{{ type.label }}</option>
                 </select>
               </td>
               <td><input v-model="field.description" class="field-input" type="text" placeholder="业务含义描述" /></td>
@@ -117,9 +117,13 @@ import { createId } from '@/utils/id.js';
 import { normalizeStandardModel, toModelSavePayload, unwrapApiList, useModelStore } from '@/store/model.store.js';
 import { useAppStore } from '@/store/app.store.js';
 
-const businessTypeOptions = ['时间', '空间', '指标'];
+const businessTypeOptions = [
+  { value: 'time', label: '时间' },
+  { value: 'space', label: '空间' },
+  { value: 'metric', label: '指标' }
+];
 
-const emptyField = () => ({ name: '', type: '', format: '', businessType: '指标', description: '', example: '' });
+const emptyField = () => ({ name: '', type: '', format: '', businessType: 'metric', description: '', example: '' });
 const emptyModel = () => ({ id: '', name: '', description: '', status: 'draft', fields: [emptyField()] });
 
 const route = useRoute();
