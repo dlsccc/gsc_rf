@@ -54,7 +54,7 @@ onMounted(() => {
 const REPORT_TEMPLATE_URL = 'https://astr-lab.gts.huawei.com/dacs/rfreport#/';
 
 const goReportTemplate = () => {
-  window.location.href = REPORT_TEMPLATE_URL;
+  window.open(REPORT_TEMPLATE_URL,'_target')
 };
 
 const goEntrance = () => router.push('/');
