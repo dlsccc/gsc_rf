@@ -445,7 +445,7 @@ const buildWriteDsl = (selectedModel, writeConfig = {}, dedupConfig = {}) => {
         makeParam('write_mode', 'enum', writeConfig.mode || 'append'),
         makeParam('deduplication', 'boolean', !!writeConfig.deduplication),
         makeParam('dedup_fields', 'array', writeConfig.dedupFields || []),
-        makeParam('conflict_strategy', 'enum', writeConfig.conflictStrategy || 'keep_old')
+        makeParam('conflict_strategy', 'enum', 'keep_old')
       ]
     }
   };

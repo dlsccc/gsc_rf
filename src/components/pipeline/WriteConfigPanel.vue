@@ -42,10 +42,7 @@
 
           <div class="sub-option-item">
             <span>{{ t.conflictHandling }}</span>
-            <select v-model="store.writeConfig.conflictStrategy" class="form-select" style="width: 200px;">
-              <option value="keep_old">{{ t.keepOld }}</option>
-              <option value="overwrite">{{ t.overwrite }}</option>
-            </select>
+            <span style="font-weight: 600;">{{ t.keepOld }}</span>
           </div>
         </div>
       </div>
@@ -86,7 +83,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import { useModelStore } from '@/store/model.store.js';
 
 const props = defineProps({
@@ -99,11 +96,10 @@ const t = {
   processSteps: '\u5904\u7406\u6b65\u9aa4\u6570',
   writeMode: '\u5199\u5165\u6a21\u5f0f',
   appendMode: '\u589e\u91cf\u5199\u5165',
-  appendDesc: '\u5c06\u6570\u636e\u8ffd\u52a0\u5230\u76ee\u6807\u8868\u4e2d\uff0c\u53ef\u914d\u7f6e\u53bb\u91cd\u89c4\u5219\u548c\u51b2\u7a81\u5904\u7406\u7b56\u7565',
+  appendDesc: '\u5c06\u6570\u636e\u8ffd\u52a0\u5230\u76ee\u6807\u8868\u4e2d\uff0c\u53ef\u914d\u7f6e\u53bb\u91cd\u89c4\u5219\uff0c\u51b2\u7a81\u65f6\u9ed8\u8ba4\u4fdd\u7559\u65e7\u6570\u636e',
   enableDedup: '\u542f\u7528\u53bb\u91cd',
   conflictHandling: '\u51b2\u7a81\u5904\u7406\uff1a',
   keepOld: '\u4fdd\u7559\u65e7\u6570\u636e',
-  overwrite: '\u8986\u76d6\u65e7\u6570\u636e',
   replaceMode: '\u5168\u8868\u66ff\u6362',
   replaceDesc: '\u6e05\u7a7a\u76ee\u6807\u8868\u4e2d\u7684\u6240\u6709\u6570\u636e\uff0c\u7136\u540e\u5199\u5165\u65b0\u6570\u636e',
   targetInfo: '\u76ee\u6807\u8868\u4fe1\u606f',
@@ -155,6 +151,17 @@ const processStepCount = computed(() => {
 
 const setMode = (mode) => {
   props.store.writeConfig.mode = mode;
+  props.store.writeConfig.conflictStrategy = 'keep_old';
 };
+
+watch(
+  () => props.store.writeConfig.conflictStrategy,
+  (value) => {
+    if (value !== 'keep_old') {
+      props.store.writeConfig.conflictStrategy = 'keep_old';
+    }
+  },
+  { immediate: true }
+);
 </script>
 
