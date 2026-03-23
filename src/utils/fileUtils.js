@@ -10,6 +10,28 @@ const toArray = (value) => {
   return [value];
 };
 
+const normalizeEdmIdList = (value) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => toText(item)).filter(Boolean);
+  }
+
+  const text = toText(value);
+  if (!text) return [];
+
+  if (text.startsWith('[') && text.endsWith(']')) {
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item) => toText(item)).filter(Boolean);
+      }
+    } catch {
+      // ignore parse failure and fallback to plain string.
+    }
+  }
+
+  return [text];
+};
+
 export const resolveEdmId = (item = {}) => {
   if (['string', 'number'].includes(typeof item)) {
     return toText(item);
@@ -77,9 +99,9 @@ export const queryFileDetail = async (fileIds, config = {}) => {
 };
 
 export const parseEdmFile = async (edmId, config = {}) => {
-  const id = toText(edmId);
-  if (!id) return [];
-  const { data = [] } = await apiSystemService.parseEdmFile({ edmId: id }, config);
+  const ids = normalizeEdmIdList(edmId);
+  if (ids.length === 0) return [];
+  const { data = [] } = await apiSystemService.parseEdmFile({ edmId: JSON.stringify(ids) }, config);
   return toArray(data);
 };
 
