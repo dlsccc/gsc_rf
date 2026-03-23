@@ -123,7 +123,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { projectModelsApi, rulesApi } from '@/api/index.js';
 import { nowText } from '@/utils/date.js';
@@ -143,6 +143,7 @@ const appStore = useAppStore();
 const modelStore = useModelStore();
 const ruleStore = useRuleStore();
 const pipelineStore = usePipelineStore();
+const persistedRuleId = ref('');
 
 const isEdit = computed(() => !!route.params.id);
 
@@ -171,6 +172,31 @@ const targetModelPreviewFields = computed(() => {
 
 const resolveCurrentProjectCode = () => {
   return String(appStore.currentProjectCode || appStore.currentProject || '').trim();
+};
+
+const toText = (value) => String(value ?? '').trim();
+
+const resolvePersistedRuleIdForSave = () => {
+  return toText(persistedRuleId.value);
+};
+
+const extractRuleIdFromSaveResponse = (saveResponse) => {
+  const data = saveResponse?.data ?? saveResponse?.result ?? saveResponse ?? {};
+  const candidates = [
+    saveResponse?.ruleId,
+    saveResponse?.id,
+    data?.ruleId,
+    data?.id,
+    data?.ruleCode,
+    saveResponse?.ruleCode
+  ];
+
+  for (const item of candidates) {
+    const value = toText(item);
+    if (value) return value;
+  }
+
+  return '';
 };
 
 const loadProjectModels = async () => {
@@ -239,6 +265,7 @@ const setForm = (rule) => {
   form.status = rule?.status || 'draft';
   form.targetModel = rule?.targetModel || '';
   form.projectId = rule?.projectId || appStore.currentProject;
+  persistedRuleId.value = toText(rule?.ruleCode || rule?.id);
 };
 
 const resolveSelectedModel = () => {
@@ -260,6 +287,9 @@ onMounted(async () => {
   if (isEdit.value) {
     const targetRule = ruleStore.getRuleById(route.params.id);
     setForm(targetRule);
+    if (!persistedRuleId.value) {
+      persistedRuleId.value = toText(route.params.id);
+    }
 
     const model = publishedProjectModels.value.find((item) => {
       const modelCode = String(item.modelCode || item.code || '').trim();
@@ -274,6 +304,7 @@ onMounted(async () => {
   }
 
   setForm(null);
+  persistedRuleId.value = '';
 });
 
 const autoMap = () => {
@@ -314,7 +345,7 @@ const saveRuleEntity = async ({ status = 'draft', dsl = null } = {}) => {
   }
 
   const nextDsl = dsl || buildCurrentDsl(selectedModel);
-  const saved = ruleStore.upsertRuleLocal({
+  let saved = ruleStore.upsertRuleLocal({
     ...JSON.parse(JSON.stringify(form)),
     id: form.id,
     ruleId: form.id,
@@ -328,8 +359,9 @@ const saveRuleEntity = async ({ status = 'draft', dsl = null } = {}) => {
   });
 
   try {
-    await rulesApi.save(toSaveRulePayload(saved, {
+    const saveResponse = await rulesApi.save(toSaveRulePayload(saved, {
       ...JSON.parse(JSON.stringify(form)),
+      ruleId: resolvePersistedRuleIdForSave(),
       status,
       targetModel: selectedModel.modelCode || selectedModel.name,
       inputTables: resolveRuleInputTablesForSave(),
@@ -338,11 +370,24 @@ const saveRuleEntity = async ({ status = 'draft', dsl = null } = {}) => {
       ruleJson: nextDsl,
       dsl: nextDsl
     }));
+
+    const backendRuleId = extractRuleIdFromSaveResponse(saveResponse);
+    if (backendRuleId) {
+      persistedRuleId.value = backendRuleId;
+      if (String(saved.id) !== backendRuleId || String(saved.ruleCode) !== backendRuleId) {
+        ruleStore.removeRuleById(saved.id);
+        saved = ruleStore.upsertRuleLocal({
+          ...saved,
+          id: backendRuleId,
+          ruleCode: backendRuleId
+        });
+      }
+    }
   } catch {
     // 无后端时忽略错误。
   }
 
-  form.id = saved.id;
+  form.id = persistedRuleId.value || saved.id;
   form.status = saved.status;
   form.targetModel = saved.targetModel;
 

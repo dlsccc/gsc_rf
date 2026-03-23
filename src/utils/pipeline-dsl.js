@@ -44,6 +44,10 @@ const toSourceFiles = (uploadedFiles = []) => {
   });
 };
 
+const resolveFileEdmId = (file = {}) => {
+  return trimText(file?.edmId || file?.edmID || file?.fileCode || file?.id || '');
+};
+
 const pickSampleValue = (rows = [], field) => {
   const sample = rows.find((row) => trimText(row?.[field]) !== '');
   return sample?.[field] ?? '';
@@ -267,6 +271,7 @@ const toDataSourceDsl = (uploadedFiles = []) => {
 
     return {
       source_id: file.source,
+      edmId: resolveFileEdmId(file),
       source_name: file.name || file.source,
       source_type: 'file',
       file_path: `/uploads/${file.name || file.source}`,

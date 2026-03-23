@@ -29,20 +29,6 @@ const deepMapObjectKeys = (value, keyMapper) => {
 
 const normalizeRuleJsonForApi = (ruleJson) => deepMapObjectKeys(ruleJson || {}, toCamelKey);
 
-const normalizeEdmList = (payload = {}) => {
-  if (Array.isArray(payload.edmList)) {
-    return payload.edmList.map((item) => toText(item)).filter(Boolean);
-  }
-
-  if (Array.isArray(payload.uploadedFiles)) {
-    return payload.uploadedFiles
-      .map((file) => toText(file?.edmId || file?.edmID || file?.edmCode || file?.edm))
-      .filter(Boolean);
-  }
-
-  return [];
-};
-
 export const unwrapApiData = (response) => {
   if (response && typeof response === 'object' && Object.prototype.hasOwnProperty.call(response, 'data')) {
     return response.data;
@@ -176,13 +162,11 @@ export const mapApiRuleToEntity = (item = {}, projectId) => {
 };
 
 export const toSaveRulePayload = (entity = {}, payload = {}) => {
-  const ruleCode = toText(entity.ruleCode || entity.id);
+  const persistedRuleId = toText(payload.ruleId);
   const normalizedRuleJson = normalizeRuleJsonForApi(payload.ruleJson || payload.dsl || entity.ruleJson || {});
-  const edmList = normalizeEdmList(payload);
   const createBy = toText(payload.createBy) || DEFAULT_CREATE_BY;
 
-  return {
-    ruleId: ruleCode,
+  const requestPayload = {
     ruleName: toText(entity.name),
     ruleDesc: toText(entity.description),
     ruleJson: normalizedRuleJson,
@@ -192,9 +176,14 @@ export const toSaveRulePayload = (entity = {}, payload = {}) => {
     ruleOutput: toText(entity.targetModel),
     status: toText(entity.status || payload.status || 'draft'),
     createBy,
-    edmList,
     lastUpdatedBy: toText(payload.lastUpdatedBy)
   };
+
+  if (persistedRuleId) {
+    requestPayload.ruleId = persistedRuleId;
+  }
+
+  return requestPayload;
 };
 
 export const useRuleStore = defineStore('rule', () => {

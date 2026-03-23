@@ -57,7 +57,7 @@ export const usePipelineStore = defineStore('pipeline', () => {
 
   const sourceFields = computed(() => {
     return uploadedFiles.value.flatMap((file) =>
-      file.fields.map((fieldName) => ({
+      (file.fields || []).map((fieldName) => ({
         key: `${file.source}.${fieldName}`,
         source: file.source,
         name: fieldName
@@ -153,6 +153,18 @@ export const usePipelineStore = defineStore('pipeline', () => {
     normalizeUploadedFiles();
     mappings.value = {};
     syncJoinFields();
+  };
+
+  const setUploadedFiles = (files = []) => {
+    uploadedFiles.value = Array.isArray(files) ? [...files] : [];
+    refreshAfterFileChange();
+  };
+
+  const appendUploadedFiles = (files = []) => {
+    const incoming = Array.isArray(files) ? files.filter(Boolean) : [];
+    if (incoming.length === 0) return;
+    uploadedFiles.value = [...uploadedFiles.value, ...incoming];
+    refreshAfterFileChange();
   };
 
   const uploadLocalFiles = async (fileList) => {
@@ -313,6 +325,8 @@ export const usePipelineStore = defineStore('pipeline', () => {
     setModel,
     setMapping,
     setMappings,
+    setUploadedFiles,
+    appendUploadedFiles,
     uploadLocalFiles,
     removeFile,
     moveFileUp,

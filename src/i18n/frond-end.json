@@ -1,7 +1,7 @@
 [
   {
-    "localKey": "i18n.api.serviceManage.confirm",
-    "zh-CN": "确定",
-    "en-US": "Confirm"
+    "localKey": "i18n.work.rules.uploadFail",
+    "zh-CN": "上传文件失败，请联系管理员",
+    "en-US": "File upload failed, please contact the administrator"
   }
 ]
