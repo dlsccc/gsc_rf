@@ -13,7 +13,7 @@
         <div class="upload-icon"><span class="material-icons" style="font-size: 56px;">cloud_upload</span></div>
         <div class="upload-text">点击或拖拽文件到此处上传</div>
         <div class="upload-hint" v-if="!uploading">支持 Excel (.xlsx, .xls)、CSV (.csv)、压缩包 (.zip)</div>
-        <div class="upload-hint" v-else>正在上传并调用后端解析，请稍候...</div>
+        <div class="upload-hint" v-else>正在上传文件，请稍候...</div>
       </div>
       <input ref="inputRef" type="file" style="display: none;" multiple accept=".xlsx,.xls,.csv,.zip" @change="onFileChange" />
     </div>
@@ -31,7 +31,6 @@
               {{ file.source === 'table_a' ? '主表' : '从表' }}
             </span>
           </div>
-          <div class="file-card-meta">{{ formatFileSize(file.size) }} | {{ (file.rows || []).length }} 行数据 | {{ (file.fields || []).length }} 个字段</div>
         </div>
 
         <div style="display: flex; gap: 4px;" v-if="store.uploadedFiles.length >= 2">
@@ -43,7 +42,6 @@
           </button>
         </div>
 
-        <span class="tag tag-success"><span class="material-icons" style="font-size: 14px; vertical-align: middle; margin-right: 4px;">check_circle</span>解析成功</span>
         <button class="btn btn-default btn-sm" @click="store.removeFile(file.id)" :disabled="uploading"><span class="material-icons" style="font-size: 16px;">delete</span></button>
       </div>
 
@@ -58,12 +56,8 @@
 <script setup>
 import { ref } from 'vue';
 import {
-  extractFieldsFromRows,
   fileUtilUploadFile,
-  findParsedDataSet,
-  normalizeObjectRows,
   normalizeUploadResult,
-  parseEdmFile,
   queryFileDetail,
   resolveEdmId
 } from '@/utils/fileUtils.js';
@@ -114,16 +108,17 @@ const ensureUploadMeta = (uploadData, file) => {
   return list[0];
 };
 
-const createFileEntity = ({ file, uploadMeta, detail, rows, fields }) => {
+const createFileEntity = ({ uploadMeta, detail }) => {
   const edmId = resolveEdmId(uploadMeta) || resolveEdmId(detail);
   return {
-    id: edmId || `${Date.now()}_${file.name}`,
+    id: edmId || `${Date.now()}`,
     edmId,
     fileCode: resolveEdmId(detail) || resolveEdmId(uploadMeta),
-    name: String(detail?.fileName || uploadMeta?.fileName || file?.name || edmId),
-    size: Number(detail?.fileSize ?? uploadMeta?.fileSize ?? file?.size ?? 0),
-    rows,
-    fields,
+    name: String(detail?.fileName || uploadMeta?.fileName || edmId),
+    size: Number(detail?.fileSize ?? uploadMeta?.fileSize ?? 0),
+    rows: [],
+    fields: [],
+    parsed: false,
     source: 'table_a'
   };
 };
@@ -155,7 +150,7 @@ const handleSelectedFiles = async (fileList) => {
       const uploadData = await fileUtilUploadFile(formData);
       const uploadMeta = ensureUploadMeta(uploadData, file);
 
-      return { file, uploadMeta };
+      return { uploadMeta };
     }));
 
     const edmIds = [...new Set(uploadResults.map((item) => resolveEdmId(item.uploadMeta)).filter(Boolean))];
@@ -169,34 +164,17 @@ const handleSelectedFiles = async (fileList) => {
       }
     });
 
-    const parsedFiles = await Promise.all(uploadResults.map(async ({ file, uploadMeta }) => {
+    const uploadedFiles = uploadResults.map(({ uploadMeta }) => {
       const edmId = resolveEdmId(uploadMeta);
-      const parsedList = await parseEdmFile(edmId);
-      const dataSet = findParsedDataSet(parsedList, edmId);
-      const rows = normalizeObjectRows(dataSet);
-      const fields = extractFieldsFromRows(rows);
       const detail = detailMap.get(edmId) || {};
+      return createFileEntity({ uploadMeta, detail });
+    });
 
-      return createFileEntity({
-        file,
-        uploadMeta,
-        detail,
-        rows,
-        fields
-      });
-    }));
-
-    props.store.appendUploadedFiles(parsedFiles);
+    props.store.appendUploadedFiles(uploadedFiles);
   } catch (error) {
-    window.alert(`文件上传或解析失败：${error?.message || '未知错误'}`);
+    window.alert(`文件上传失败：${error?.message || '未知错误'}`);
   } finally {
     uploading.value = false;
   }
-};
-
-const formatFileSize = (size = 0) => {
-  if (size < 1024) return `${size} B`;
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 };
 </script>

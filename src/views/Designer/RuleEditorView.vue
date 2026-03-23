@@ -104,8 +104,8 @@
               <button
                 v-if="pipelineStore.currentStep < pipelineStore.steps.length - 1"
                 class="btn btn-primary"
-                :disabled="!pipelineStore.canProceed"
-                @click="pipelineStore.nextStep"
+                :disabled="!pipelineStore.canProceed || parsingForStep"
+                @click="goNextStep"
               >
                 下一步
                 <span class="material-icons" style="font-size: 18px;">arrow_forward</span>
@@ -128,6 +128,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { projectModelsApi, rulesApi } from '@/api/index.js';
 import { nowText } from '@/utils/date.js';
 import { buildPipelineDsl } from '@/utils/pipeline-dsl.js';
+import { extractFieldsFromRows, findParsedDataSet, normalizeObjectRows, parseEdmFile, resolveEdmId } from '@/utils/fileUtils.js';
 import { useAppStore } from '@/store/app.store.js';
 import { normalizeProjectModel, resolveModelCode, unwrapApiData, unwrapApiList, useModelStore } from '@/store/model.store.js';
 import { RULE_INPUT_TABLES, mapApiRuleToEntity, toSaveRulePayload, useRuleStore } from '@/store/rule.store.js';
@@ -144,6 +145,7 @@ const modelStore = useModelStore();
 const ruleStore = useRuleStore();
 const pipelineStore = usePipelineStore();
 const persistedRuleId = ref('');
+const parsingForStep = ref(false);
 
 const isEdit = computed(() => !!route.params.id);
 
@@ -316,6 +318,61 @@ const autoMap = () => {
     }
   });
   pipelineStore.setMappings(nextMappings);
+};
+
+const parseUploadedFilesForMapping = async () => {
+  const files = Array.isArray(pipelineStore.uploadedFiles) ? pipelineStore.uploadedFiles : [];
+  if (files.length === 0) return true;
+
+  const needsParse = files.some((file) => !file?.parsed);
+  if (!needsParse) return true;
+
+  parsingForStep.value = true;
+
+  try {
+    const parsedFiles = await Promise.all(files.map(async (file) => {
+      if (file?.parsed) {
+        return { ...file };
+      }
+
+      const edmId = resolveEdmId(file);
+      if (!edmId) {
+        throw new Error(`文件 ${file?.name || ''} 缺少 edmid`);
+      }
+
+      const parsedList = await parseEdmFile(edmId);
+      const dataSet = findParsedDataSet(parsedList, edmId);
+      const rows = normalizeObjectRows(dataSet);
+      const fields = extractFieldsFromRows(rows);
+
+      return {
+        ...file,
+        edmId,
+        rows,
+        fields,
+        parsed: true
+      };
+    }));
+
+    pipelineStore.setUploadedFiles(parsedFiles);
+    return true;
+  } catch (error) {
+    window.alert(`文件解析失败：${error?.message || '未知错误'}`);
+    return false;
+  } finally {
+    parsingForStep.value = false;
+  }
+};
+
+const goNextStep = async () => {
+  if (!pipelineStore.canProceed || parsingForStep.value) return;
+
+  if (pipelineStore.currentStep === 0) {
+    const ready = await parseUploadedFilesForMapping();
+    if (!ready) return;
+  }
+
+  pipelineStore.nextStep();
 };
 
 const buildCurrentDsl = (selectedModel) => {

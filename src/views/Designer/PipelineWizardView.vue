@@ -26,7 +26,7 @@
 
             <div class="model-edit-actions" style="margin-top: 12px;">
               <button class="btn btn-default" @click="pipelineStore.prevStep" :disabled="pipelineStore.currentStep === 0">上一步</button>
-              <button class="btn btn-primary" @click="pipelineStore.nextStep" :disabled="!pipelineStore.canProceed || pipelineStore.currentStep === pipelineStore.steps.length - 1">下一步</button>
+              <button class="btn btn-primary" @click="goNextStep" :disabled="!pipelineStore.canProceed || pipelineStore.currentStep === pipelineStore.steps.length - 1 || parsingForStep">下一步</button>
             </div>
           </div>
         </div>
@@ -36,9 +36,10 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { pipelineApi, projectModelsApi } from '@/api/index.js';
+import { extractFieldsFromRows, findParsedDataSet, normalizeObjectRows, parseEdmFile, resolveEdmId } from '@/utils/fileUtils.js';
 import { useAppStore } from '@/store/app.store.js';
 import { normalizeProjectModel, unwrapApiList, useModelStore } from '@/store/model.store.js';
 import { usePipelineStore } from '@/store/pipeline.store.js';
@@ -51,6 +52,7 @@ const router = useRouter();
 const appStore = useAppStore();
 const modelStore = useModelStore();
 const pipelineStore = usePipelineStore();
+const parsingForStep = ref(false);
 
 const resolveCurrentProjectCode = () => {
   return String(appStore.currentProjectCode || appStore.currentProject || '').trim();
@@ -65,6 +67,61 @@ const loadProjectModels = async () => {
   } catch {
     modelStore.setProjectModels([]);
   }
+};
+
+const parseUploadedFilesForMapping = async () => {
+  const files = Array.isArray(pipelineStore.uploadedFiles) ? pipelineStore.uploadedFiles : [];
+  if (files.length === 0) return true;
+
+  const needsParse = files.some((file) => !file?.parsed);
+  if (!needsParse) return true;
+
+  parsingForStep.value = true;
+
+  try {
+    const parsedFiles = await Promise.all(files.map(async (file) => {
+      if (file?.parsed) {
+        return { ...file };
+      }
+
+      const edmId = resolveEdmId(file);
+      if (!edmId) {
+        throw new Error(`文件 ${file?.name || ''} 缺少 edmid`);
+      }
+
+      const parsedList = await parseEdmFile(edmId);
+      const dataSet = findParsedDataSet(parsedList, edmId);
+      const rows = normalizeObjectRows(dataSet);
+      const fields = extractFieldsFromRows(rows);
+
+      return {
+        ...file,
+        edmId,
+        rows,
+        fields,
+        parsed: true
+      };
+    }));
+
+    pipelineStore.setUploadedFiles(parsedFiles);
+    return true;
+  } catch (error) {
+    window.alert(`文件解析失败：${error?.message || '未知错误'}`);
+    return false;
+  } finally {
+    parsingForStep.value = false;
+  }
+};
+
+const goNextStep = async () => {
+  if (!pipelineStore.canProceed || parsingForStep.value) return;
+
+  if (pipelineStore.currentStep === 0) {
+    const ready = await parseUploadedFilesForMapping();
+    if (!ready) return;
+  }
+
+  pipelineStore.nextStep();
 };
 
 onMounted(async () => {
