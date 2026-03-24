@@ -60,9 +60,9 @@
             <div class="card-header">
               <div class="card-title">字段映射配置</div>
               <div class="step-actions">
-                <button class="btn btn-default btn-sm" @click="autoMap">
+                <button class="btn btn-default btn-sm" :disabled="autoMapping || parsingForStep" @click="autoMap">
                   <span class="material-icons" style="font-size: 16px; vertical-align: middle;">auto_fix_high</span>
-                  自动匹配
+                  {{ autoMapping ? '匹配中...' : '自动匹配' }}
                 </button>
               </div>
             </div>
@@ -125,7 +125,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { projectModelsApi, rulesApi } from '@/api/index.js';
+import { apiSystemService, projectModelsApi, rulesApi } from '@/api/index.js';
 import { nowText } from '@/utils/date.js';
 import { buildPipelineDsl } from '@/utils/pipeline-dsl.js';
 import { $error, $success, $warning } from '@/utils/message.js';
@@ -147,6 +147,7 @@ const ruleStore = useRuleStore();
 const pipelineStore = usePipelineStore();
 const persistedRuleId = ref('');
 const parsingForStep = ref(false);
+const autoMapping = ref(false);
 
 const isEdit = computed(() => !!route.params.id);
 
@@ -613,15 +614,129 @@ onMounted(async () => {
   persistedRuleId.value = '';
 });
 
-const autoMap = () => {
-  const nextMappings = {};
-  pipelineStore.targetFields.forEach((field) => {
-    const found = pipelineStore.sourceFields.find((source) => source.name.toLowerCase() === field.name.toLowerCase());
-    if (found) {
-      nextMappings[field.name] = [found.key];
+const inferSampleType = (value) => {
+  if (value === null || value === undefined || value === '') return '';
+  if (typeof value === 'boolean') return 'boolean';
+  if (typeof value === 'number') return Number.isInteger(value) ? 'integer' : 'double';
+
+  const text = toText(value);
+  if (!text) return '';
+  if (!Number.isNaN(Number(text))) {
+    return text.includes('.') ? 'double' : 'integer';
+  }
+  if (!Number.isNaN(Date.parse(text))) {
+    return 'datetime';
+  }
+  return 'string';
+};
+
+const buildAutoMapPayload = () => {
+  const modelFields = (pipelineStore.targetFields || [])
+    .map((field) => ({
+      fieldName: toText(field?.name),
+      fieldType: toText(field?.type),
+      fieldDesc: toText(field?.description)
+    }))
+    .filter((field) => field.fieldName);
+
+  const sourceMetaByKey = {};
+  (pipelineStore.uploadedFiles || []).forEach((file) => {
+    const sourceTable = toText(file?.source);
+    if (!sourceTable) return;
+
+    const sampleRow = Array.isArray(file?.rows) && file.rows.length > 0 ? file.rows[0] : {};
+    (file?.fields || []).forEach((fieldName) => {
+      const normalizedField = toText(fieldName);
+      if (!normalizedField) return;
+
+      const key = `${sourceTable}.${normalizedField}`;
+      const sampleValueRaw = sampleRow?.[normalizedField];
+      sourceMetaByKey[key] = {
+        fieldType: inferSampleType(sampleValueRaw),
+        sampleValue: sampleValueRaw === null || sampleValueRaw === undefined ? '' : String(sampleValueRaw)
+      };
+    });
+  });
+
+  const sourceFields = (pipelineStore.sourceFields || [])
+    .map((source) => {
+      const fieldKey = toText(source?.key);
+      if (!fieldKey) return null;
+      const meta = sourceMetaByKey[fieldKey] || {};
+      return {
+        fieldKey,
+        fieldName: toText(source?.name),
+        sourceTable: toText(source?.source),
+        fieldType: toText(meta.fieldType),
+        sampleValue: toText(meta.sampleValue)
+      };
+    })
+    .filter((field) => field && field.fieldKey && field.fieldName && field.sourceTable);
+
+  return {
+    modelFields,
+    sourceFields
+  };
+};
+
+const normalizeAutoMappings = (rawMappings = {}) => {
+  const mappingObject = rawMappings && typeof rawMappings === 'object' ? rawMappings : {};
+  const validTargets = new Set((pipelineStore.targetFields || []).map((field) => toText(field?.name)).filter(Boolean));
+  const validSources = new Set((pipelineStore.sourceFields || []).map((field) => toText(field?.key)).filter(Boolean));
+  const normalized = {};
+
+  (pipelineStore.targetFields || []).forEach((field) => {
+    const targetName = toText(field?.name);
+    if (!targetName || !validTargets.has(targetName)) return;
+
+    const rawValue = mappingObject[targetName];
+    const sourceList = Array.isArray(rawValue) ? rawValue : (rawValue ? [rawValue] : []);
+    const filtered = [...new Set(sourceList.map((item) => toText(item)).filter((item) => validSources.has(item)))];
+
+    if (filtered.length > 0) {
+      normalized[targetName] = filtered;
     }
   });
-  pipelineStore.setMappings(nextMappings);
+
+  return normalized;
+};
+
+const autoMap = async () => {
+  if (autoMapping.value) return;
+
+  const ready = await parseUploadedFilesForMapping();
+  if (!ready) return;
+
+  const payload = buildAutoMapPayload();
+  if (payload.modelFields.length === 0) {
+    $warning('目标模型字段为空，无法自动匹配');
+    return;
+  }
+  if (payload.sourceFields.length === 0) {
+    $warning('请先上传并解析数据字段');
+    return;
+  }
+
+  autoMapping.value = true;
+
+  try {
+    const response = await apiSystemService.autoMapFields(payload, { hideMsgTips: true });
+    const rawMappings = response?.data?.mappings ?? response?.data ?? {};
+    const nextMappings = normalizeAutoMappings(rawMappings);
+    pipelineStore.setMappings(nextMappings);
+
+    if (Object.keys(nextMappings).length === 0) {
+      $warning('自动匹配未命中可用字段，请手动调整');
+      return;
+    }
+
+    $success('自动匹配完成');
+  } catch (error) {
+    const message = toText(error?.response?.data?.msg || error?.data?.msg || error?.message);
+    $error(message || '自动匹配失败');
+  } finally {
+    autoMapping.value = false;
+  }
 };
 
 const parseUploadedFilesForMapping = async () => {
@@ -810,3 +925,4 @@ const executeJob = async () => {
   }
 };
 </script>
+
