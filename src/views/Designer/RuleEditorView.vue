@@ -852,7 +852,8 @@ const parseUploadedFilesForMapping = async () => {
       };
     }));
 
-    pipelineStore.setUploadedFiles(parsedFiles);
+    // Keep restored mapping/join/process configs when only enriching file parse results.
+    pipelineStore.uploadedFiles = parsedFiles;
     return true;
   } catch (error) {
     $error(`文件解析失败：${error?.message || '未知错误'}`);

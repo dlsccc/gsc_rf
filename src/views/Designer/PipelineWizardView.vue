@@ -104,7 +104,7 @@ const parseUploadedFilesForMapping = async () => {
       };
     }));
 
-    pipelineStore.setUploadedFiles(parsedFiles);
+    pipelineStore.uploadedFiles = parsedFiles;
     return true;
   } catch (error) {
     $error(`文件解析失败：${error?.message || '未知错误'}`);
