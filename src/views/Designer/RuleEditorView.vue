@@ -252,10 +252,91 @@ const REVERSE_TRANSFORM_TYPE_MAP = {
   to_number: 'to_number',
   remove_thousand_sep: 'remove_thousand_sep',
   remove_percent: 'remove_percent',
+  round_decimal: 'round_decimal',
   set_value: 'set_value',
   concat: 'concat',
   replace: 'replace',
   formula: 'formula'
+};
+
+const CONDITION_COLUMN_REF = '$rule_input[0].key_columns[0]';
+
+const stripQuotedText = (value) => {
+  const text = toText(value);
+  if (!text) return '';
+  if (
+    (text.startsWith('"') && text.endsWith('"'))
+    || (text.startsWith('\'') && text.endsWith('\''))
+  ) {
+    return text.slice(1, -1).replace(/\\"/g, '"').replace(/\\'/g, '\'');
+  }
+  return text;
+};
+
+const parseConditionExpression = (conditionExpr) => {
+  const expr = toText(conditionExpr);
+  if (!expr) return null;
+
+  const containsMatch = expr.match(/^\s*contains\(\$rule_input\[0\]\.key_columns\[0\],\s*(.+)\)\s*$/i);
+  if (containsMatch) {
+    return {
+      operator: 'contains',
+      value: stripQuotedText(containsMatch[1])
+    };
+  }
+
+  if (expr === `${CONDITION_COLUMN_REF} == null || ${CONDITION_COLUMN_REF} == ""`) {
+    return { operator: 'is_empty', value: '' };
+  }
+
+  if (expr === `${CONDITION_COLUMN_REF} != null && ${CONDITION_COLUMN_REF} != ""`) {
+    return { operator: 'is_not_empty', value: '' };
+  }
+
+  const compareMatch = expr.match(/^\s*\$rule_input\[0\]\.key_columns\[0\]\s*(==|!=|>|<)\s*(.+)\s*$/);
+  if (!compareMatch) return null;
+
+  const operatorMap = {
+    '==': 'equals',
+    '!=': 'not_equals',
+    '>': 'greater_than',
+    '<': 'less_than'
+  };
+
+  return {
+    operator: operatorMap[compareMatch[1]] || '',
+    value: stripQuotedText(compareMatch[2])
+  };
+};
+
+const parseTransformParamsToConfig = (ruleParams = {}) => {
+  const transformType = pickValue(ruleParams.transform_type).toLowerCase();
+  if (!transformType) return null;
+
+  if (transformType === 'chain') {
+    return {
+      chain: toArrayValue(ruleParams.steps).map((step) => ({
+        type: REVERSE_TRANSFORM_TYPE_MAP[toText(step?.transform_type).toLowerCase()] || toText(step?.transform_type),
+        delimiter: step?.delimiter ?? '',
+        fixedValue: step?.value ?? '',
+        search: step?.search_value ?? '',
+        replace: step?.replace_value ?? '',
+        formula: step?.formula ?? ''
+      }))
+    };
+  }
+
+  return {
+    type: REVERSE_TRANSFORM_TYPE_MAP[transformType] || transformType,
+    delimiter: ruleParams.delimiter ?? '',
+    fixedValue: ruleParams.value ?? '',
+    search: ruleParams.search_value ?? '',
+    replace: ruleParams.replace_value ?? '',
+    formula: ruleParams.formula ?? '',
+    inputFormat: ruleParams.input_format ?? '',
+    outputFormat: ruleParams.output_format ?? '',
+    precision: ruleParams.precision ?? ''
+  };
 };
 
 const readRuleJsonSections = (ruleJson = {}) => {
@@ -353,45 +434,43 @@ const parseMappingsAndConfigsFromRules = (rules = []) => {
     const ruleParams = toParamMap(rawRule?.params || []);
 
     if (ability === 'transform') {
-      const transformType = pickValue(ruleParams.transform_type).toLowerCase();
-      if (transformType === 'chain') {
-        transforms[outputField] = {
-          chain: toArrayValue(ruleParams.steps).map((step) => ({
-            type: REVERSE_TRANSFORM_TYPE_MAP[toText(step?.transform_type).toLowerCase()] || toText(step?.transform_type),
-            delimiter: step?.delimiter ?? '',
-            fixedValue: step?.value ?? '',
-            search: step?.search_value ?? '',
-            replace: step?.replace_value ?? '',
-            formula: step?.formula ?? ''
-          }))
-        };
-      } else if (transformType) {
-        transforms[outputField] = {
-          type: REVERSE_TRANSFORM_TYPE_MAP[transformType] || transformType,
-          delimiter: ruleParams.delimiter ?? '',
-          fixedValue: ruleParams.value ?? '',
-          search: ruleParams.search_value ?? '',
-          replace: ruleParams.replace_value ?? '',
-          formula: ruleParams.formula ?? '',
-          inputFormat: ruleParams.input_format ?? '',
-          outputFormat: ruleParams.output_format ?? ''
-        };
+      const transformConfig = parseTransformParamsToConfig(ruleParams);
+      if (transformConfig) {
+        transforms[outputField] = transformConfig;
       }
     }
 
-    if (ability === 'conditional_transform') {
-      transforms[outputField] = {
-        rules: toArrayValue(ruleParams.rules).map((item) => ({
-          operator: REVERSE_OPERATOR_MAP[toText(item?.operator).toLowerCase()] || toText(item?.operator),
-          value: item?.value ?? '',
-          type: REVERSE_TRANSFORM_TYPE_MAP[toText(item?.transform_type).toLowerCase()] || toText(item?.transform_type),
-          delimiter: item?.delimiter ?? '',
-          fixedValue: item?.fixed_value ?? '',
-          search: item?.search_value ?? '',
-          replace: item?.replace_value ?? '',
-          formula: item?.formula ?? ''
-        }))
-      };
+
+    if (ability === 'if_branch') {
+      const conditionExpr = toText(ruleParams.condition);
+      const parsedCondition = parseConditionExpression(conditionExpr) || { operator: '', value: '' };
+
+      const thenList = toArrayValue(ruleItem?.then);
+      const thenRuleObj = (thenList[0] && typeof thenList[0] === 'object') ? thenList[0]?.rule : {};
+      const thenAbility = pickValue(thenRuleObj?.abilityName, thenRuleObj?.ability_name);
+      const thenParams = toParamMap(thenRuleObj?.params || []);
+
+      if (thenAbility === 'transform') {
+        const transformConfig = parseTransformParamsToConfig(thenParams);
+        if (transformConfig && transformConfig.type) {
+          const nextRule = {
+            operator: parsedCondition.operator,
+            value: parsedCondition.value,
+            type: transformConfig.type,
+            delimiter: transformConfig.delimiter ?? '',
+            fixedValue: transformConfig.fixedValue ?? '',
+            search: transformConfig.search ?? '',
+            replace: transformConfig.replace ?? '',
+            formula: transformConfig.formula ?? '',
+            precision: transformConfig.precision ?? ''
+          };
+
+          if (!transforms[outputField] || !Array.isArray(transforms[outputField].rules)) {
+            transforms[outputField] = { rules: [] };
+          }
+          transforms[outputField].rules.push(nextRule);
+        }
+      }
     }
 
     const sortParams = toParamMap(ruleItem?.sort || []);

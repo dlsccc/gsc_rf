@@ -95,6 +95,7 @@ const transformTypeMap = {
   to_number: 'to_number',
   remove_thousand_sep: 'remove_thousand_sep',
   remove_percent: 'remove_percent',
+  round_decimal: 'round_decimal',
   set_value: 'set_value',
   concat: 'concat',
   replace: 'replace',
@@ -139,6 +140,32 @@ const parseSourceKey = (key) => {
 };
 
 const unique = (arr) => Array.from(new Set(arr));
+
+const normalizeIndexPart = (value) => {
+  return trimText(value).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'item';
+};
+
+const formatConditionValue = (value) => {
+  if (value === null || value === undefined) return 'null';
+  const text = String(value);
+  if (/^-?\d+(\.\d+)?$/.test(text)) return text;
+  if (/^(true|false)$/i.test(text)) return text.toLowerCase();
+  return `"${text.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+};
+
+const buildConditionExpression = (rule = {}, columnRef = '$rule_input[0].key_columns[0]') => {
+  const operator = String(rule?.operator || '').toLowerCase();
+  const valueText = formatConditionValue(rule?.value ?? '');
+
+  if (operator === 'equals') return `${columnRef} == ${valueText}`;
+  if (operator === 'not_equals') return `${columnRef} != ${valueText}`;
+  if (operator === 'greater_than') return `${columnRef} > ${valueText}`;
+  if (operator === 'less_than') return `${columnRef} < ${valueText}`;
+  if (operator === 'contains') return `contains(${columnRef}, ${valueText})`;
+  if (operator === 'is_empty') return `${columnRef} == null || ${columnRef} == ""`;
+  if (operator === 'is_not_empty') return `${columnRef} != null && ${columnRef} != ""`;
+  return '';
+};
 
 const toRuleInputsByRawSources = (sourceKeys = []) => {
   const grouped = new Map();
@@ -238,20 +265,35 @@ const buildTransformDsl = (config) => {
   }
 
   if (Array.isArray(config.rules) && config.rules.length > 0) {
+    const branches = config.rules
+      .filter((rule) => !!rule?.operator)
+      .map((rule, index) => {
+        const condition = buildConditionExpression(rule);
+        if (!condition) return null;
+
+        const subRule = buildTransformStep({
+          type: rule.type,
+          delimiter: rule.delimiter,
+          fixedValue: rule.fixedValue,
+          search: rule.search,
+          replace: rule.replace,
+          formula: rule.formula,
+          precision: rule.precision
+        });
+
+        return {
+          index: `sub_rule_${normalizeIndexPart(rule.type)}_${index + 1}`,
+          condition,
+          rule: subRule
+        };
+      })
+      .filter(Boolean);
+
+    if (branches.length === 0) return undefined;
+
     return {
-      ability_name: 'conditional_transform',
-      params: [
-        makeParam('rules', 'array', config.rules.map((rule) => ({
-          operator: toDslOperator(rule.operator),
-          value: rule.value ?? '',
-          transform_type: transformTypeMap[rule.type] || rule.type || '',
-          delimiter: rule.delimiter ?? '',
-          fixed_value: rule.fixedValue ?? '',
-          search_value: rule.search ?? '',
-          replace_value: rule.replace ?? '',
-          formula: rule.formula ?? ''
-        })))
-      ]
+      kind: 'if_branch',
+      branches
     };
   }
 
@@ -384,18 +426,63 @@ const buildDataProcessingDsl = ({
 }) => {
   const modelCode = getModelCode(selectedModel);
   const targetFields = resolveTargetFieldNames(selectedModel, mappings);
+  const rules = [];
+  let idx = 0;
 
-  const rules = targetFields.map((fieldName, idx) => {
+  targetFields.forEach((fieldName) => {
+    idx += 1;
     const sourceKeys = mappings[fieldName] || [];
     const ruleInputs = toRuleInputsByRawSources(sourceKeys);
+    const baseRuleInput = ruleInputs.length > 0 ? ruleInputs : [makeRuleInput('', [])];
+    const baseRuleOutput = makeRuleOutput(modelCode, fieldName);
 
     const filter = buildFilterDsl(filters[fieldName]);
     const transform = buildTransformDsl(transforms[fieldName]);
 
+    const sortParams = sortConfig?.field && sortConfig.field === fieldName
+      ? [
+        makeParam('directions', 'enum', sortConfig.order || 'asc'),
+        makeParam('nulls_position', 'enum', 'last')
+      ]
+      : null;
+
+    if (transform?.kind === 'if_branch') {
+      transform.branches.forEach((branch, branchIndex) => {
+        const branchItem = {
+          index: `rule_conditional_${normalizeIndexPart(fieldName)}_${branchIndex + 1}`,
+          rule_input: baseRuleInput,
+          rule_output: baseRuleOutput,
+          rule: {
+            ability_name: 'if_branch',
+            params: [
+              makeParam('condition', 'string', branch.condition)
+            ]
+          },
+          then: [
+            {
+              index: branch.index,
+              rule: branch.rule
+            }
+          ]
+        };
+
+        if (filter) {
+          branchItem.filter = filter;
+        }
+
+        if (sortParams && branchIndex === transform.branches.length - 1) {
+          branchItem.sort = sortParams;
+        }
+
+        rules.push(branchItem);
+      });
+      return;
+    }
+
     const item = {
-      index: `rule_${fieldName.toLowerCase()}_${idx + 1}`,
-      rule_input: ruleInputs.length > 0 ? ruleInputs : [makeRuleInput('', [])],
-      rule_output: makeRuleOutput(modelCode, fieldName)
+      index: `rule_${fieldName.toLowerCase()}_${idx}`,
+      rule_input: baseRuleInput,
+      rule_output: baseRuleOutput
     };
 
     if (filter) {
@@ -406,14 +493,11 @@ const buildDataProcessingDsl = ({
       item.rule = transform;
     }
 
-    if (sortConfig?.field && sortConfig.field === fieldName) {
-      item.sort = [
-        makeParam('directions', 'enum', sortConfig.order || 'asc'),
-        makeParam('nulls_position', 'enum', 'last')
-      ];
+    if (sortParams) {
+      item.sort = sortParams;
     }
 
-    return item;
+    rules.push(item);
   });
 
   return {
