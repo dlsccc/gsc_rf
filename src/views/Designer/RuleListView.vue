@@ -29,7 +29,7 @@
         <div class="model-meta">
           <div class="model-meta-item">
             <span class="material-icons">database</span>
-            目标模型: {{ item.targetModel || '-' }}
+            目标模型: {{ resolveTargetModelName(item.targetModel) }}
           </div>
           <div class="model-meta-item">
             <span class="material-icons">schedule</span>
@@ -64,24 +64,55 @@
 <script setup>
 import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { rulesApi } from '@/api/index.js';
-import { useRuleStore, mapApiRuleToEntity, unwrapApiList } from '@/store/rule.store.js';
+import { projectModelsApi, rulesApi } from '@/api/index.js';
+import { useRuleStore, mapApiRuleToEntity, unwrapApiList as unwrapRuleList } from '@/store/rule.store.js';
 import { useAppStore } from '@/store/app.store.js';
+import { normalizeProjectModel, unwrapApiList as unwrapModelList, useModelStore } from '@/store/model.store.js';
 
 const router = useRouter();
 const appStore = useAppStore();
 const ruleStore = useRuleStore();
+const modelStore = useModelStore();
+
+const resolveCurrentProjectCode = () => {
+  return String(appStore.currentProjectCode || appStore.currentProject || '').trim();
+};
+
+const loadProjectModels = async () => {
+  try {
+    const projectCode = resolveCurrentProjectCode();
+    const response = await projectModelsApi.list({ modelType: 'business', ...(projectCode ? { projectCode } : {}) });
+    const list = unwrapModelList(response);
+    modelStore.setProjectModels(list.map((item) => normalizeProjectModel(item, appStore.currentProject, projectCode)));
+  } catch {
+    modelStore.setProjectModels([]);
+  }
+};
+
+const resolveTargetModelName = (targetModel) => {
+  const key = String(targetModel ?? '').trim();
+  if (!key) return '-';
+
+  const target = modelStore.projectModels.find((item) => {
+    const id = String(item.id ?? '').trim();
+    const code = String(item.code || item.modelCode || '').trim();
+    const name = String(item.name || '').trim();
+    return key === id || key === code || key === name;
+  });
+
+  return target?.name || key;
+};
 
 const loadRules = async () => {
   ruleStore.setLoading(true);
   try {
     const response = await rulesApi.list({ pageNum: 1, pageSize: 200 });
-    const list = unwrapApiList(response);
+    const list = unwrapRuleList(response);
     if (list.length > 0) {
       ruleStore.setRules(list.map((item) => mapApiRuleToEntity(item, appStore.currentProject)));
     }
   } catch {
-    // 无后端时保留本地状态。
+    // keep local state when backend is unavailable
   } finally {
     ruleStore.setLoading(false);
   }
@@ -89,11 +120,12 @@ const loadRules = async () => {
 
 onMounted(async () => {
   appStore.setRole('designer');
+  await loadProjectModels();
   await loadRules();
 });
 
 const remove = async (id) => {
-  if (!window.confirm('确定要删除该入湖规则吗？此操作不可恢复。')) {
+  if (!window.confirm('\u786e\u5b9a\u8981\u5220\u9664\u8be5\u5165\u6e56\u89c4\u5219\u5417\uff1f\u6b64\u64cd\u4f5c\u4e0d\u53ef\u6062\u590d\u3002')) {
     return;
   }
 
@@ -101,7 +133,7 @@ const remove = async (id) => {
   try {
     await rulesApi.remove({ id: String(id) });
   } catch {
-    // 无后端时忽略错误。
+    // ignore remove failure when backend is unavailable
   }
 };
 </script>

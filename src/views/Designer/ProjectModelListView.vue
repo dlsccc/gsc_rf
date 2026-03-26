@@ -27,7 +27,7 @@
         <div class="model-desc">{{ item.description || '暂无描述' }}</div>
 
         <div class="model-meta">
-          <div class="model-meta-item"><span class="material-icons">link</span>引用: {{ item.refStandardModel }}</div>
+          <div class="model-meta-item"><span class="material-icons">link</span>引用: {{ resolveRefStandardModelName(item.refStandardModel) }}</div>
           <div class="model-meta-item"><span class="material-icons">view_column</span>{{ item.fields.length }} 个字段</div>
         </div>
 
@@ -65,9 +65,9 @@
 <script setup>
 import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { projectModelsApi } from '@/api/index.js';
+import { projectModelsApi, standardModelsApi } from '@/api/index.js';
 import { useAppStore } from '@/store/app.store.js';
-import { normalizeProjectModel, resolveModelCode, unwrapApiList, useModelStore } from '@/store/model.store.js';
+import { normalizeProjectModel, normalizeStandardModel, resolveModelCode, unwrapApiList, useModelStore } from '@/store/model.store.js';
 
 const router = useRouter();
 const appStore = useAppStore();
@@ -92,8 +92,35 @@ const loadProjectModels = async () => {
   }
 };
 
+const loadStandardModels = async () => {
+  try {
+    const response = await standardModelsApi.list({ modelType: 'base' });
+    const list = unwrapApiList(response);
+    if (list.length > 0) {
+      modelStore.setStandardModels(list.map((item) => normalizeStandardModel(item)));
+    }
+  } catch {
+    // keep local state when backend is unavailable
+  }
+};
+
+const resolveRefStandardModelName = (refStandardModel) => {
+  const key = String(refStandardModel ?? '').trim();
+  if (!key) return '-';
+
+  const target = modelStore.standardModels.find((item) => {
+    const id = String(item.id ?? '').trim();
+    const code = String(item.code || item.modelCode || '').trim();
+    const name = String(item.name || '').trim();
+    return key === id || key === code || key === name;
+  });
+
+  return target?.name || key;
+};
+
 onMounted(async () => {
   appStore.setRole('designer');
+  await loadStandardModels();
   await loadProjectModels();
 });
 
