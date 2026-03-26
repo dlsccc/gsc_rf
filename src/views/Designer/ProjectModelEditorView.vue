@@ -209,6 +209,8 @@ const resolveCurrentProjectCode = () => {
   return String(appStore.currentProjectCode || appStore.currentProject || '').trim();
 };
 
+const toText = (value) => String(value ?? '').trim();
+
 const loadStandardModels = async () => {
   try {
     const response = await standardModelsApi.list({ modelType: 'base' });
@@ -351,19 +353,34 @@ const validateBase = () => {
   return true;
 };
 
-const save = async (status) => {
-  if (!validateBase()) return;
+const isValidModelCode = (value) => {
+  const code = toText(value);
+  if (!code) return false;
+  if (code === '0' || code === '1') return false;
+  return /[a-zA-Z]/.test(code);
+};
 
-  if (status === 'active') {
-    const invalid = form.fields.filter((field) => !field.name?.trim() || !field.type?.trim());
-    if (invalid.length > 0) {
-      $warning('发布前请完善字段名称和字段类型');
-      return;
+const extractModelCodeFromSaveResponse = (response) => {
+  const body = response?.data ?? response?.result ?? response ?? {};
+  const candidates = [
+    body?.modelCode,
+    body?.data?.modelCode,
+    body?.modelCodeList?.[0],
+    response?.modelCode
+  ];
+
+  for (const item of candidates) {
+    const modelCode = toText(item);
+    if (isValidModelCode(modelCode)) {
+      return modelCode;
     }
   }
 
-  const projectCode = resolveCurrentProjectCode();
-  const entity = modelStore.upsertProjectModelLocal(normalizeProjectModel({
+  return '';
+};
+
+const buildLocalEntity = (status, projectCode) => {
+  return modelStore.upsertProjectModelLocal(normalizeProjectModel({
     ...JSON.parse(JSON.stringify(form)),
     ...(isEdit.value ? { code: form.code || form.modelCode || form.id } : {}),
     id: form.id || form.code || form.modelCode || createId(),
@@ -372,20 +389,126 @@ const save = async (status) => {
     projectCode,
     updateTime: nowText()
   }, appStore.currentProject, projectCode));
+};
+
+const syncEntityWithModelCode = (entity, modelCode, status, projectCode) => {
+  if (!isValidModelCode(modelCode)) {
+    return modelStore.upsertProjectModelLocal(normalizeProjectModel({
+      ...entity,
+      status,
+      projectCode,
+      updateTime: nowText()
+    }, appStore.currentProject, projectCode));
+  }
+
+  const nextEntity = normalizeProjectModel({
+    ...entity,
+    id: modelCode,
+    code: modelCode,
+    modelCode,
+    status,
+    projectCode,
+    updateTime: nowText()
+  }, appStore.currentProject, projectCode);
+
+  if (String(entity.id) !== String(modelCode)) {
+    modelStore.removeProjectModelById(entity.id);
+  }
+
+  return modelStore.upsertProjectModelLocal(nextEntity);
+};
+
+const queryModelCodeByName = async (modelName, projectCode) => {
+  const name = toText(modelName);
+  if (!name) return '';
 
   try {
-    await projectModelsApi.save(toModelSavePayload({
+    const response = await projectModelsApi.list({ modelType: 'business', modelName: name, ...(projectCode ? { projectCode } : {}) });
+    const list = unwrapApiList(response);
+    const exact = list.find((item) => toText(item.modelName || item.name) === name) || list[0];
+    const modelCode = toText(resolveModelCode(exact || {}));
+    return isValidModelCode(modelCode) ? modelCode : '';
+  } catch {
+    return '';
+  }
+};
+
+const persistModel = async (status) => {
+  if (!validateBase()) return null;
+
+  if (status === 'active') {
+    const invalid = form.fields.filter((field) => !field.name?.trim() || !field.type?.trim());
+    if (invalid.length > 0) {
+      $warning('Please complete field name and field type before publish.');
+      return null;
+    }
+  }
+
+  const projectCode = resolveCurrentProjectCode();
+  const saveStatus = status === 'active' ? 'draft' : status;
+  let entity = buildLocalEntity(saveStatus, projectCode);
+
+  let saveResponse = null;
+  try {
+    saveResponse = await projectModelsApi.save(toModelSavePayload({
       entity,
       modelType: 'business',
       projectCode: entity.projectCode || projectCode
     }));
   } catch {
-    // 无后端时忽略错误。
+    // Ignore backend save failure in local-only mode.
   }
 
+  const localCode = toText(resolveModelCode(entity));
+  const responseCode = extractModelCodeFromSaveResponse(saveResponse);
+  const queriedCode = (!isValidModelCode(localCode) && !isValidModelCode(responseCode))
+    ? await queryModelCodeByName(entity.name, projectCode)
+    : '';
+  const finalModelCode = isValidModelCode(localCode)
+    ? localCode
+    : (isValidModelCode(responseCode) ? responseCode : queriedCode);
+
+  entity = syncEntityWithModelCode(entity, finalModelCode, saveStatus, projectCode);
+
+  form.id = entity.id || form.id;
+  form.code = entity.code || form.code;
+  form.modelCode = entity.modelCode || form.modelCode;
+
+  return {
+    entity,
+    modelCode: toText(resolveModelCode(entity)),
+    projectCode
+  };
+};
+
+const saveProjectModel = async () => {
+  const result = await persistModel('draft');
+  if (!result) return;
   router.push('/designer/project-models');
 };
 
-const saveProjectModel = () => save('draft');
-const publishProjectModel = () => save('active');
+const publishProjectModel = async () => {
+  const result = await persistModel('active');
+  if (!result) return;
+
+  const modelCode = toText(result.modelCode);
+  if (!isValidModelCode(modelCode)) {
+    $warning('Publish failed: modelCode is empty after save.');
+    return;
+  }
+
+  try {
+    await projectModelsApi.publish({ modelCode });
+  } catch {
+    $warning('Publish failed. Please retry.');
+    return;
+  }
+
+  const activeEntity = syncEntityWithModelCode(result.entity, modelCode, 'active', result.projectCode);
+  form.id = activeEntity.id || form.id;
+  form.code = activeEntity.code || form.code;
+  form.modelCode = activeEntity.modelCode || form.modelCode;
+
+  router.push('/designer/project-models');
+};
 </script>
