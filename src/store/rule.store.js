@@ -135,6 +135,7 @@ export const normalizeRule = (rule = {}) => ({
   ...rule,
   id: toText(rule.id || rule.ruleId || rule.ruleCode || createId()),
   ruleCode: toText(rule.ruleCode || rule.ruleId || rule.id),
+  targetModelName: toText(rule.targetModelName || rule.targetModel),
   inputTables: normalizeRuleInputTables(rule),
   ruleJson: rule.ruleJson || {}
 });
@@ -155,11 +156,20 @@ export const mapApiRuleToEntity = (item = {}, projectId) => {
     ? parsedInputTables
     : ruleJsonToInputTables(ruleJson);
 
+  const modelSelection = item.modelSelection || ruleJson?.modelSelection || ruleJson?.model_selection || {};
   const targetModel = toText(
     item.targetModel
     || item.ruleOutput
+    || modelSelection?.modelId
+    || modelSelection?.model_id
     || ruleJson?.modelSelection?.modelCode
     || ruleJson?.model_selection?.model_code
+  );
+  const targetModelName = toText(
+    item.targetModelName
+    || modelSelection?.modelName
+    || modelSelection?.model_name
+    || targetModel
   );
 
   return normalizeRule({
@@ -169,6 +179,7 @@ export const mapApiRuleToEntity = (item = {}, projectId) => {
     description: toText(item.ruleDesc || item.description),
     status: toText(item.status || 'draft'),
     targetModel,
+    targetModelName,
     projectId: item.projectId || projectId,
     inputTables,
     updateTime: toText(item.lastUpdatedDate || item.creationDate || item.updateTime || nowText()),

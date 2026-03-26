@@ -29,7 +29,7 @@
         <div class="model-meta">
           <div class="model-meta-item">
             <span class="material-icons">database</span>
-            目标模型: {{ resolveTargetModelName(item.targetModel) }}
+            目标模型: {{ item.targetModelName || item.targetModel || '-' }}
           </div>
           <div class="model-meta-item">
             <span class="material-icons">schedule</span>
@@ -64,44 +64,13 @@
 <script setup>
 import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { projectModelsApi, rulesApi } from '@/api/index.js';
+import { rulesApi } from '@/api/index.js';
 import { useRuleStore, mapApiRuleToEntity, unwrapApiList as unwrapRuleList } from '@/store/rule.store.js';
 import { useAppStore } from '@/store/app.store.js';
-import { normalizeProjectModel, unwrapApiList as unwrapModelList, useModelStore } from '@/store/model.store.js';
 
 const router = useRouter();
 const appStore = useAppStore();
 const ruleStore = useRuleStore();
-const modelStore = useModelStore();
-
-const resolveCurrentProjectCode = () => {
-  return String(appStore.currentProjectCode || appStore.currentProject || '').trim();
-};
-
-const loadProjectModels = async () => {
-  try {
-    const projectCode = resolveCurrentProjectCode();
-    const response = await projectModelsApi.list({ modelType: 'business', ...(projectCode ? { projectCode } : {}) });
-    const list = unwrapModelList(response);
-    modelStore.setProjectModels(list.map((item) => normalizeProjectModel(item, appStore.currentProject, projectCode)));
-  } catch {
-    modelStore.setProjectModels([]);
-  }
-};
-
-const resolveTargetModelName = (targetModel) => {
-  const key = String(targetModel ?? '').trim();
-  if (!key) return '-';
-
-  const target = modelStore.projectModels.find((item) => {
-    const id = String(item.id ?? '').trim();
-    const code = String(item.code || item.modelCode || '').trim();
-    const name = String(item.name || '').trim();
-    return key === id || key === code || key === name;
-  });
-
-  return target?.name || key;
-};
 
 const loadRules = async () => {
   ruleStore.setLoading(true);
@@ -120,7 +89,6 @@ const loadRules = async () => {
 
 onMounted(async () => {
   appStore.setRole('designer');
-  await loadProjectModels();
   await loadRules();
 });
 
@@ -137,3 +105,5 @@ const remove = async (id) => {
   }
 };
 </script>
+
+
