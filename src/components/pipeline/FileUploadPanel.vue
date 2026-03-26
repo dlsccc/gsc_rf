@@ -119,6 +119,7 @@ const createFileEntity = ({ uploadMeta, detail }) => {
     size: Number(detail?.fileSize ?? uploadMeta?.fileSize ?? 0),
     rows: [],
     fields: [],
+    fieldInfoList: [],
     parsed: false,
     source: 'table_a'
   };

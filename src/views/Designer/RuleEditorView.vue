@@ -129,7 +129,7 @@ import { apiSystemService, projectModelsApi, rulesApi } from '@/api/index.js';
 import { nowText } from '@/utils/date.js';
 import { buildPipelineDsl } from '@/utils/pipeline-dsl.js';
 import { $error, $success, $warning } from '@/utils/message.js';
-import { extractFieldsFromRows, findParsedDataSet, normalizeObjectRows, parseEdmFile, resolveEdmId } from '@/utils/fileUtils.js';
+import { extractFieldInfoList, extractFieldsFromRows, findParsedDataSet, normalizeObjectRows, parseEdmFile, resolveEdmId } from '@/utils/fileUtils.js';
 import { useAppStore } from '@/store/app.store.js';
 import { normalizeProjectModel, resolveModelCode, toBusinessTypeLabel, unwrapApiData, unwrapApiList, useModelStore } from '@/store/model.store.js';
 import { RULE_INPUT_TABLES, mapApiRuleToEntity, toSaveRulePayload, useRuleStore } from '@/store/rule.store.js';
@@ -356,9 +356,16 @@ const readRuleJsonSections = (ruleJson = {}) => {
 
 const buildUploadedFilesFromTables = (tables = []) => {
   return tables.slice(0, 2).map((table, index) => {
-    const source = pickValue(table?.sourceId, table?.source_id, index === 0 ? 'table_a' : 'table_b');
+    const fallbackSource = index === 0 ? 'table_a' : 'table_b';
+    const rawSource = pickValue(table?.sourceId, table?.source_id);
+    const source = ['table_a', 'table_b'].includes(rawSource) ? rawSource : fallbackSource;
     const edmId = pickValue(table?.edmId, table?.edmID, table?.fileCode);
-    const fields = toArrayValue(table?.columns).map((item) => pickValue(item?.name)).filter(Boolean);
+    const columns = toArrayValue(table?.columns);
+    const fieldInfoList = toArrayValue(table?.fieldInfoList || table?.field_info_list);
+    const fieldsFromColumns = columns.map((item) => pickValue(item?.name)).filter(Boolean);
+    const fields = fieldsFromColumns.length > 0
+      ? fieldsFromColumns
+      : fieldInfoList.map((item) => pickValue(item?.fieldName, item?.field_name, item?.name)).filter(Boolean);
 
     return {
       id: edmId || `${source}_${index + 1}`,
@@ -368,6 +375,7 @@ const buildUploadedFilesFromTables = (tables = []) => {
       size: 0,
       rows: [],
       fields,
+      fieldInfoList,
       parsed: false,
       source
     };
@@ -840,6 +848,7 @@ const parseUploadedFilesForMapping = async () => {
 
       const parsedList = await parseEdmFile(edmId);
       const dataSet = findParsedDataSet(parsedList, edmId);
+      const fieldInfoList = extractFieldInfoList(parsedList, edmId);
       const rows = normalizeObjectRows(dataSet);
       const fields = extractFieldsFromRows(rows);
 
@@ -848,6 +857,7 @@ const parseUploadedFilesForMapping = async () => {
         edmId,
         rows,
         fields,
+        fieldInfoList,
         parsed: true
       };
     }));

@@ -132,3 +132,12 @@ export const findParsedDataSet = (parsedList, edmId) => {
   const matched = list.find((item) => resolveEdmId(item) === id) || list[0] || {};
   return toArray(matched.dataSet);
 };
+
+export const extractFieldInfoList = (parsedList, edmId) => {
+  const list = toArray(parsedList);
+  if (list.length === 0) return [];
+
+  const id = toText(edmId);
+  const matched = list.find((item) => resolveEdmId(item) === id) || list[0] || {};
+  return toArray(matched.fieldInfoList || matched.field_info_list);
+};

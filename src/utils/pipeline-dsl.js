@@ -1,10 +1,27 @@
-﻿const makeParam = (name, type, value) => ({
+const makeParam = (name, type, value) => ({
   param_name: name,
   param_type: type,
   param_value: value
 });
 
 const trimText = (value) => String(value ?? '').trim();
+
+const createUuid = () => {
+  const randomUUID = globalThis?.crypto?.randomUUID;
+  if (typeof randomUUID === 'function') {
+    return randomUUID.call(globalThis.crypto);
+  }
+
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
+    const random = Math.floor(Math.random() * 16);
+    const value = char === 'x' ? random : ((random & 0x3) | 0x8);
+    return value.toString(16);
+  });
+};
+
+const createPrefixedId = (prefix) => {
+  return `${prefix}_${createUuid().replace(/-/g, '_')}`;
+};
 
 const normalizeFileName = (name) => {
   return String(name || 'pipeline_dsl')
@@ -48,25 +65,27 @@ const resolveFileEdmId = (file = {}) => {
   return trimText(file?.edmId || file?.edmID || file?.fileCode || file?.id || '');
 };
 
+const normalizeFieldInfoItem = (item = {}) => {
+  return {
+    field_name: trimText(item?.fieldName || item?.field_name || item?.name),
+    field_alias: trimText(item?.fieldAlias || item?.field_alias || item?.alias),
+    field_type: trimText(item?.fieldType || item?.field_type || item?.type)
+  };
+};
+
+const toFieldInfoList = (file = {}) => {
+  const source = Array.isArray(file?.fieldInfoList)
+    ? file.fieldInfoList
+    : (Array.isArray(file?.field_info_list) ? file.field_info_list : []);
+
+  return source
+    .map((item) => normalizeFieldInfoItem(item))
+    .filter((item) => item.field_name || item.field_alias || item.field_type);
+};
+
 const pickSampleValue = (rows = [], field) => {
   const sample = rows.find((row) => trimText(row?.[field]) !== '');
   return sample?.[field] ?? '';
-};
-
-const inferColumnType = (value) => {
-  const text = trimText(value);
-  if (!text) return 'string';
-
-  if (/^(true|false)$/i.test(text)) return 'boolean';
-  if (/^-?\d+(\.\d+)?$/.test(text)) return 'decimal';
-  if (/^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(text)) return 'decimal';
-  if (
-    /^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}([ T]\d{1,2}:\d{2}(:\d{2})?)?$/.test(text)
-    || /^\d{1,2}:\d{2}(:\d{2})?$/.test(text)
-  ) {
-    return 'datetime';
-  }
-  return 'string';
 };
 
 const OPERATOR_MAP = {
@@ -302,22 +321,24 @@ const buildTransformDsl = (config) => {
 
 const toDataSourceDsl = (uploadedFiles = []) => {
   return toSourceFiles(uploadedFiles).map((file) => {
-    const columns = (file.fields || []).map((fieldName) => {
+    const columns = (file.fields || []).map((fieldName, index) => {
       const sample = pickSampleValue(file.rows, fieldName);
       return {
+        seq: index + 1,
+        column_id: createPrefixedId('data_smart_base_field'),
         name: fieldName,
-        type: inferColumnType(sample),
         sample_value: sample
       };
     });
 
     return {
-      source_id: file.source,
+      source_id: createPrefixedId('data_smart_base_model'),
       edmId: resolveFileEdmId(file),
       source_name: file.name || file.source,
       source_type: 'file',
       file_path: `/uploads/${file.name || file.source}`,
-      columns
+      columns,
+      field_info_list: toFieldInfoList(file)
     };
   });
 };

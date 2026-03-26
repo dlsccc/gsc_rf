@@ -40,7 +40,7 @@ import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { pipelineApi, projectModelsApi } from '@/api/index.js';
 import { $error } from '@/utils/message.js';
-import { extractFieldsFromRows, findParsedDataSet, normalizeObjectRows, parseEdmFile, resolveEdmId } from '@/utils/fileUtils.js';
+import { extractFieldInfoList, extractFieldsFromRows, findParsedDataSet, normalizeObjectRows, parseEdmFile, resolveEdmId } from '@/utils/fileUtils.js';
 import { useAppStore } from '@/store/app.store.js';
 import { normalizeProjectModel, unwrapApiList, useModelStore } from '@/store/model.store.js';
 import { usePipelineStore } from '@/store/pipeline.store.js';
@@ -92,6 +92,7 @@ const parseUploadedFilesForMapping = async () => {
 
       const parsedList = await parseEdmFile(edmId);
       const dataSet = findParsedDataSet(parsedList, edmId);
+      const fieldInfoList = extractFieldInfoList(parsedList, edmId);
       const rows = normalizeObjectRows(dataSet);
       const fields = extractFieldsFromRows(rows);
 
@@ -100,6 +101,7 @@ const parseUploadedFilesForMapping = async () => {
         edmId,
         rows,
         fields,
+        fieldInfoList,
         parsed: true
       };
     }));
