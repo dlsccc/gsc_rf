@@ -601,7 +601,8 @@ import { DEDUP_KEEP, SORT_ORDER, TRANSFORM_TYPES } from '@/utils/constants/pipel
 import { useModelStore } from '@/store/model.store.js';
 
 const props = defineProps({
-  store: { type: Object, required: true }
+  store: { type: Object, required: true },
+  debugRows: { type: Array, default: () => [] }
 });
 const emit = defineEmits(['operation-applied']);
 
@@ -653,6 +654,18 @@ const demoInitialized = ref(false);
 const dedupFieldSelect = ref('');
 
 const targetModelFields = computed(() => props.store.targetFields || []);
+
+const debugProcessedData = computed(() => {
+  return (Array.isArray(props.debugRows) ? props.debugRows : []).map((item) => {
+    const next = item && typeof item === 'object' && !Array.isArray(item)
+      ? { ...item }
+      : { value: item };
+    next.__remoteDebugRow = true;
+    return next;
+  });
+});
+
+const usingRemoteDebugData = computed(() => debugProcessedData.value.length > 0);
 
 const allSourceFields = computed(() => {
   return (props.store.sourceFields || []).map((field) => ({
@@ -748,6 +761,7 @@ const previewData = computed(() => {
 });
 
 const isMultiMapped = (targetField) => {
+  if (usingRemoteDebugData.value) return false;
   const sources = props.store.mappings[targetField];
   return Array.isArray(sources) && sources.length > 1;
 };
@@ -1050,6 +1064,10 @@ const applyTransformByConfig = (row, field, base, cfg) => {
 };
 
 const getFieldValue = (row, field) => {
+  if (row?.__remoteDebugRow) {
+    return row?.[field] ?? '';
+  }
+
   const base = getBaseValue(field, row);
   const t = transforms[field];
   if (!t) return base;
@@ -1170,7 +1188,7 @@ const dedupedData = computed(() => {
     .map((item) => item.row);
 });
 
-const processedData = computed(() => {
+const localProcessedData = computed(() => {
   const data = dedupedData.value;
   if (!sortConfig.field) return data;
 
@@ -1182,6 +1200,13 @@ const processedData = computed(() => {
     return sortConfig.order === SORT_ORDER.ASC ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
   });
   return sorted;
+});
+
+const processedData = computed(() => {
+  if (usingRemoteDebugData.value) {
+    return debugProcessedData.value;
+  }
+  return localProcessedData.value;
 });
 
 const displayData = computed(() => (showRawPreview.value ? previewData.value : processedData.value));
@@ -1196,8 +1221,8 @@ const hasActiveFilters = computed(() => {
   });
 });
 
-const filteredOutCount = computed(() => previewData.value.length - filteredData.value.length);
-const dedupRemovedCount = computed(() => filteredData.value.length - dedupedData.value.length);
+const filteredOutCount = computed(() => (usingRemoteDebugData.value ? 0 : (previewData.value.length - filteredData.value.length)));
+const dedupRemovedCount = computed(() => (usingRemoteDebugData.value ? 0 : (filteredData.value.length - dedupedData.value.length)));
 
 const filteredApplyTargets = computed(() => {
   const keyword = applyModal.search.trim().toLowerCase();

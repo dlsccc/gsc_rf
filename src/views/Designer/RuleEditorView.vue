@@ -76,58 +76,8 @@
               <div class="card-title">数据处理配置</div>
             </div>
             <div class="card-body">
-              <ProcessPanel :store="pipelineStore" @operation-applied="handleProcessOperationApplied" />
-              <div style="margin-top: 16px; border: 1px solid var(--border); border-radius: 12px; background: #fff;">
-                <div style="padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-                  <div style="display: flex; align-items: center; gap: 6px; font-weight: 600;">
-                    <span class="material-icons" style="font-size: 18px; color: var(--primary);">science</span>
-                    SQL调试结果
-                  </div>
-                  <span v-if="sqlDebugLoading" class="tag tag-warning">调试中...</span>
-                  <span v-else-if="sqlDebugError" class="tag" style="background:#fff1f0;color:#cf1322;">调试失败</span>
-                  <span v-else-if="sqlDebugRows.length > 0" class="tag tag-success">最近调试 {{ sqlDebugRows.length }} 行</span>
-                </div>
+              <ProcessPanel :store="pipelineStore" :debug-rows="sqlDebugRows" @operation-applied="handleProcessOperationApplied" />
 
-                <div style="padding: 12px 14px;">
-                  <div v-if="sqlDebugError" style="color: var(--danger); font-size: 13px; margin-bottom: 10px;">
-                    {{ sqlDebugError }}
-                  </div>
-                  <div v-else-if="sqlDebugRows.length === 0" style="color: var(--text-secondary); font-size: 13px; margin-bottom: 10px;">
-                    完成一次数据处理操作后会自动调试并回显结果。
-                  </div>
-                  <div v-else style="color: var(--text-secondary); font-size: 12px; margin-bottom: 10px;">
-                    最近调试时间：{{ sqlDebugAt || '-' }}
-                  </div>
-
-                  <div v-if="sqlDebugSqlList.length > 0" style="margin-bottom: 10px;">
-                    <label class="form-label" style="font-size: 12px;">SQL 列表</label>
-                    <div style="max-height: 88px; overflow: auto; background: #fafafa; border: 1px solid var(--border); border-radius: 8px; padding: 8px;">
-                      <div
-                        v-for="(sql, sqlIndex) in sqlDebugSqlList"
-                        :key="`sql_${sqlIndex}`"
-                        style="font-family: monospace; font-size: 12px; color: var(--text); line-height: 1.45; margin-bottom: 6px; white-space: pre-wrap; word-break: break-word;"
-                      >
-                        {{ sql }}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div v-if="sqlDebugRows.length > 0" class="data-grid-container" style="max-height: 260px;">
-                    <table class="data-grid">
-                      <thead>
-                        <tr>
-                          <th v-for="column in sqlDebugColumns" :key="`debug_head_${column}`">{{ column }}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr v-for="(row, rowIndex) in sqlDebugRows.slice(0, 50)" :key="`debug_row_${rowIndex}`">
-                          <td v-for="column in sqlDebugColumns" :key="`debug_col_${rowIndex}_${column}`">{{ row[column] }}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -199,11 +149,7 @@ const pipelineStore = usePipelineStore();
 const persistedRuleId = ref('');
 const parsingForStep = ref(false);
 const autoMapping = ref(false);
-const sqlDebugLoading = ref(false);
-const sqlDebugError = ref('');
 const sqlDebugRows = ref([]);
-const sqlDebugSqlList = ref([]);
-const sqlDebugAt = ref('');
 const sqlDebugTimer = ref(null);
 const sqlDebugRequestSeq = ref(0);
 
@@ -232,10 +178,6 @@ const targetModelPreviewFields = computed(() => {
   }));
 });
 
-const sqlDebugColumns = computed(() => {
-  const firstRow = (sqlDebugRows.value || []).find((row) => row && typeof row === 'object' && !Array.isArray(row));
-  return firstRow ? Object.keys(firstRow) : [];
-});
 
 const resolveCurrentProjectCode = () => {
   return String(appStore.currentProjectCode || appStore.currentProject || '').trim();
@@ -1113,17 +1055,11 @@ const runSqlDebug = async () => {
   const selectedModel = resolveSelectedModel();
   if (!selectedModel) {
     sqlDebugRows.value = [];
-    sqlDebugSqlList.value = [];
-    sqlDebugAt.value = '';
-    sqlDebugError.value = '请先选择目标模型';
     return;
   }
 
   if (toArrayValue(pipelineStore.uploadedFiles).length === 0) {
     sqlDebugRows.value = [];
-    sqlDebugSqlList.value = [];
-    sqlDebugAt.value = '';
-    sqlDebugError.value = '请先上传原始数据';
     return;
   }
 
@@ -1131,16 +1067,11 @@ const runSqlDebug = async () => {
   const edmList = buildDebugEdmList(dsl);
   if (edmList.length === 0) {
     sqlDebugRows.value = [];
-    sqlDebugSqlList.value = [];
-    sqlDebugAt.value = '';
-    sqlDebugError.value = '未找到可用于调试的 edmId';
     return;
   }
 
   const requestSeq = sqlDebugRequestSeq.value + 1;
   sqlDebugRequestSeq.value = requestSeq;
-  sqlDebugLoading.value = true;
-  sqlDebugError.value = '';
 
   try {
     const { saveResponse } = await saveRuleEntity({ status: form.status || 'draft', dsl });
@@ -1158,28 +1089,13 @@ const runSqlDebug = async () => {
       return;
     }
 
-    sqlDebugSqlList.value = [...sqlList];
     sqlDebugRows.value = extractDebugResultRows(debugResponse);
-    sqlDebugAt.value = nowText();
-    sqlDebugError.value = '';
-  } catch (error) {
+  } catch {
     if (requestSeq !== sqlDebugRequestSeq.value) {
       return;
     }
 
     sqlDebugRows.value = [];
-    sqlDebugSqlList.value = [];
-    sqlDebugAt.value = '';
-    sqlDebugError.value = toText(
-      error?.message
-      || error?.data?.msg
-      || error?.response?.data?.msg
-      || '调试失败'
-    );
-  } finally {
-    if (requestSeq === sqlDebugRequestSeq.value) {
-      sqlDebugLoading.value = false;
-    }
   }
 };
 
