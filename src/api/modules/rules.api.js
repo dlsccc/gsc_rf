@@ -6,7 +6,7 @@ export const apiRulesService = {
   save: (params, config) => post(`${baseUrl.projectDesign}/v1/projectDesign/datalake/saveRule`, params, config),
   remove: (params, config) => post(`${baseUrl.projectDesign}/v1/projectDesign/datalake/delete`, params, config),
   publish: (params, config) => post(`${baseUrl.projectDesign}/v1/projectDesign/datalake/ruleRelease`, params, config),
-  debugSql: (params, config) => post(`${baseUrl.dataSmart}/v1/dataSmart/debug`, params, config)
+  debugSql: (params, config) => post(`${baseUrl.lingluoService}/v1/dataSmart/debug`, params, config)
 };
 
 export const rulesApi = apiRulesService;

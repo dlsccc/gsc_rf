@@ -340,17 +340,29 @@ const buildDebugEdmList = (dsl = {}) => {
   const sourceTables = collectRuleInputSourceTables(dsl);
   const includeAll = sourceTables.size === 0 || sourceTables.has('table_mapped');
 
-  const tableEntries = toArrayValue(pipelineStore.uploadedFiles)
-    .filter((file) => {
-      const source = toText(file?.source);
-      if (!source) return false;
-      return includeAll || sourceTables.has(source);
-    })
-    .map((file) => ({
-      edmId: resolveEdmId(file),
-      tableName: toText(file?.source) || toText(file?.name)
+  const globalSetting = dsl?.globalSetting || dsl?.global_setting || {};
+  const dataSources = globalSetting?.dataSources || globalSetting?.data_sources || {};
+  const dslTables = toArrayValue(dataSources?.tables);
+  const sourceOrder = ['table_a', 'table_b'];
+
+  const dslTableEntries = dslTables
+    .map((table, index) => ({
+      source: sourceOrder[index] || `table_${index + 1}`,
+      edmId: pickValue(table?.edmId, table?.edmID, table?.fileCode),
+      tableName: pickValue(table?.sourceId, table?.source_id)
     }))
     .filter((item) => item.edmId && item.tableName);
+
+  const fallbackEntries = toArrayValue(pipelineStore.uploadedFiles)
+    .map((file, index) => ({
+      source: toText(file?.source) || sourceOrder[index] || `table_${index + 1}`,
+      edmId: resolveEdmId(file),
+      tableName: toText(file?.source)
+    }))
+    .filter((item) => item.edmId && item.tableName);
+
+  const sourceEntries = dslTableEntries.length > 0 ? dslTableEntries : fallbackEntries;
+  const tableEntries = sourceEntries.filter((item) => includeAll || sourceTables.has(item.source));
 
   return toUniqueArray(tableEntries.map((item) => `${item.edmId}::${item.tableName}`)).map((key) => {
     const splitIndex = key.indexOf('::');
