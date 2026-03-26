@@ -76,7 +76,58 @@
               <div class="card-title">数据处理配置</div>
             </div>
             <div class="card-body">
-              <ProcessPanel :store="pipelineStore" />
+              <ProcessPanel :store="pipelineStore" @operation-applied="handleProcessOperationApplied" />
+              <div style="margin-top: 16px; border: 1px solid var(--border); border-radius: 12px; background: #fff;">
+                <div style="padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                  <div style="display: flex; align-items: center; gap: 6px; font-weight: 600;">
+                    <span class="material-icons" style="font-size: 18px; color: var(--primary);">science</span>
+                    SQL调试结果
+                  </div>
+                  <span v-if="sqlDebugLoading" class="tag tag-warning">调试中...</span>
+                  <span v-else-if="sqlDebugError" class="tag" style="background:#fff1f0;color:#cf1322;">调试失败</span>
+                  <span v-else-if="sqlDebugRows.length > 0" class="tag tag-success">最近调试 {{ sqlDebugRows.length }} 行</span>
+                </div>
+
+                <div style="padding: 12px 14px;">
+                  <div v-if="sqlDebugError" style="color: var(--danger); font-size: 13px; margin-bottom: 10px;">
+                    {{ sqlDebugError }}
+                  </div>
+                  <div v-else-if="sqlDebugRows.length === 0" style="color: var(--text-secondary); font-size: 13px; margin-bottom: 10px;">
+                    完成一次数据处理操作后会自动调试并回显结果。
+                  </div>
+                  <div v-else style="color: var(--text-secondary); font-size: 12px; margin-bottom: 10px;">
+                    最近调试时间：{{ sqlDebugAt || '-' }}
+                  </div>
+
+                  <div v-if="sqlDebugSqlList.length > 0" style="margin-bottom: 10px;">
+                    <label class="form-label" style="font-size: 12px;">SQL 列表</label>
+                    <div style="max-height: 88px; overflow: auto; background: #fafafa; border: 1px solid var(--border); border-radius: 8px; padding: 8px;">
+                      <div
+                        v-for="(sql, sqlIndex) in sqlDebugSqlList"
+                        :key="`sql_${sqlIndex}`"
+                        style="font-family: monospace; font-size: 12px; color: var(--text); line-height: 1.45; margin-bottom: 6px; white-space: pre-wrap; word-break: break-word;"
+                      >
+                        {{ sql }}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-if="sqlDebugRows.length > 0" class="data-grid-container" style="max-height: 260px;">
+                    <table class="data-grid">
+                      <thead>
+                        <tr>
+                          <th v-for="column in sqlDebugColumns" :key="`debug_head_${column}`">{{ column }}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="(row, rowIndex) in sqlDebugRows.slice(0, 50)" :key="`debug_row_${rowIndex}`">
+                          <td v-for="column in sqlDebugColumns" :key="`debug_col_${rowIndex}_${column}`">{{ row[column] }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -123,7 +174,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { apiSystemService, projectModelsApi, rulesApi } from '@/api/index.js';
 import { nowText } from '@/utils/date.js';
@@ -148,6 +199,13 @@ const pipelineStore = usePipelineStore();
 const persistedRuleId = ref('');
 const parsingForStep = ref(false);
 const autoMapping = ref(false);
+const sqlDebugLoading = ref(false);
+const sqlDebugError = ref('');
+const sqlDebugRows = ref([]);
+const sqlDebugSqlList = ref([]);
+const sqlDebugAt = ref('');
+const sqlDebugTimer = ref(null);
+const sqlDebugRequestSeq = ref(0);
 
 const isEdit = computed(() => !!route.params.id);
 
@@ -172,6 +230,11 @@ const targetModelPreviewFields = computed(() => {
     description: field.description,
     sampleValue: field.sampleValue || field.example || ''
   }));
+});
+
+const sqlDebugColumns = computed(() => {
+  const firstRow = (sqlDebugRows.value || []).find((row) => row && typeof row === 'object' && !Array.isArray(row));
+  return firstRow ? Object.keys(firstRow) : [];
 });
 
 const resolveCurrentProjectCode = () => {
@@ -210,6 +273,114 @@ const extractRuleIdFromSaveResponse = (saveResponse) => {
 };
 
 const toArrayValue = (value) => (Array.isArray(value) ? value : []);
+
+const toUniqueArray = (list = []) => Array.from(new Set(toArrayValue(list)));
+
+const normalizeSqlList = (value) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => toText(item)).filter(Boolean);
+  }
+
+  const text = toText(value);
+  if (!text) return [];
+
+  if (text.startsWith('[') && text.endsWith(']')) {
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item) => toText(item)).filter(Boolean);
+      }
+    } catch {
+      // keep raw text fallback
+    }
+  }
+
+  return [text];
+};
+
+const extractSqlListFromSaveResponse = (saveResponse) => {
+  const payload = saveResponse?.data ?? saveResponse?.result ?? saveResponse ?? {};
+  const candidates = [
+    payload?.sqlList,
+    payload?.sql_list,
+    payload?.data,
+    saveResponse?.sqlList,
+    saveResponse?.data
+  ];
+
+  for (const candidate of candidates) {
+    const sqlList = normalizeSqlList(candidate);
+    if (sqlList.length > 0) {
+      return sqlList;
+    }
+  }
+
+  return [];
+};
+
+const collectRuleInputSourceTables = (dsl = {}) => {
+  const dataProcessing = dsl?.dataProcessing || dsl?.data_processing || {};
+  const rules = toArrayValue(dataProcessing?.rules);
+  const sourceTables = new Set();
+
+  rules.forEach((ruleItem) => {
+    const inputs = toArrayValue(ruleItem?.ruleInput || ruleItem?.rule_input);
+    inputs.forEach((inputItem) => {
+      const sourceTable = pickValue(inputItem?.sourceTable, inputItem?.source_table);
+      if (sourceTable) {
+        sourceTables.add(sourceTable);
+      }
+    });
+  });
+
+  return sourceTables;
+};
+
+const buildDebugEdmList = (dsl = {}) => {
+  const sourceTables = collectRuleInputSourceTables(dsl);
+  const includeAll = sourceTables.size === 0 || sourceTables.has('table_mapped');
+
+  const tableEntries = toArrayValue(pipelineStore.uploadedFiles)
+    .filter((file) => {
+      const source = toText(file?.source);
+      if (!source) return false;
+      return includeAll || sourceTables.has(source);
+    })
+    .map((file) => ({
+      edmId: resolveEdmId(file),
+      tableName: toText(file?.source) || toText(file?.name)
+    }))
+    .filter((item) => item.edmId && item.tableName);
+
+  return toUniqueArray(tableEntries.map((item) => `${item.edmId}::${item.tableName}`)).map((key) => {
+    const splitIndex = key.indexOf('::');
+    return {
+      edmId: splitIndex > -1 ? key.slice(0, splitIndex) : key,
+      tableName: splitIndex > -1 ? key.slice(splitIndex + 2) : ''
+    };
+  }).filter((item) => item.edmId && item.tableName);
+};
+
+const extractDebugResultRows = (debugResponse) => {
+  const payload = debugResponse?.data ?? debugResponse?.result ?? debugResponse ?? {};
+  const candidates = [
+    payload?.result,
+    payload?.rows,
+    payload
+  ];
+
+  for (const candidate of candidates) {
+    if (!Array.isArray(candidate)) continue;
+    return candidate.map((item) => {
+      if (item && typeof item === 'object' && !Array.isArray(item)) {
+        return item;
+      }
+      return { value: item };
+    });
+  }
+
+  return [];
+};
 
 const pickValue = (...values) => {
   for (const value of values) {
@@ -701,6 +872,23 @@ onMounted(async () => {
   persistedRuleId.value = '';
 });
 
+watch(
+  () => pipelineStore.currentStep,
+  (step) => {
+    if (Number(step) === 2) {
+      scheduleSqlDebug();
+      return;
+    }
+
+    clearSqlDebugTimer();
+  }
+);
+
+onUnmounted(() => {
+  clearSqlDebugTimer();
+  sqlDebugRequestSeq.value += 1;
+});
+
 const inferSampleType = (value) => {
   if (value === null || value === undefined || value === '') return '';
   if (typeof value === 'boolean') return 'boolean';
@@ -900,6 +1088,101 @@ const buildCurrentDsl = (selectedModel) => {
   });
 };
 
+const clearSqlDebugTimer = () => {
+  if (sqlDebugTimer.value) {
+    window.clearTimeout(sqlDebugTimer.value);
+    sqlDebugTimer.value = null;
+  }
+};
+
+const runSqlDebug = async () => {
+  if (Number(pipelineStore.currentStep) !== 2) return;
+
+  const selectedModel = resolveSelectedModel();
+  if (!selectedModel) {
+    sqlDebugRows.value = [];
+    sqlDebugSqlList.value = [];
+    sqlDebugAt.value = '';
+    sqlDebugError.value = '请先选择目标模型';
+    return;
+  }
+
+  if (toArrayValue(pipelineStore.uploadedFiles).length === 0) {
+    sqlDebugRows.value = [];
+    sqlDebugSqlList.value = [];
+    sqlDebugAt.value = '';
+    sqlDebugError.value = '请先上传原始数据';
+    return;
+  }
+
+  const dsl = buildCurrentDsl(selectedModel);
+  const edmList = buildDebugEdmList(dsl);
+  if (edmList.length === 0) {
+    sqlDebugRows.value = [];
+    sqlDebugSqlList.value = [];
+    sqlDebugAt.value = '';
+    sqlDebugError.value = '未找到可用于调试的 edmId';
+    return;
+  }
+
+  const requestSeq = sqlDebugRequestSeq.value + 1;
+  sqlDebugRequestSeq.value = requestSeq;
+  sqlDebugLoading.value = true;
+  sqlDebugError.value = '';
+
+  try {
+    const { saveResponse } = await saveRuleEntity({ status: form.status || 'draft', dsl });
+    const sqlList = extractSqlListFromSaveResponse(saveResponse);
+    if (sqlList.length === 0) {
+      throw new Error('保存规则后未返回可调试的 SQL 列表');
+    }
+
+    const debugResponse = await rulesApi.debugSql({
+      sqlList,
+      edmList
+    });
+
+    if (requestSeq !== sqlDebugRequestSeq.value) {
+      return;
+    }
+
+    sqlDebugSqlList.value = [...sqlList];
+    sqlDebugRows.value = extractDebugResultRows(debugResponse);
+    sqlDebugAt.value = nowText();
+    sqlDebugError.value = '';
+  } catch (error) {
+    if (requestSeq !== sqlDebugRequestSeq.value) {
+      return;
+    }
+
+    sqlDebugRows.value = [];
+    sqlDebugSqlList.value = [];
+    sqlDebugAt.value = '';
+    sqlDebugError.value = toText(
+      error?.message
+      || error?.data?.msg
+      || error?.response?.data?.msg
+      || '调试失败'
+    );
+  } finally {
+    if (requestSeq === sqlDebugRequestSeq.value) {
+      sqlDebugLoading.value = false;
+    }
+  }
+};
+
+const scheduleSqlDebug = () => {
+  if (Number(pipelineStore.currentStep) !== 2) return;
+  clearSqlDebugTimer();
+  sqlDebugTimer.value = window.setTimeout(() => {
+    runSqlDebug();
+  }, 400);
+};
+
+const handleProcessOperationApplied = () => {
+  scheduleSqlDebug();
+};
+
 const saveRuleEntity = async ({ status = 'draft', dsl = null } = {}) => {
   if (!form.name.trim()) {
     throw createValidationError('请输入规则名称');
@@ -924,8 +1207,9 @@ const saveRuleEntity = async ({ status = 'draft', dsl = null } = {}) => {
     dsl: nextDsl
   });
 
+  let saveResponse = null;
   try {
-    const saveResponse = await rulesApi.save(toSaveRulePayload(saved, {
+    saveResponse = await rulesApi.save(toSaveRulePayload(saved, {
       ...JSON.parse(JSON.stringify(form)),
       ruleId: resolvePersistedRuleIdForSave(),
       status,
@@ -957,7 +1241,7 @@ const saveRuleEntity = async ({ status = 'draft', dsl = null } = {}) => {
   form.status = saved.status;
   form.targetModel = saved.targetModel;
 
-  return { saved, selectedModel };
+  return { saved, selectedModel, saveResponse };
 };
 
 const saveRule = async () => {
@@ -1015,4 +1299,3 @@ const executeJob = async () => {
   }
 };
 </script>
-

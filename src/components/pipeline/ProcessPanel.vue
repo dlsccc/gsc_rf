@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div style="display: flex; gap: 16px; min-height: 620px;">
     <aside class="sidebar" style="width: 280px; border-radius: 12px; border: 1px solid var(--border);">
       <div class="sidebar-header">
@@ -603,6 +603,7 @@ import { useModelStore } from '@/store/model.store.js';
 const props = defineProps({
   store: { type: Object, required: true }
 });
+const emit = defineEmits(['operation-applied']);
 
 const modelStore = useModelStore();
 const processGridContainer = ref(null);
@@ -1238,6 +1239,14 @@ const addHistory = (type, title, description, field = '') => {
   activeHistoryIndex.value = history.value.length - 1;
 };
 
+const notifyOperationApplied = (type, field = '') => {
+  emit('operation-applied', {
+    type: String(type || '').trim(),
+    field: String(field || '').trim(),
+    timestamp: Date.now()
+  });
+};
+
 const goToHistoryItem = (index) => {
   activeHistoryIndex.value = index;
 };
@@ -1253,6 +1262,7 @@ const applyDedupConfig = () => {
   } else {
     history.value = history.value.filter((item) => item.type !== 'dedup');
   }
+  notifyOperationApplied('dedup', 'GLOBAL');
 };
 
 const addDedupField = () => {
@@ -1342,6 +1352,7 @@ const confirmSuggestion = () => {
     transforms[fieldName] = config;
     addHistory('transform', '数据转换', `${fieldName}: 应用推荐转换`, fieldName);
     delete pendingTransformSuggestions.value[fieldName];
+    notifyOperationApplied('transform', fieldName);
   }
   closeSuggestionModal();
 };
@@ -1418,12 +1429,14 @@ const applyFilterConfig = (field) => {
     addHistory('filter', '筛选', `${field} 公式: ${conf.formula}`, field);
   }
   columnPopover.show = false;
+  notifyOperationApplied('filter', field);
 };
 
 const clearFilter = (field) => {
   filterConfigs[field] = { mode: 'simple', operator: '', value: '', formula: '', conditions: [], logic: 'AND' };
   history.value = history.value.filter((item) => !(item.type === 'filter' && item.field === field));
   columnPopover.show = false;
+  notifyOperationApplied('filter', field);
 };
 
 const addFilterCondition = (field) => {
@@ -1447,6 +1460,7 @@ const applySort = (field, order) => {
   sortConfig.order = order;
   addHistory('sort', '排序', `${field} ${order === 'asc' ? '升序' : '降序'}`, field);
   columnPopover.show = false;
+  notifyOperationApplied('sort', field);
 };
 
 const clearSort = () => {
@@ -1454,6 +1468,7 @@ const clearSort = () => {
   sortConfig.order = 'asc';
   history.value = history.value.filter((item) => item.type !== 'sort');
   columnPopover.show = false;
+  notifyOperationApplied('sort', '');
 };
 
 const addTransformRule = () => {
@@ -1529,6 +1544,7 @@ const confirmTransform = () => {
   };
   const chainDesc = transformModal.chain && transformModal.chain.length > 0 ? ` [链:${transformModal.chain.map((step) => step.type).join('→')}]` : '';
   addHistory('transform', '数据转换', `${transformModal.field}${chainDesc}`, transformModal.field);
+  notifyOperationApplied('transform', transformModal.field);
   closeTransformModal();
 };
 
@@ -1617,6 +1633,7 @@ const applyColumnConfig = () => {
     }
   });
 
+  notifyOperationApplied('batch_apply', applyModal.sourceField);
   closeApplyModal();
 };
 
@@ -1634,6 +1651,7 @@ const undoHistoryItem = (index) => {
     dedupConfig.enabled = false;
   }
   history.value.splice(index, 1);
+  notifyOperationApplied(item.type || 'undo', item.field || '');
 };
 
 const deleteHistoryItem = (index) => {
@@ -1741,6 +1759,3 @@ onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside);
 });
 </script>
-
-
-
