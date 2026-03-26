@@ -5,6 +5,7 @@ const baseUrl = {
   projectDesign: BASE_PREFIX,
   pipeline: BASE_PREFIX,
   itscSystemservice: '/itsc/systemservice',
+  lingluoService: '/itsc/lingluoservice',
 };
 
 export default baseUrl;
