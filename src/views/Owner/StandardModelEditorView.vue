@@ -124,6 +124,7 @@ import { standardModelsApi } from '@/api/index.js';
 import { nowText } from '@/utils/date.js';
 import { createId } from '@/utils/id.js';
 import { $error, $success, $warning } from '@/utils/message.js';
+import { downloadFileByALink } from '@/utils/fileUtils.js';
 import { normalizeStandardModel, resolveModelCode, toModelSavePayload, unwrapApiData, unwrapApiList, useModelStore } from '@/store/model.store.js';
 import { useAppStore } from '@/store/app.store.js';
 
@@ -392,6 +393,7 @@ const exportModel = async () => {
     const response = await standardModelsApi.exportModel({ modelCodeList: [modelCode] });
     const edmId = extractEdmIdFromExportResponse(response);
     if (edmId) {
+      downloadFileByALink(edmId);
       $success('Model export succeeded, edmId: ' + edmId);
       return;
     }

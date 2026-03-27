@@ -141,3 +141,29 @@ export const extractFieldInfoList = (parsedList, edmId) => {
   const matched = list.find((item) => resolveEdmId(item) === id) || list[0] || {};
   return toArray(matched.fieldInfoList || matched.field_info_list);
 };
+
+/**
+ * a标签下载文件
+ * @param fileId 文件id
+ * @param downloadToken 下载文件token
+ * @param checkToken 文件校验token
+ * @param single 是否为单个文件下载
+ */
+export function downloadFileByALink(fileId = '') {
+  if (!fileId) {
+    return;
+  }
+  const alink = document.createElement('a');
+  if ('download' in alink) {
+    // 非IE浏览器才有a.download
+    alink.setAttribute('download', '');
+    alink.style.display = 'none';
+    alink.href = apiSystemService.fileEdm3Download(fileId);
+    // alink.download = fileName;
+    document.body.appendChild(alink);
+    alink.click();
+    // 释放URL 对象
+  } else {
+    // IE10+下载，全局对象navigator
+  }
+}
