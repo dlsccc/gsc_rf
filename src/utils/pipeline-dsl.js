@@ -66,7 +66,9 @@ const resolveFileEdmId = (file = {}) => {
 };
 
 const normalizeFieldInfoItem = (item = {}) => {
+  const rawSeq = item?.seq ?? item?.fieldSeq ?? item?.field_seq ?? '';
   return {
+    seq: rawSeq,
     field_name: trimText(item?.fieldName || item?.field_name || item?.name),
     field_alias: trimText(item?.fieldAlias || item?.field_alias || item?.alias),
     field_type: trimText(item?.fieldType || item?.field_type || item?.type)
@@ -80,7 +82,7 @@ const toFieldInfoList = (file = {}) => {
 
   return source
     .map((item) => normalizeFieldInfoItem(item))
-    .filter((item) => item.field_name || item.field_alias || item.field_type);
+    .filter((item) => item.seq !== '' || item.field_name || item.field_alias || item.field_type);
 };
 
 const pickSampleValue = (rows = [], field) => {
@@ -321,10 +323,9 @@ const buildTransformDsl = (config) => {
 
 const toDataSourceDsl = (uploadedFiles = []) => {
   return toSourceFiles(uploadedFiles).map((file) => {
-    const columns = (file.fields || []).map((fieldName, index) => {
+    const columns = (file.fields || []).map((fieldName) => {
       const sample = pickSampleValue(file.rows, fieldName);
       return {
-        seq: index + 1,
         column_id: createPrefixedId('data_smart_base_field'),
         name: fieldName,
         sample_value: sample
@@ -341,6 +342,20 @@ const toDataSourceDsl = (uploadedFiles = []) => {
       field_info_list: toFieldInfoList(file)
     };
   });
+};
+
+const toTargetColumns = (selectedModel = {}) => {
+  const fields = Array.isArray(selectedModel?.fields) ? selectedModel.fields : [];
+  return fields
+    .map((field) => {
+      const name = trimText(field?.name || field?.fieldName);
+      if (!name) return null;
+      return {
+        name,
+        type: trimText(field?.type || field?.fieldType)
+      };
+    })
+    .filter(Boolean);
 };
 
 const defaultJoinFields = (tableA = [], tableB = []) => {
@@ -583,7 +598,8 @@ export const buildPipelineDsl = ({
       project_id: projectId
     },
     model_selection: {
-      model_code: modelCode
+      model_code: modelCode,
+      target_columns: toTargetColumns(selectedModel)
     },
     global_setting: {
       index: 'mapping_step_001',
