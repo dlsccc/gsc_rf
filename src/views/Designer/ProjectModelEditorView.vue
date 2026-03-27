@@ -149,6 +149,10 @@
 
     <div class="model-edit-actions">
       <button class="btn btn-default" @click="router.push('/designer/project-models')">取消</button>
+      <button class="btn btn-default" @click="triggerImportModel">
+        <span class="material-icons" style="font-size: 18px;">upload_file</span>
+        Import Model
+      </button>
       <button class="btn btn-default" @click="saveProjectModel">
         <span class="material-icons" style="font-size: 18px;">save</span>
         保存模型
@@ -157,17 +161,22 @@
         <span class="material-icons" style="font-size: 18px;">publish</span>
         发布模型
       </button>
+      <button class="btn btn-default" @click="exportProjectModel">
+        <span class="material-icons" style="font-size: 18px;">download</span>
+        Export Model
+      </button>
     </div>
+    <input ref="importInputRef" type="file" style="display: none;" @change="onImportModelFileChange" />
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { projectModelsApi, standardModelsApi } from '@/api/index.js';
 import { nowText } from '@/utils/date.js';
 import { createId } from '@/utils/id.js';
-import { $warning } from '@/utils/message.js';
+import { $error, $success, $warning } from '@/utils/message.js';
 import { useAppStore } from '@/store/app.store.js';
 import { normalizeProjectModel, normalizeStandardModel, resolveModelCode, toModelSavePayload, unwrapApiData, unwrapApiList, useModelStore } from '@/store/model.store.js';
 
@@ -204,6 +213,7 @@ const editId = computed(() => route.params.id || '');
 const isEdit = computed(() => !!editId.value);
 
 const form = reactive(emptyModel());
+const importInputRef = ref(null);
 
 const resolveCurrentProjectCode = () => {
   return String(appStore.currentProjectCode || appStore.currentProject || '').trim();
@@ -479,6 +489,74 @@ const persistModel = async (status) => {
     modelCode: toText(resolveModelCode(entity)),
     projectCode
   };
+};
+
+const triggerImportModel = () => {
+  importInputRef.value?.click();
+};
+
+const onImportModelFileChange = async (event) => {
+  const target = event?.target;
+  const file = target?.files?.[0];
+  if (target) target.value = '';
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const response = await projectModelsApi.importModel(formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    const imported = unwrapApiData(response);
+    if (!imported || typeof imported !== 'object') {
+      $warning('Model import returned empty payload.');
+      return;
+    }
+
+    fillForm(normalizeProjectModel(imported, appStore.currentProject, resolveCurrentProjectCode()));
+    $success('Model import succeeded.');
+  } catch {
+    $error('Model import failed.');
+  }
+};
+
+const extractEdmIdFromExportResponse = (response) => {
+  const body = response?.data ?? response?.result ?? response ?? {};
+  const candidates = [
+    body?.edmId,
+    body?.data?.edmId,
+    body?.msgParams?.[0]?.edmId,
+    response?.response?.data?.msgParams?.[0]?.edmId
+  ];
+  for (const item of candidates) {
+    const edmId = toText(item);
+    if (edmId) return edmId;
+  }
+  return '';
+};
+
+const exportProjectModel = async () => {
+  const result = await persistModel('draft');
+  if (!result) return;
+
+  const modelCode = toText(result.modelCode);
+  if (!isValidModelCode(modelCode)) {
+    $warning('Export failed: modelCode is empty after save.');
+    return;
+  }
+
+  try {
+    const response = await projectModelsApi.exportModel({ modelCodeList: [modelCode] });
+    const edmId = extractEdmIdFromExportResponse(response);
+    if (edmId) {
+      $success('Model export succeeded, edmId: ' + edmId);
+      return;
+    }
+    $success('Model export succeeded.');
+  } catch {
+    $error('Model export failed.');
+  }
 };
 
 const saveProjectModel = async () => {

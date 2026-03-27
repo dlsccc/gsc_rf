@@ -100,22 +100,31 @@
 
     <div class="model-edit-actions">
       <button class="btn btn-default" @click="router.push('/owner/standard-models')">取消</button>
+      <button class="btn btn-default" @click="triggerImportModel">
+        <span class="material-icons" style="font-size: 18px;">upload_file</span>
+        Import Model
+      </button>
       <button class="btn btn-primary" @click="saveModel">
         <span class="material-icons" style="font-size: 18px;">save</span>
         保存模型
       </button>
+      <button class="btn btn-default" @click="exportModel">
+        <span class="material-icons" style="font-size: 18px;">download</span>
+        Export Model
+      </button>
     </div>
+    <input ref="importInputRef" type="file" style="display: none;" @change="onImportModelFileChange" />
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { standardModelsApi } from '@/api/index.js';
 import { nowText } from '@/utils/date.js';
 import { createId } from '@/utils/id.js';
-import { $warning } from '@/utils/message.js';
-import { normalizeStandardModel, toModelSavePayload, unwrapApiList, useModelStore } from '@/store/model.store.js';
+import { $error, $success, $warning } from '@/utils/message.js';
+import { normalizeStandardModel, resolveModelCode, toModelSavePayload, unwrapApiData, unwrapApiList, useModelStore } from '@/store/model.store.js';
 import { useAppStore } from '@/store/app.store.js';
 
 const businessTypeOptions = [
@@ -136,6 +145,16 @@ const editId = computed(() => route.params.id || '');
 const isEdit = computed(() => !!editId.value);
 
 const form = reactive(emptyModel());
+const importInputRef = ref(null);
+
+const toText = (value) => String(value ?? '').trim();
+
+const isValidModelCode = (value) => {
+  const code = toText(value);
+  if (!code) return false;
+  if (code === '0' || code === '1') return false;
+  return /[a-zA-Z]/.test(code);
+};
 
 const fillForm = (data) => {
   const source = data ? JSON.parse(JSON.stringify(data)) : emptyModel();
@@ -211,22 +230,174 @@ const validate = () => {
   return true;
 };
 
-const saveModel = async () => {
-  if (!validate()) return;
+const extractModelCodeFromSaveResponse = (response) => {
+  const body = response?.data ?? response?.result ?? response ?? {};
+  const candidates = [
+    body?.modelCode,
+    body?.code,
+    body?.data?.modelCode,
+    body?.data?.code,
+    response?.modelCode,
+    response?.code
+  ];
 
-  const entity = modelStore.upsertStandardModelLocal(normalizeStandardModel({
+  for (const item of candidates) {
+    const modelCode = toText(item);
+    if (isValidModelCode(modelCode)) {
+      return modelCode;
+    }
+  }
+
+  return '';
+};
+
+const queryModelCodeByName = async (modelName) => {
+  const name = toText(modelName);
+  if (!name) return '';
+
+  try {
+    const response = await standardModelsApi.list({ modelType: 'base', modelName: name });
+    const list = unwrapApiList(response);
+    const exact = list.find((item) => toText(item.modelName || item.name) === name) || list[0];
+    const modelCode = toText(resolveModelCode(exact || {}));
+    return isValidModelCode(modelCode) ? modelCode : '';
+  } catch {
+    return '';
+  }
+};
+
+const syncEntityWithModelCode = (entity, modelCode) => {
+  if (!isValidModelCode(modelCode)) {
+    return modelStore.upsertStandardModelLocal(normalizeStandardModel({
+      ...entity,
+      status: 'active',
+      updateTime: nowText()
+    }));
+  }
+
+  const nextEntity = normalizeStandardModel({
+    ...entity,
+    id: modelCode,
+    code: modelCode,
+    modelCode,
+    status: 'active',
+    updateTime: nowText()
+  });
+
+  if (String(entity.id) !== String(modelCode)) {
+    modelStore.removeStandardModelById(entity.id);
+  }
+
+  return modelStore.upsertStandardModelLocal(nextEntity);
+};
+
+const persistModel = async () => {
+  if (!validate()) return null;
+
+  let entity = modelStore.upsertStandardModelLocal(normalizeStandardModel({
     ...JSON.parse(JSON.stringify(form)),
     id: form.id || form.code || form.modelCode || createId(),
     status: 'active',
     updateTime: nowText()
   }));
 
+  let saveResponse = null;
   try {
-    await standardModelsApi.save(toModelSavePayload({ entity, modelType: 'base' }));
+    saveResponse = await standardModelsApi.save(toModelSavePayload({ entity, modelType: 'base' }));
   } catch {
-    // 无后端时忽略错误。
+    // Ignore backend save failure in local-only mode.
   }
 
+  const localCode = toText(resolveModelCode(entity));
+  const responseCode = extractModelCodeFromSaveResponse(saveResponse);
+  const queriedCode = (!isValidModelCode(localCode) && !isValidModelCode(responseCode))
+    ? await queryModelCodeByName(entity.name)
+    : '';
+  const finalModelCode = isValidModelCode(localCode)
+    ? localCode
+    : (isValidModelCode(responseCode) ? responseCode : queriedCode);
+
+  entity = syncEntityWithModelCode(entity, finalModelCode);
+  form.id = entity.id || form.id;
+  form.code = entity.code || form.code;
+  form.modelCode = entity.modelCode || form.modelCode;
+
+  return {
+    entity,
+    modelCode: toText(resolveModelCode(entity))
+  };
+};
+
+const saveModel = async () => {
+  const result = await persistModel();
+  if (!result) return;
   router.push('/owner/standard-models');
+};
+
+const triggerImportModel = () => {
+  importInputRef.value?.click();
+};
+
+const onImportModelFileChange = async (event) => {
+  const target = event?.target;
+  const file = target?.files?.[0];
+  if (target) target.value = '';
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const response = await standardModelsApi.importModel(formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    const imported = unwrapApiData(response);
+    if (!imported || typeof imported !== 'object') {
+      $warning('Model import returned empty payload.');
+      return;
+    }
+    fillForm(normalizeStandardModel(imported));
+    $success('Model import succeeded.');
+  } catch {
+    $error('Model import failed.');
+  }
+};
+
+const extractEdmIdFromExportResponse = (response) => {
+  const body = response?.data ?? response?.result ?? response ?? {};
+  const candidates = [
+    body?.edmId,
+    body?.data?.edmId,
+    body?.msgParams?.[0]?.edmId,
+    response?.response?.data?.msgParams?.[0]?.edmId
+  ];
+  for (const item of candidates) {
+    const edmId = toText(item);
+    if (edmId) return edmId;
+  }
+  return '';
+};
+
+const exportModel = async () => {
+  const result = await persistModel();
+  if (!result) return;
+
+  const modelCode = toText(result.modelCode);
+  if (!isValidModelCode(modelCode)) {
+    $warning('Export failed: modelCode is empty after save.');
+    return;
+  }
+
+  try {
+    const response = await standardModelsApi.exportModel({ modelCodeList: [modelCode] });
+    const edmId = extractEdmIdFromExportResponse(response);
+    if (edmId) {
+      $success('Model export succeeded, edmId: ' + edmId);
+      return;
+    }
+    $success('Model export succeeded.');
+  } catch {
+    $error('Model export failed.');
+  }
 };
 </script>
