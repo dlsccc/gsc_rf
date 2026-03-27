@@ -216,7 +216,6 @@ const extractRuleIdFromSaveResponse = (saveResponse) => {
 
 const toArrayValue = (value) => (Array.isArray(value) ? value : []);
 
-const toUniqueArray = (list = []) => Array.from(new Set(toArrayValue(list)));
 
 const normalizeSqlList = (value) => {
   if (Array.isArray(value)) {
@@ -278,6 +277,20 @@ const collectRuleInputSourceTables = (dsl = {}) => {
   return sourceTables;
 };
 
+const normalizeDebugFieldInfoList = (list = []) => {
+  return toArrayValue(list)
+    .map((item) => {
+      const seq = item?.seq ?? item?.fieldSeq ?? item?.field_seq ?? '';
+      return {
+        seq,
+        fieldName: pickValue(item?.fieldName, item?.field_name, item?.name),
+        fieldAlias: pickValue(item?.fieldAlias, item?.field_alias, item?.alias),
+        fieldType: pickValue(item?.fieldType, item?.field_type, item?.type)
+      };
+    })
+    .filter((item) => item.seq !== '' || item.fieldName || item.fieldAlias || item.fieldType);
+};
+
 const buildDebugEdmList = (dsl = {}) => {
   const sourceTables = collectRuleInputSourceTables(dsl);
   const includeAll = sourceTables.size === 0 || sourceTables.has('table_mapped');
@@ -291,7 +304,8 @@ const buildDebugEdmList = (dsl = {}) => {
     .map((table, index) => ({
       source: sourceOrder[index] || `table_${index + 1}`,
       edmId: pickValue(table?.edmId, table?.edmID, table?.fileCode),
-      tableName: pickValue(table?.sourceId, table?.source_id)
+      tableName: pickValue(table?.sourceId, table?.source_id),
+      fieldInfoList: normalizeDebugFieldInfoList(table?.fieldInfoList || table?.field_info_list)
     }))
     .filter((item) => item.edmId && item.tableName);
 
@@ -299,20 +313,33 @@ const buildDebugEdmList = (dsl = {}) => {
     .map((file, index) => ({
       source: toText(file?.source) || sourceOrder[index] || `table_${index + 1}`,
       edmId: resolveEdmId(file),
-      tableName: toText(file?.source)
+      tableName: toText(file?.source),
+      fieldInfoList: normalizeDebugFieldInfoList(file?.fieldInfoList || file?.field_info_list)
     }))
     .filter((item) => item.edmId && item.tableName);
 
   const sourceEntries = dslTableEntries.length > 0 ? dslTableEntries : fallbackEntries;
   const tableEntries = sourceEntries.filter((item) => includeAll || sourceTables.has(item.source));
 
-  return toUniqueArray(tableEntries.map((item) => `${item.edmId}::${item.tableName}`)).map((key) => {
-    const splitIndex = key.indexOf('::');
-    return {
-      edmId: splitIndex > -1 ? key.slice(0, splitIndex) : key,
-      tableName: splitIndex > -1 ? key.slice(splitIndex + 2) : ''
-    };
-  }).filter((item) => item.edmId && item.tableName);
+  const entryMap = tableEntries.reduce((acc, item) => {
+    const key = `${item.edmId}::${item.tableName}`;
+    if (!acc.has(key)) {
+      acc.set(key, {
+        edmId: item.edmId,
+        tableName: item.tableName,
+        fieldInfoList: toArrayValue(item.fieldInfoList)
+      });
+      return acc;
+    }
+
+    const current = acc.get(key);
+    if (toArrayValue(current?.fieldInfoList).length === 0 && toArrayValue(item.fieldInfoList).length > 0) {
+      current.fieldInfoList = toArrayValue(item.fieldInfoList);
+    }
+    return acc;
+  }, new Map());
+
+  return [...entryMap.values()].filter((item) => item.edmId && item.tableName);
 };
 
 const extractDebugResultRows = (debugResponse) => {
