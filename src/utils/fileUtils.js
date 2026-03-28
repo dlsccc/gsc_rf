@@ -149,7 +149,7 @@ export const extractFieldInfoList = (parsedList, edmId) => {
  * @param checkToken 文件校验token
  * @param single 是否为单个文件下载
  */
-export function downloadFileByALink(fileId = '') {
+export function downloadFileByALink(fileId, downloadToken, checkToken,fileName) {
   if (!fileId) {
     return;
   }
@@ -158,12 +158,33 @@ export function downloadFileByALink(fileId = '') {
     // 非IE浏览器才有a.download
     alink.setAttribute('download', '');
     alink.style.display = 'none';
-    alink.href = apiSystemService.fileEdm3Download(fileId);
-    // alink.download = fileName;
+    alink.href = apiSystemService.fileEdm3Download(fileId,downloadToken, checkToken);
+    if(fileName){
+      alink.download = fileName;
+    }
     document.body.appendChild(alink);
     alink.click();
     // 释放URL 对象
   } else {
     // IE10+下载，全局对象navigator
   }
+}
+
+/**
+ * 获取预下载文件token
+ * @param fileId 文件id
+ * @param config 请求的config
+ * @returns {Promise<AxiosResponse<any>>} 预下载文件token和缓存时间
+ */
+export async function preDownloadToken(fileId, config) {
+  const { data } = await apiSystemService.preDownload(fileId, { ...config });
+  return data;
+}
+
+
+// 小文件，快捷下载
+export async function downloadFile(fileId){
+  const res = await preDownloadToken(fileId);
+  const { downloadToken, checkToken  } = res;
+  downloadFileByALink({fileId, downloadToken, checkToken});
 }

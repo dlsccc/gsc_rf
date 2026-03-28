@@ -163,7 +163,7 @@ import { nowText } from '@/utils/date.js';
 import { createId } from '@/utils/id.js';
 import { $error, $success, $warning } from '@/utils/message.js';
 import { useAppStore } from '@/store/app.store.js';
-import { downloadFileByALink } from '@/utils/fileUtils.js';
+import { downloadFile } from '@/utils/fileUtils.js';
 import { normalizeProjectModel, normalizeStandardModel, resolveModelCode, toModelSavePayload, unwrapApiData, unwrapApiList, useModelStore } from '@/store/model.store.js';
 
 const vendorOptions = ['华为', '中兴', '其他'];
@@ -609,7 +609,7 @@ const exportProjectModel = async () => {
     const response = await projectModelsApi.exportModel({ modelCodeList: [modelCode] });
     const edmId = extractEdmIdFromExportResponse(response);
     if (edmId) {
-      downloadFileByALink(edmId);
+      await downloadFile(edmId);
       $success('Model export succeeded, edmId: ' + edmId);
       return;
     }
