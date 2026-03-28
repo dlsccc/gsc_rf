@@ -378,25 +378,63 @@
                   </button>
                 </div>
               </div>
-              <select v-model="step.type" class="form-select" style="font-size: 13px;">
-                <option value="uppercase">转换为大写</option>
-                <option value="lowercase">转换为小写</option>
-                <option value="trim">去除首尾空格</option>
-                <option value="format_datetime">格式化日期时间</option>
-                <option value="extract_year">提取年份</option>
-                <option value="extract_month">提取月份</option>
-                <option value="extract_time">提取时间</option>
-                <option value="format_time">格式化时间</option>
-                <option value="calc_week">计算星期数</option>
-                <option value="calc_weekday">计算星期几</option>
-                <option value="to_number">转换为数值</option>
-                <option value="remove_thousand_sep">去除千分位符号</option>
-                <option value="remove_percent">去除百分号</option>
-                <option value="set_value">固定赋值</option>
-                <option value="concat">多字段拼接</option>
-                <option value="replace">替换内容</option>
-                <option value="formula">自定义公式</option>
+              <select v-model="step.type" class="form-select" style="font-size: 13px;" @change="onTransformTypeChange(step)">
+                <option :value="TRANSFORM_TYPES.FORMAT_TIME">格式化时间</option>
+                <option :value="TRANSFORM_TYPES.CALC_WEEK">计算星期数</option>
+                <option :value="TRANSFORM_TYPES.CALC_WEEKDAY">计算星期几</option>
+                <option :value="TRANSFORM_TYPES.SET_VALUE">固定赋值</option>
+                <option :value="TRANSFORM_TYPES.CONCAT">多字段拼接</option>
+                <option :value="TRANSFORM_TYPES.REPLACE">替换内容</option>
+                <option :value="TRANSFORM_TYPES.FORMULA">自定义公式</option>
               </select>
+              <div v-if="step.type === TRANSFORM_TYPES.FORMAT_TIME" style="margin-top: 8px;">
+                <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                  <div style="display: inline-flex; align-items: center; gap: 6px;">
+                    <button
+                      type="button"
+                      class="btn btn-sm"
+                      :class="step.timeFormatMode === TIME_FORMAT_MODE.DATE ? 'btn-primary' : 'btn-default'"
+                      @click="step.timeFormatMode = TIME_FORMAT_MODE.DATE"
+                    >
+                      YYYY-MM-DD
+                    </button>
+                    <span style="font-size: 12px; color: var(--text-secondary);">示例：2026-03-28</span>
+                  </div>
+                  <div style="display: inline-flex; align-items: center; gap: 6px;">
+                    <button
+                      type="button"
+                      class="btn btn-sm"
+                      :class="step.timeFormatMode === TIME_FORMAT_MODE.YEAR ? 'btn-primary' : 'btn-default'"
+                      @click="step.timeFormatMode = TIME_FORMAT_MODE.YEAR"
+                    >
+                      YYYY
+                    </button>
+                    <span style="font-size: 12px; color: var(--text-secondary);">示例：2026</span>
+                  </div>
+                  <div style="display: inline-flex; align-items: center; gap: 6px;">
+                    <button
+                      type="button"
+                      class="btn btn-sm"
+                      :class="step.timeFormatMode === TIME_FORMAT_MODE.MONTH ? 'btn-primary' : 'btn-default'"
+                      @click="step.timeFormatMode = TIME_FORMAT_MODE.MONTH"
+                    >
+                      YYYY-MM
+                    </button>
+                    <span style="font-size: 12px; color: var(--text-secondary);">示例：2026-03</span>
+                  </div>
+                  <div style="display: inline-flex; align-items: center; gap: 6px;">
+                    <button
+                      type="button"
+                      class="btn btn-sm"
+                      :class="step.timeFormatMode === TIME_FORMAT_MODE.TIME ? 'btn-primary' : 'btn-default'"
+                      @click="step.timeFormatMode = TIME_FORMAT_MODE.TIME"
+                    >
+                      hh:mm:ss
+                    </button>
+                    <span style="font-size: 12px; color: var(--text-secondary);">示例：14:30:59</span>
+                  </div>
+                </div>
+              </div>
               <div v-if="step.type === 'concat'" style="margin-top: 8px;">
                 <input v-model="step.delimiter" class="form-input" placeholder="拼接分隔符（可选）" style="font-size: 13px;" />
               </div>
@@ -449,25 +487,64 @@
 
             <div class="form-group">
               <label class="form-label" style="font-size: 12px;">转换类型</label>
-              <select v-model="rule.type" class="form-select">
-                <option value="uppercase">转换为大写</option>
-                <option value="lowercase">转换为小写</option>
-                <option value="trim">去除首尾空格</option>
-                <option value="format_datetime">格式化日期时间</option>
-                <option value="extract_year">提取年份</option>
-                <option value="extract_month">提取月份</option>
-                <option value="extract_time">提取时间</option>
-                <option value="format_time">格式化时间</option>
-                <option value="calc_week">计算星期数</option>
-                <option value="calc_weekday">计算星期几</option>
-                <option value="to_number">转换为数值</option>
-                <option value="remove_thousand_sep">去除千分位符号</option>
-                <option value="remove_percent">去除百分号</option>
-                <option value="set_value">固定赋值</option>
-                <option value="concat">多字段拼接</option>
-                <option value="replace">替换内容</option>
-                <option value="formula">自定义公式</option>
+              <select v-model="rule.type" class="form-select" @change="onTransformTypeChange(rule)">
+                <option :value="TRANSFORM_TYPES.FORMAT_TIME">格式化时间</option>
+                <option :value="TRANSFORM_TYPES.CALC_WEEK">计算星期数</option>
+                <option :value="TRANSFORM_TYPES.CALC_WEEKDAY">计算星期几</option>
+                <option :value="TRANSFORM_TYPES.SET_VALUE">固定赋值</option>
+                <option :value="TRANSFORM_TYPES.CONCAT">多字段拼接</option>
+                <option :value="TRANSFORM_TYPES.REPLACE">替换内容</option>
+                <option :value="TRANSFORM_TYPES.FORMULA">自定义公式</option>
               </select>
+            </div>
+            <div v-if="rule.type === TRANSFORM_TYPES.FORMAT_TIME" class="form-group">
+              <label class="form-label" style="font-size: 12px;">格式类型</label>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                <div style="display: inline-flex; align-items: center; gap: 6px;">
+                  <button
+                    type="button"
+                    class="btn btn-sm"
+                    :class="rule.timeFormatMode === TIME_FORMAT_MODE.DATE ? 'btn-primary' : 'btn-default'"
+                    @click="rule.timeFormatMode = TIME_FORMAT_MODE.DATE"
+                  >
+                    YYYY-MM-DD
+                  </button>
+                  <span style="font-size: 12px; color: var(--text-secondary);">示例：2026-03-28</span>
+                </div>
+                <div style="display: inline-flex; align-items: center; gap: 6px;">
+                  <button
+                    type="button"
+                    class="btn btn-sm"
+                    :class="rule.timeFormatMode === TIME_FORMAT_MODE.YEAR ? 'btn-primary' : 'btn-default'"
+                    @click="rule.timeFormatMode = TIME_FORMAT_MODE.YEAR"
+                  >
+                    YYYY
+                  </button>
+                  <span style="font-size: 12px; color: var(--text-secondary);">示例：2026</span>
+                </div>
+                <div style="display: inline-flex; align-items: center; gap: 6px;">
+                  <button
+                    type="button"
+                    class="btn btn-sm"
+                    :class="rule.timeFormatMode === TIME_FORMAT_MODE.MONTH ? 'btn-primary' : 'btn-default'"
+                    @click="rule.timeFormatMode = TIME_FORMAT_MODE.MONTH"
+                  >
+                    YYYY-MM
+                  </button>
+                  <span style="font-size: 12px; color: var(--text-secondary);">示例：2026-03</span>
+                </div>
+                <div style="display: inline-flex; align-items: center; gap: 6px;">
+                  <button
+                    type="button"
+                    class="btn btn-sm"
+                    :class="rule.timeFormatMode === TIME_FORMAT_MODE.TIME ? 'btn-primary' : 'btn-default'"
+                    @click="rule.timeFormatMode = TIME_FORMAT_MODE.TIME"
+                  >
+                    hh:mm:ss
+                  </button>
+                  <span style="font-size: 12px; color: var(--text-secondary);">示例：14:30:59</span>
+                </div>
+              </div>
             </div>
 
             <div v-if="rule.type === 'concat'" class="form-group">
@@ -1496,8 +1573,72 @@ const clearSort = () => {
   notifyOperationApplied('sort', '');
 };
 
+const TIME_FORMAT_MODE = Object.freeze({
+  DATE: 'date',
+  YEAR: 'year',
+  MONTH: 'month',
+  TIME: 'time'
+});
+
+const resolveTimeFormatModeByType = (type) => {
+  if (type === TRANSFORM_TYPES.FORMAT_DATETIME) return TIME_FORMAT_MODE.DATE;
+  if (type === TRANSFORM_TYPES.EXTRACT_YEAR) return TIME_FORMAT_MODE.YEAR;
+  if (type === TRANSFORM_TYPES.EXTRACT_MONTH) return TIME_FORMAT_MODE.MONTH;
+  if (type === TRANSFORM_TYPES.FORMAT_TIME || type === TRANSFORM_TYPES.EXTRACT_TIME) return TIME_FORMAT_MODE.TIME;
+  return '';
+};
+
+const resolveStoredTypeByTimeFormatMode = (mode) => {
+  if (mode === TIME_FORMAT_MODE.YEAR) return TRANSFORM_TYPES.EXTRACT_YEAR;
+  if (mode === TIME_FORMAT_MODE.MONTH) return TRANSFORM_TYPES.EXTRACT_MONTH;
+  if (mode === TIME_FORMAT_MODE.TIME) return TRANSFORM_TYPES.FORMAT_TIME;
+  return TRANSFORM_TYPES.FORMAT_DATETIME;
+};
+
+const toModalTransformItem = (item = {}) => {
+  const next = { ...item };
+  const timeFormatMode = resolveTimeFormatModeByType(next.type);
+  if (timeFormatMode) {
+    next.type = TRANSFORM_TYPES.FORMAT_TIME;
+    next.timeFormatMode = timeFormatMode;
+  } else if (next.type === TRANSFORM_TYPES.FORMAT_TIME) {
+    next.timeFormatMode = next.timeFormatMode || TIME_FORMAT_MODE.DATE;
+  } else {
+    next.timeFormatMode = '';
+  }
+  return next;
+};
+
+const toStoredTransformItem = (item = {}) => {
+  const next = { ...item };
+  if (next.type === TRANSFORM_TYPES.FORMAT_TIME) {
+    next.type = resolveStoredTypeByTimeFormatMode(next.timeFormatMode);
+  }
+  delete next.timeFormatMode;
+  return next;
+};
+
+const onTransformTypeChange = (item) => {
+  if (!item || typeof item !== 'object') return;
+  if (item.type === TRANSFORM_TYPES.FORMAT_TIME) {
+    item.timeFormatMode = item.timeFormatMode || TIME_FORMAT_MODE.DATE;
+    return;
+  }
+  item.timeFormatMode = '';
+};
+
 const addTransformRule = () => {
-  transformModal.rules.push({ operator: '', value: '', type: TRANSFORM_TYPES.SET_VALUE, delimiter: '', fixedValue: '', search: '', replace: '', formula: '' });
+  transformModal.rules.push({
+    operator: '',
+    value: '',
+    type: TRANSFORM_TYPES.SET_VALUE,
+    delimiter: '',
+    fixedValue: '',
+    search: '',
+    replace: '',
+    formula: '',
+    timeFormatMode: ''
+  });
 };
 
 const removeTransformRule = (index) => {
@@ -1506,7 +1647,7 @@ const removeTransformRule = (index) => {
 
 const addChainStep = () => {
   if (!Array.isArray(transformModal.chain)) transformModal.chain = [];
-  transformModal.chain.push({ type: TRANSFORM_TYPES.TRIM, delimiter: '', fixedValue: '', search: '', replace: '', formula: '' });
+  transformModal.chain.push({ type: TRANSFORM_TYPES.SET_VALUE, delimiter: '', fixedValue: '', search: '', replace: '', formula: '', timeFormatMode: '' });
 };
 
 const removeChainStep = (index) => {
@@ -1527,20 +1668,22 @@ const openTransformModal = (field) => {
   columnPopover.show = false;
   transformModal.field = field;
   transformModal.show = true;
-  transformModal.rules = transforms[field]?.rules ? JSON.parse(JSON.stringify(transforms[field].rules)) : [];
+  transformModal.rules = transforms[field]?.rules
+    ? JSON.parse(JSON.stringify(transforms[field].rules)).map((rule) => toModalTransformItem(rule))
+    : [];
 
   if (Array.isArray(transforms[field]?.chain) && transforms[field].chain.length > 0) {
-    transformModal.chain = JSON.parse(JSON.stringify(transforms[field].chain));
+    transformModal.chain = JSON.parse(JSON.stringify(transforms[field].chain)).map((step) => toModalTransformItem(step));
   } else if (transforms[field]?.type) {
     transformModal.chain = [
-      {
+      toModalTransformItem({
         type: transforms[field].type,
         delimiter: transforms[field].delimiter || '',
         fixedValue: transforms[field].fixedValue || '',
         search: transforms[field].search || '',
         replace: transforms[field].replace || '',
         formula: transforms[field].formula || ''
-      }
+      })
     ];
   } else {
     transformModal.chain = [];
@@ -1563,12 +1706,14 @@ const closeTransformModal = () => {
 };
 
 const confirmTransform = () => {
+  const storedRules = transformModal.rules.map((rule) => toStoredTransformItem(rule));
+  const storedChain = transformModal.chain.map((step) => toStoredTransformItem(step));
   transforms[transformModal.field] = {
-    rules: transformModal.rules,
-    chain: transformModal.chain
+    rules: storedRules,
+    chain: storedChain
   };
-  const chainDesc = transformModal.chain && transformModal.chain.length > 0 ? ` [链:${transformModal.chain.map((step) => step.type).join('→')}]` : '';
-  addHistory('transform', '数据转换', `${transformModal.field}${chainDesc}`, transformModal.field);
+  const chainDesc = storedChain.length > 0 ? ' [链:' + storedChain.map((step) => step.type).join('→') + ']' : '';
+  addHistory('transform', '数据转换', transformModal.field + chainDesc, transformModal.field);
   notifyOperationApplied('transform', transformModal.field);
   closeTransformModal();
 };
