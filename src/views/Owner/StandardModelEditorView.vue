@@ -42,31 +42,16 @@
               <td class="field-index">{{ index + 1 }}</td>
               <td><input v-model="field.name" class="field-input" type="text" placeholder="字段名称" /></td>
               <td>
-                <select v-model="field.type" class="field-select">
+                <select v-model="field.type" class="field-select" @change="onFieldTypeChange(field)">
                   <option value="">请选择</option>
                   <option value="STRING">STRING</option>
-                  <option value="INT">INT</option>
-                  <option value="BIGINT">BIGINT</option>
+                  <option value="INT64">INT64</option>
                   <option value="FLOAT64">FLOAT64</option>
-                  <option value="DECIMAL">DECIMAL</option>
-                  <option value="DATE">DATE</option>
-                  <option value="DATETIME">DATETIME</option>
-                  <option value="BOOLEAN">BOOLEAN</option>
                 </select>
               </td>
               <td>
                 <select v-model="field.format" class="field-select">
-                  <option value="YYYY">YYYY</option>
-                  <option value="YYYY-MM">YYYY-MM</option>
-                  <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-                  <option value="hh:mm:ss">hh:mm:ss</option>
-                  <option value="浮点数">浮点数</option>
-                  <option value="整数">整数</option>
-                  <option value="百分数">百分数</option>
-                  <option value="YYYY-MM-DD hh:mm:ss">YYYY-MM-DD hh:mm:ss</option>
-                  <option v-if="field.type === 'INT' || field.type === 'BIGINT'" value="INTEGER">整数</option>
-                  <option v-if="field.type === 'FLOAT64' || field.type === 'DECIMAL'" value="FLOAT">浮点数</option>
-                  <option v-if="field.type === 'FLOAT64' || field.type === 'DECIMAL'" value="PERCENT">百分数</option>
+                  <option v-for="opt in getFormatOptions(field.type)" :key="opt.value || 'none'" :value="opt.value">{{ opt.label }}</option>
                 </select>
               </td>
               <td>
@@ -134,6 +119,78 @@ const businessTypeOptions = [
   { value: 'metric', label: '指标' }
 ];
 
+
+const FIELD_FORMAT_OPTIONS = {
+  STRING: [
+    { value: '', label: '-' },
+    { value: 'YYYY', label: 'YYYY' },
+    { value: 'YYYY-MM', label: 'YYYY-MM' },
+    { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD' },
+    { value: 'YYYY-MM-DD hh:mm:ss', label: 'YYYY-MM-DD hh:mm:ss' },
+    { value: 'hh:mm:ss', label: 'hh:mm:ss' },
+    { value: '\u767e\u5206\u6570', label: '\u767e\u5206\u6570' }
+  ],
+  INT64: [
+    { value: '', label: '-' },
+    { value: '\u661f\u671f\u51e0', label: '\u661f\u671f\u51e0' },
+    { value: '\u7b2c\u51e0\u5468', label: '\u7b2c\u51e0\u5468' }
+  ],
+  FLOAT64: [
+    { value: '', label: '-' }
+  ]
+};
+
+const getFormatOptions = (fieldType) => {
+  return FIELD_FORMAT_OPTIONS[fieldType] || [{ value: '', label: '-' }];
+};
+
+const onFieldTypeChange = (field) => {
+  const options = getFormatOptions(field?.type);
+  const allowedValues = options.map((opt) => opt.value);
+  if (!allowedValues.includes(field?.format)) {
+    field.format = '';
+  }
+};
+
+const normalizeFieldType = (type) => {
+  const text = String(type ?? '').trim().toUpperCase();
+  if (!text) return '';
+  if (text === 'INT64') return 'INT64';
+  if (text === 'FLOAT64') return 'FLOAT64';
+  if (['INT', 'INTEGER', 'BIGINT', 'INT32'].includes(text)) return 'INT64';
+  if (['FLOAT', 'DOUBLE', 'DECIMAL', 'NUMBER'].includes(text)) return 'FLOAT64';
+  if (['STRING', 'TEXT', 'VARCHAR', 'CHAR', 'DATE', 'DATETIME', 'TIMESTAMP', 'BOOLEAN'].includes(text)) return 'STRING';
+  return '';
+};
+
+const normalizeFieldFormat = (fieldType, format) => {
+  const options = getFormatOptions(fieldType);
+  const raw = String(format ?? '').trim();
+  if (!raw) return '';
+
+  const aliasMap = {
+    PERCENT: '\u767e\u5206\u6570',
+    WEEKDAY: '\u661f\u671f\u51e0',
+    WEEK_OF_YEAR: '\u7b2c\u51e0\u5468'
+  };
+
+  const next = aliasMap[raw] || aliasMap[raw.toUpperCase()] || raw;
+  return options.some((opt) => opt.value === next) ? next : '';
+};
+
+const normalizeFieldRows = (fields = []) => {
+  const list = (Array.isArray(fields) ? fields : []).map((field = {}) => {
+    const nextType = normalizeFieldType(field.type);
+    return {
+      ...field,
+      type: nextType,
+      format: normalizeFieldFormat(nextType, field.format)
+    };
+  });
+
+  return list.length > 0 ? list : [emptyField()];
+};
+
 const emptyField = () => ({ name: '', type: '', format: '', businessType: 'metric', description: '', example: '' });
 const emptyModel = () => ({ id: '', name: '', description: '', status: 'draft', fields: [emptyField()] });
 
@@ -164,6 +221,7 @@ const fillForm = (data) => {
   if (!Array.isArray(form.fields) || form.fields.length === 0) {
     form.fields = [emptyField()];
   }
+  form.fields = normalizeFieldRows(form.fields);
 };
 
 const loadStandardModels = async () => {
