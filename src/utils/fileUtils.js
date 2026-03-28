@@ -186,5 +186,5 @@ export async function preDownloadToken(fileId, config) {
 export async function downloadFile(fileId){
   const res = await preDownloadToken(fileId);
   const { downloadToken, checkToken  } = res;
-  downloadFileByALink({fileId, downloadToken, checkToken});
+  downloadFileByALink(fileId, downloadToken, checkToken);
 }
