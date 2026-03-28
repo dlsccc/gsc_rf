@@ -1,4 +1,4 @@
-import { post } from '@/utils/axios.js';
+import { post, get } from '@/utils/axios.js';
 import baseUrl from '@/api/base-url.js';
 
 export const apiSystemService = {
