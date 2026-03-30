@@ -62,6 +62,13 @@
             <option value="">请选择类型</option>
             <option v-for="opt in typeOptions" :key="opt" :value="opt">{{ opt }}</option>
           </select>
+          <div v-if="needInvolveCalc" style="margin-top: 8px;">
+            <label class="form-label" style="display: flex; align-items: center; gap: 8px; font-weight: 500;">
+              <input v-model="form.tags.involveCalc" type="checkbox" />
+              <span>空值/异常值是否参与计算</span>
+            </label>
+            <div class="form-hint">异常值：NIL, NAN, NULL, /0等</div>
+          </div>
         </div>
       </div>
     </div>
@@ -156,7 +163,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { projectModelsApi, standardModelsApi } from '@/api/index.js';
 import { nowText } from '@/utils/date.js';
@@ -257,7 +264,7 @@ const emptyModel = () => ({
   description: '',
   status: 'draft',
   refStandardModel: '',
-  tags: { vendor: '', standard: '', timeGranularity: '', type: '' },
+  tags: { vendor: '', standard: '', timeGranularity: '', type: '', involveCalc: false },
   projectId: null,
   fields: [emptyField()]
 });
@@ -272,6 +279,7 @@ const isEdit = computed(() => !!editId.value);
 
 const form = reactive(emptyModel());
 const importInputRef = ref(null);
+const needInvolveCalc = computed(() => ['Counter', 'KPI'].includes(String(form.tags?.type || '').trim()));
 
 const resolveCurrentProjectCode = () => {
   return String(appStore.currentProjectCode || appStore.currentProject || '').trim();
@@ -344,8 +352,9 @@ const fillForm = (data) => {
   Object.assign(form, source);
 
   if (!form.tags) {
-    form.tags = { vendor: '', standard: '', timeGranularity: '', type: '' };
+    form.tags = { vendor: '', standard: '', timeGranularity: '', type: '', involveCalc: false };
   }
+  form.tags.involveCalc = form.tags.involveCalc === true || String(form.tags.involveCalc).toLowerCase() === 'true';
   if (!Array.isArray(form.fields) || form.fields.length === 0) {
     form.fields = [emptyField()];
   }
@@ -368,6 +377,15 @@ onMounted(async () => {
   }
   fillForm(null);
 });
+
+watch(
+  () => form.tags.type,
+  (value) => {
+    if (!['Counter', 'KPI'].includes(String(value || '').trim())) {
+      form.tags.involveCalc = false;
+    }
+  }
+);
 
 const onRefModelChange = async () => {
   if (!form.refStandardModel) return;

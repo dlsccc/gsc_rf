@@ -5,6 +5,14 @@ import { nowText } from '@/utils/date.js';
 
 const deepClone = (value) => JSON.parse(JSON.stringify(value));
 const toText = (value) => String(value ?? '').trim();
+const toBoolean = (value) => {
+  if (typeof value === 'boolean') return value;
+  const text = toText(value).toLowerCase();
+  if (!text) return false;
+  if (['true', '1', 'y', 'yes'].includes(text)) return true;
+  if (['false', '0', 'n', 'no'].includes(text)) return false;
+  return Boolean(value);
+};
 
 const BUSINESS_FIELD_TYPES = {
   TIME: 'time',
@@ -107,7 +115,10 @@ const normalizeTags = (model = {}) => ({
   vendor: model.tags?.vendor || model.factory || '',
   standard: model.tags?.standard || model.format || '',
   timeGranularity: model.tags?.timeGranularity || model.timeGranularity || '',
-  type: model.tags?.type || model.businessModelType || ''
+  type: model.tags?.type || model.businessModelType || '',
+  involveCalc: model.tags?.involveCalc !== undefined
+    ? toBoolean(model.tags?.involveCalc)
+    : toBoolean(model.involveCalc)
 });
 
 export const resolveModelCode = (model = {}) => toText(model.code || model.modelCode || model.id);
@@ -115,6 +126,7 @@ export const resolveModelCode = (model = {}) => toText(model.code || model.model
 export const normalizeStandardModel = (model = {}) => {
   const code = toText(model.code || model.modelCode);
   const name = toText(model.name || model.modelName || code);
+  const tags = normalizeTags(model);
 
   return {
     ...model,
@@ -126,7 +138,8 @@ export const normalizeStandardModel = (model = {}) => {
     status: toText(model.status || 'active'),
     refStandardModel: toText(model.refStandardModel || model.referenceModelCode),
     updateTime: toText(model.updateTime || model.lastUpdatedDate || model.modifyTime || model.creationDate || nowText()),
-    tags: normalizeTags(model),
+    tags,
+    involveCalc: tags.involveCalc,
     fields: normalizeFields(model.fields || model.fieldList)
   };
 };
@@ -162,6 +175,9 @@ const toFieldListPayload = (fields = [], modelCode = '') => {
 
 export const toModelSavePayload = ({ entity, modelType, projectCode = '' }) => {
   const modelCode = toText(entity.code);
+  const involveCalc = entity.tags?.involveCalc !== undefined
+    ? toBoolean(entity.tags.involveCalc)
+    : toBoolean(entity.involveCalc);
 
   return {
     code: modelCode,
@@ -174,6 +190,7 @@ export const toModelSavePayload = ({ entity, modelType, projectCode = '' }) => {
     format: toText(entity.tags?.standard),
     timeGranularity: toText(entity.tags?.timeGranularity),
     businessModelType: toText(entity.tags?.type),
+    involveCalc,
     ...(projectCode ? { projectCode } : {})
   };
 };
