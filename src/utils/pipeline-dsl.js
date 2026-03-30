@@ -5,6 +5,14 @@ const makeParam = (name, type, value) => ({
 });
 
 const trimText = (value) => String(value ?? '').trim();
+const toBoolean = (value) => {
+  if (typeof value === 'boolean') return value;
+  const text = trimText(value).toLowerCase();
+  if (!text) return false;
+  if (['true', '1', 'y', 'yes'].includes(text)) return true;
+  if (['false', '0', 'n', 'no'].includes(text)) return false;
+  return Boolean(value);
+};
 
 const createUuid = () => {
   const randomUUID = globalThis?.crypto?.randomUUID;
@@ -328,7 +336,8 @@ const toDataSourceDsl = (uploadedFiles = []) => {
       return {
         column_id: createPrefixedId('data_smart_base_field'),
         name: fieldName,
-        sample_value: sample
+        sample_value: sample,
+        format: ''
       };
     });
 
@@ -346,13 +355,18 @@ const toDataSourceDsl = (uploadedFiles = []) => {
 
 const toTargetColumns = (selectedModel = {}) => {
   const fields = Array.isArray(selectedModel?.fields) ? selectedModel.fields : [];
+  const involveCalc = selectedModel?.tags?.involveCalc !== undefined
+    ? toBoolean(selectedModel.tags?.involveCalc)
+    : toBoolean(selectedModel?.involveCalc);
   return fields
     .map((field) => {
       const name = trimText(field?.name || field?.fieldName);
       if (!name) return null;
       return {
         name,
-        type: trimText(field?.type || field?.fieldType)
+        type: trimText(field?.type || field?.fieldType),
+        format: trimText(field?.format || field?.dataFormat),
+        involve_calc: involveCalc
       };
     })
     .filter(Boolean);
