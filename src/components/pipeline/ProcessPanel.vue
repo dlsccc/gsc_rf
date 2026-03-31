@@ -1564,6 +1564,53 @@ const buildSuggestionPayload = () => {
     },
     transform: {
       types: ['format_datetime', 'calc_week', 'calc_weekday', 'set_value', 'concat', 'replace'],
+      operators: [
+        {
+          type: 'format_datetime',
+          description: 'datetime format',
+          params: [
+            { name: 'originType', type: 'string', required: true, desc: 'source datetime template, e.g. YYYY/MM/DD' }
+          ],
+          required: ['originType']
+        },
+        {
+          type: 'calc_week',
+          description: 'calculate week number',
+          params: [],
+          required: []
+        },
+        {
+          type: 'calc_weekday',
+          description: 'calculate weekday',
+          params: [],
+          required: []
+        },
+        {
+          type: 'set_value',
+          description: 'replace with fixed value',
+          params: [
+            { name: 'fixedValue', type: 'string', required: true, desc: 'replacement value' }
+          ],
+          required: ['fixedValue']
+        },
+        {
+          type: 'concat',
+          description: 'string concat',
+          params: [
+            { name: 'delimiter', type: 'string', required: false, desc: 'join delimiter' }
+          ],
+          required: []
+        },
+        {
+          type: 'replace',
+          description: 'string replace',
+          params: [
+            { name: 'search', type: 'string', required: true, desc: 'search text' },
+            { name: 'replace', type: 'string', required: true, desc: 'replacement text' }
+          ],
+          required: ['search', 'replace']
+        }
+      ],
       disallow: ['formula']
     },
     sort: {
