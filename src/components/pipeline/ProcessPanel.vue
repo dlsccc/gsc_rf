@@ -433,6 +433,39 @@
                     </button>
                     <span style="font-size: 12px; color: var(--text-secondary);">示例：14:30:59</span>
                   </div>
+                  <div style="display: inline-flex; align-items: center; gap: 6px;">
+                    <button
+                      type="button"
+                      class="btn btn-sm"
+                      :class="step.timeFormatMode === TIME_FORMAT_MODE.TIME_MINUTE ? 'btn-primary' : 'btn-default'"
+                      @click="step.timeFormatMode = TIME_FORMAT_MODE.TIME_MINUTE"
+                    >
+                      hh:mm
+                    </button>
+                    <span style="font-size: 12px; color: var(--text-secondary);">示例：14:30</span>
+                  </div>
+                  <div style="display: inline-flex; align-items: center; gap: 6px;">
+                    <button
+                      type="button"
+                      class="btn btn-sm"
+                      :class="step.timeFormatMode === TIME_FORMAT_MODE.DATE_SLASH ? 'btn-primary' : 'btn-default'"
+                      @click="step.timeFormatMode = TIME_FORMAT_MODE.DATE_SLASH"
+                    >
+                      YYYY/MM/DD
+                    </button>
+                    <span style="font-size: 12px; color: var(--text-secondary);">示例：2026/03/28</span>
+                  </div>
+                  <div style="display: inline-flex; align-items: center; gap: 6px;">
+                    <button
+                      type="button"
+                      class="btn btn-sm"
+                      :class="step.timeFormatMode === TIME_FORMAT_MODE.MONTH_SLASH ? 'btn-primary' : 'btn-default'"
+                      @click="step.timeFormatMode = TIME_FORMAT_MODE.MONTH_SLASH"
+                    >
+                      YYYY/MM
+                    </button>
+                    <span style="font-size: 12px; color: var(--text-secondary);">示例：2026/03</span>
+                  </div>
                 </div>
               </div>
               <div v-if="step.type === 'concat'" style="margin-top: 8px;">
@@ -543,6 +576,39 @@
                     hh:mm:ss
                   </button>
                   <span style="font-size: 12px; color: var(--text-secondary);">示例：14:30:59</span>
+                </div>
+                <div style="display: inline-flex; align-items: center; gap: 6px;">
+                  <button
+                    type="button"
+                    class="btn btn-sm"
+                    :class="rule.timeFormatMode === TIME_FORMAT_MODE.TIME_MINUTE ? 'btn-primary' : 'btn-default'"
+                    @click="rule.timeFormatMode = TIME_FORMAT_MODE.TIME_MINUTE"
+                  >
+                    hh:mm
+                  </button>
+                  <span style="font-size: 12px; color: var(--text-secondary);">示例：14:30</span>
+                </div>
+                <div style="display: inline-flex; align-items: center; gap: 6px;">
+                  <button
+                    type="button"
+                    class="btn btn-sm"
+                    :class="rule.timeFormatMode === TIME_FORMAT_MODE.DATE_SLASH ? 'btn-primary' : 'btn-default'"
+                    @click="rule.timeFormatMode = TIME_FORMAT_MODE.DATE_SLASH"
+                  >
+                    YYYY/MM/DD
+                  </button>
+                  <span style="font-size: 12px; color: var(--text-secondary);">示例：2026/03/28</span>
+                </div>
+                <div style="display: inline-flex; align-items: center; gap: 6px;">
+                  <button
+                    type="button"
+                    class="btn btn-sm"
+                    :class="rule.timeFormatMode === TIME_FORMAT_MODE.MONTH_SLASH ? 'btn-primary' : 'btn-default'"
+                    @click="rule.timeFormatMode = TIME_FORMAT_MODE.MONTH_SLASH"
+                  >
+                    YYYY/MM
+                  </button>
+                  <span style="font-size: 12px; color: var(--text-secondary);">示例：2026/03</span>
                 </div>
               </div>
             </div>
@@ -1091,10 +1157,43 @@ const applyTransformByConfig = (row, field, base, cfg) => {
     case TRANSFORM_TYPES.EXTRACT_TIME:
       return parseDateTime(base).t || '';
     case TRANSFORM_TYPES.FORMAT_TIME: {
-      const time = String(base).trim();
-      const match = time.match(/^(\d{1,2}):(\d{2})$/);
-      if (match) return `${match[1].padStart(2, '0')}:${match[2]}:00`;
-      return time;
+      const mode = cfg.timeFormatMode
+        || resolveTimeFormatModeByType(cfg.type, cfg.originType || cfg.origin_type)
+        || TIME_FORMAT_MODE.DATE;
+
+      if (mode === TIME_FORMAT_MODE.YEAR) {
+        return parseDateTime(base).y || '';
+      }
+      if (mode === TIME_FORMAT_MODE.MONTH) {
+        const parsed = parseDateTime(base);
+        return parsed.y && parsed.m ? parsed.y + '-' + parsed.m.padStart(2, '0') : '';
+      }
+      if (mode === TIME_FORMAT_MODE.TIME) {
+        const parsed = parseDateTime(base);
+        if (parsed.t) return parsed.t;
+        const time = String(base).trim();
+        const match = time.match(/^(\d{1,2}):(\d{2})$/);
+        if (match) return match[1].padStart(2, '0') + ':' + match[2] + ':00';
+        return time;
+      }
+      if (mode === TIME_FORMAT_MODE.TIME_MINUTE) {
+        const parsed = parseDateTime(base);
+        const text = parsed.t || String(base).trim();
+        const match = text.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+        if (!match) return text;
+        return match[1].padStart(2, '0') + ':' + match[2];
+      }
+      if (mode === TIME_FORMAT_MODE.DATE_SLASH) {
+        const parsed = parseDateTime(base);
+        if (!parsed.y || !parsed.m || !parsed.d) return '';
+        return parsed.y + '/' + parsed.m.padStart(2, '0') + '/' + parsed.d.padStart(2, '0');
+      }
+      if (mode === TIME_FORMAT_MODE.MONTH_SLASH) {
+        const parsed = parseDateTime(base);
+        if (!parsed.y || !parsed.m) return '';
+        return parsed.y + '/' + parsed.m.padStart(2, '0');
+      }
+      return formatDateTime(base);
     }
     case TRANSFORM_TYPES.CALC_WEEK: {
       const parsed = parseDateTime(base);
@@ -1577,10 +1676,39 @@ const TIME_FORMAT_MODE = Object.freeze({
   DATE: 'date',
   YEAR: 'year',
   MONTH: 'month',
-  TIME: 'time'
+  TIME: 'time',
+  TIME_MINUTE: 'time_minute',
+  DATE_SLASH: 'date_slash',
+  MONTH_SLASH: 'month_slash'
 });
 
-const resolveTimeFormatModeByType = (type) => {
+const resolveTimeFormatModeByOriginType = (originType) => {
+  const normalized = String(originType || '').trim().toUpperCase();
+  if (normalized === 'YYYY') return TIME_FORMAT_MODE.YEAR;
+  if (normalized === 'YYYY-MM') return TIME_FORMAT_MODE.MONTH;
+  if (normalized === 'YYYY-MM-DD') return TIME_FORMAT_MODE.DATE;
+  if (normalized === 'HH:MM:SS') return TIME_FORMAT_MODE.TIME;
+  if (normalized === 'HH:MM') return TIME_FORMAT_MODE.TIME_MINUTE;
+  if (normalized === 'YYYY/MM/DD') return TIME_FORMAT_MODE.DATE_SLASH;
+  if (normalized === 'YYYY/MM') return TIME_FORMAT_MODE.MONTH_SLASH;
+  return '';
+};
+
+const resolveOriginTypeByTimeFormatMode = (mode) => {
+  if (mode === TIME_FORMAT_MODE.YEAR) return 'YYYY';
+  if (mode === TIME_FORMAT_MODE.MONTH) return 'YYYY-MM';
+  if (mode === TIME_FORMAT_MODE.TIME) return 'hh:mm:ss';
+  if (mode === TIME_FORMAT_MODE.TIME_MINUTE) return 'hh:mm';
+  if (mode === TIME_FORMAT_MODE.DATE_SLASH) return 'YYYY/MM/DD';
+  if (mode === TIME_FORMAT_MODE.MONTH_SLASH) return 'YYYY/MM';
+  return 'YYYY-MM-DD';
+};
+
+const resolveTimeFormatModeByType = (type, originType = '') => {
+  const normalizedMode = String(originType || '').trim().toLowerCase();
+  if (Object.values(TIME_FORMAT_MODE).includes(normalizedMode)) return normalizedMode;
+  const byOrigin = resolveTimeFormatModeByOriginType(originType);
+  if (byOrigin) return byOrigin;
   if (type === TRANSFORM_TYPES.FORMAT_DATETIME) return TIME_FORMAT_MODE.DATE;
   if (type === TRANSFORM_TYPES.EXTRACT_YEAR) return TIME_FORMAT_MODE.YEAR;
   if (type === TRANSFORM_TYPES.EXTRACT_MONTH) return TIME_FORMAT_MODE.MONTH;
@@ -1588,23 +1716,19 @@ const resolveTimeFormatModeByType = (type) => {
   return '';
 };
 
-const resolveStoredTypeByTimeFormatMode = (mode) => {
-  if (mode === TIME_FORMAT_MODE.YEAR) return TRANSFORM_TYPES.EXTRACT_YEAR;
-  if (mode === TIME_FORMAT_MODE.MONTH) return TRANSFORM_TYPES.EXTRACT_MONTH;
-  if (mode === TIME_FORMAT_MODE.TIME) return TRANSFORM_TYPES.FORMAT_TIME;
-  return TRANSFORM_TYPES.FORMAT_DATETIME;
-};
-
 const toModalTransformItem = (item = {}) => {
   const next = { ...item };
-  const timeFormatMode = resolveTimeFormatModeByType(next.type);
+  const timeFormatMode = resolveTimeFormatModeByType(next.type, next.originType || next.origin_type || next.timeFormatMode);
   if (timeFormatMode) {
     next.type = TRANSFORM_TYPES.FORMAT_TIME;
     next.timeFormatMode = timeFormatMode;
+    next.originType = resolveOriginTypeByTimeFormatMode(timeFormatMode);
   } else if (next.type === TRANSFORM_TYPES.FORMAT_TIME) {
     next.timeFormatMode = next.timeFormatMode || TIME_FORMAT_MODE.DATE;
+    next.originType = resolveOriginTypeByTimeFormatMode(next.timeFormatMode);
   } else {
     next.timeFormatMode = '';
+    delete next.originType;
   }
   return next;
 };
@@ -1612,9 +1736,12 @@ const toModalTransformItem = (item = {}) => {
 const toStoredTransformItem = (item = {}) => {
   const next = { ...item };
   if (next.type === TRANSFORM_TYPES.FORMAT_TIME) {
-    next.type = resolveStoredTypeByTimeFormatMode(next.timeFormatMode);
+    next.timeFormatMode = next.timeFormatMode || TIME_FORMAT_MODE.DATE;
+    next.originType = resolveOriginTypeByTimeFormatMode(next.timeFormatMode);
+  } else {
+    next.timeFormatMode = '';
+    delete next.originType;
   }
-  delete next.timeFormatMode;
   return next;
 };
 
@@ -1622,9 +1749,11 @@ const onTransformTypeChange = (item) => {
   if (!item || typeof item !== 'object') return;
   if (item.type === TRANSFORM_TYPES.FORMAT_TIME) {
     item.timeFormatMode = item.timeFormatMode || TIME_FORMAT_MODE.DATE;
+    item.originType = resolveOriginTypeByTimeFormatMode(item.timeFormatMode);
     return;
   }
   item.timeFormatMode = '';
+  delete item.originType;
 };
 
 const addTransformRule = () => {

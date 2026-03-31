@@ -131,6 +131,45 @@ const transformTypeMap = {
   formula: 'formula'
 };
 
+const TIME_TRANSFORM_TYPES = new Set(['format_datetime', 'extract_year', 'extract_month', 'extract_time', 'format_time']);
+const TIME_MODE_TO_ORIGIN_TYPE = {
+  date: 'YYYY-MM-DD',
+  year: 'YYYY',
+  month: 'YYYY-MM',
+  time: 'hh:mm:ss',
+  time_minute: 'hh:mm',
+  date_slash: 'YYYY/MM/DD',
+  month_slash: 'YYYY/MM'
+};
+const LEGACY_TIME_TYPE_TO_ORIGIN_TYPE = {
+  format_datetime: TIME_MODE_TO_ORIGIN_TYPE.date,
+  extract_year: TIME_MODE_TO_ORIGIN_TYPE.year,
+  extract_month: TIME_MODE_TO_ORIGIN_TYPE.month,
+  extract_time: TIME_MODE_TO_ORIGIN_TYPE.time,
+  format_time: TIME_MODE_TO_ORIGIN_TYPE.time
+};
+
+const resolveTransformTypeForApi = (step = {}) => {
+  const rawType = trimText(transformTypeMap[step.type] || step.type || '').toLowerCase();
+  if (TIME_TRANSFORM_TYPES.has(rawType)) {
+    return 'format_datetime';
+  }
+  return rawType;
+};
+
+const resolveOriginTypeForTimeTransform = (step = {}) => {
+  const explicitOrigin = trimText(step.originType || step.origin_type);
+  if (explicitOrigin) return explicitOrigin;
+
+  const mode = trimText(step.timeFormatMode || step.time_format_mode).toLowerCase();
+  if (TIME_MODE_TO_ORIGIN_TYPE[mode]) {
+    return TIME_MODE_TO_ORIGIN_TYPE[mode];
+  }
+
+  const rawType = trimText(transformTypeMap[step.type] || step.type || '').toLowerCase();
+  return LEGACY_TIME_TYPE_TO_ORIGIN_TYPE[rawType] || '';
+};
+
 const hasEffectiveFilter = (config) => {
   if (!config) return false;
   if (config.mode === 'simple') return !!config.operator;
@@ -252,11 +291,17 @@ const buildFilterDsl = (config) => {
   ];
 };
 
-const buildTransformStep = (step = {}, columnRef = '$rule_output.output_column') => {
+const buildTransformStep = (step = {}, columnRef = '$rule_output.output_column', targetType = '') => {
+  const transformType = resolveTransformTypeForApi(step);
   const params = [
-    makeParam('transform_type', 'enum', transformTypeMap[step.type] || step.type || ''),
+    makeParam('transform_type', 'enum', transformType),
     makeParam('column', 'string', columnRef)
   ];
+
+  if (transformType === 'format_datetime') {
+    params.push(makeParam('origin_type', 'string', resolveOriginTypeForTimeTransform(step)));
+    params.push(makeParam('target_type', 'string', trimText(targetType)));
+  }
 
   if (step.fixedValue !== undefined) params.push(makeParam('value', 'string', step.fixedValue));
   if (step.delimiter !== undefined) params.push(makeParam('delimiter', 'string', step.delimiter));
@@ -273,7 +318,7 @@ const buildTransformStep = (step = {}, columnRef = '$rule_output.output_column')
   };
 };
 
-const buildTransformDsl = (config) => {
+const buildTransformDsl = (config, targetType = '') => {
   if (!hasEffectiveTransform(config)) return undefined;
 
   if (Array.isArray(config.chain) && config.chain.length > 0) {
@@ -281,14 +326,22 @@ const buildTransformDsl = (config) => {
       ability_name: 'transform',
       params: [
         makeParam('transform_type', 'enum', 'chain'),
-        makeParam('steps', 'array', config.chain.map((step) => ({
-          transform_type: transformTypeMap[step.type] || step.type || '',
-          delimiter: step.delimiter ?? '',
-          value: step.fixedValue ?? '',
-          search_value: step.search ?? '',
-          replace_value: step.replace ?? '',
-          formula: step.formula ?? ''
-        })))
+        makeParam('steps', 'array', config.chain.map((step) => {
+          const transformType = resolveTransformTypeForApi(step);
+          const next = {
+            transform_type: transformType,
+            delimiter: step.delimiter ?? '',
+            value: step.fixedValue ?? '',
+            search_value: step.search ?? '',
+            replace_value: step.replace ?? '',
+            formula: step.formula ?? ''
+          };
+          if (transformType === 'format_datetime') {
+            next.origin_type = resolveOriginTypeForTimeTransform(step);
+            next.target_type = trimText(targetType);
+          }
+          return next;
+        }))
       ]
     };
   }
@@ -307,8 +360,10 @@ const buildTransformDsl = (config) => {
           search: rule.search,
           replace: rule.replace,
           formula: rule.formula,
-          precision: rule.precision
-        });
+          precision: rule.precision,
+          timeFormatMode: rule.timeFormatMode,
+          originType: rule.originType
+        }, '$rule_output.output_column', targetType);
 
         return {
           index: `sub_rule_${normalizeIndexPart(rule.type)}_${index + 1}`,
@@ -326,7 +381,7 @@ const buildTransformDsl = (config) => {
     };
   }
 
-  return buildTransformStep(config);
+  return buildTransformStep(config, '$rule_output.output_column', targetType);
 };
 
 const toDataSourceDsl = (uploadedFiles = []) => {
@@ -476,6 +531,12 @@ const buildDataProcessingDsl = ({
 }) => {
   const modelCode = getModelCode(selectedModel);
   const targetFields = resolveTargetFieldNames(selectedModel, mappings);
+  const targetFieldFormatMap = (Array.isArray(selectedModel?.fields) ? selectedModel.fields : []).reduce((acc, field) => {
+    const name = trimText(field?.name || field?.fieldName);
+    if (!name) return acc;
+    acc[name] = trimText(field?.format || field?.dataFormat);
+    return acc;
+  }, {});
   const rules = [];
   let idx = 0;
 
@@ -487,7 +548,8 @@ const buildDataProcessingDsl = ({
     const baseRuleOutput = makeRuleOutput(modelCode, fieldName);
 
     const filter = buildFilterDsl(filters[fieldName]);
-    const transform = buildTransformDsl(transforms[fieldName]);
+    const targetType = targetFieldFormatMap[fieldName] || '';
+    const transform = buildTransformDsl(transforms[fieldName], targetType);
 
     const sortParams = sortConfig?.field && sortConfig.field === fieldName
       ? [

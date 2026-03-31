@@ -411,6 +411,52 @@ const REVERSE_TRANSFORM_TYPE_MAP = {
   formula: 'formula'
 };
 
+const TIME_ORIGIN_TO_MODE_MAP = {
+  'YYYY-MM-DD': 'date',
+  YYYY: 'year',
+  'YYYY-MM': 'month',
+  'hh:mm:ss': 'time',
+  'hh:mm': 'time_minute',
+  'YYYY/MM/DD': 'date_slash',
+  'YYYY/MM': 'month_slash'
+};
+
+const resolveTimeFormatMode = (originType, transformType) => {
+  const normalizedOrigin = toText(originType).toUpperCase();
+  if (TIME_ORIGIN_TO_MODE_MAP[normalizedOrigin]) {
+    return TIME_ORIGIN_TO_MODE_MAP[normalizedOrigin];
+  }
+
+  const normalizedType = toText(transformType).toLowerCase();
+  if (normalizedType === 'extract_year') return 'year';
+  if (normalizedType === 'extract_month') return 'month';
+  if (normalizedType === 'extract_time' || normalizedType === 'format_time') return 'time';
+  return 'date';
+};
+
+const toTransformConfigFromParams = (rawType, source = {}) => {
+  const normalizedType = toText(rawType).toLowerCase();
+  const mappedType = REVERSE_TRANSFORM_TYPE_MAP[normalizedType] || normalizedType;
+  const isTimeTransform = ['format_datetime', 'extract_year', 'extract_month', 'extract_time', 'format_time'].includes(normalizedType);
+  const timeFormatMode = resolveTimeFormatMode(source.origin_type ?? source.originType, normalizedType);
+
+  return {
+    type: isTimeTransform ? 'format_time' : mappedType,
+    delimiter: source.delimiter ?? '',
+    fixedValue: source.value ?? '',
+    search: source.search_value ?? '',
+    replace: source.replace_value ?? '',
+    formula: source.formula ?? '',
+    inputFormat: source.input_format ?? '',
+    outputFormat: source.output_format ?? '',
+    precision: source.precision ?? '',
+    ...(isTimeTransform ? {
+      timeFormatMode,
+      originType: source.origin_type ?? source.originType ?? ''
+    } : {})
+  };
+};
+
 const CONDITION_COLUMN_REF = '$rule_input[0].key_columns[0]';
 
 const stripQuotedText = (value) => {
@@ -468,27 +514,12 @@ const parseTransformParamsToConfig = (ruleParams = {}) => {
   if (transformType === 'chain') {
     return {
       chain: toArrayValue(ruleParams.steps).map((step) => ({
-        type: REVERSE_TRANSFORM_TYPE_MAP[toText(step?.transform_type).toLowerCase()] || toText(step?.transform_type),
-        delimiter: step?.delimiter ?? '',
-        fixedValue: step?.value ?? '',
-        search: step?.search_value ?? '',
-        replace: step?.replace_value ?? '',
-        formula: step?.formula ?? ''
+        ...toTransformConfigFromParams(step?.transform_type, step || {})
       }))
     };
   }
 
-  return {
-    type: REVERSE_TRANSFORM_TYPE_MAP[transformType] || transformType,
-    delimiter: ruleParams.delimiter ?? '',
-    fixedValue: ruleParams.value ?? '',
-    search: ruleParams.search_value ?? '',
-    replace: ruleParams.replace_value ?? '',
-    formula: ruleParams.formula ?? '',
-    inputFormat: ruleParams.input_format ?? '',
-    outputFormat: ruleParams.output_format ?? '',
-    precision: ruleParams.precision ?? ''
-  };
+  return toTransformConfigFromParams(transformType, ruleParams);
 };
 
 const readRuleJsonSections = (ruleJson = {}) => {
@@ -622,7 +653,9 @@ const parseMappingsAndConfigsFromRules = (rules = []) => {
             search: transformConfig.search ?? '',
             replace: transformConfig.replace ?? '',
             formula: transformConfig.formula ?? '',
-            precision: transformConfig.precision ?? ''
+            precision: transformConfig.precision ?? '',
+            timeFormatMode: transformConfig.timeFormatMode ?? '',
+            originType: transformConfig.originType ?? ''
           };
 
           if (!transforms[outputField] || !Array.isArray(transforms[outputField].rules)) {
