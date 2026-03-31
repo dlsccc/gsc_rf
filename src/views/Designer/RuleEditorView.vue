@@ -196,13 +196,19 @@ const resolvePersistedRuleIdForSave = () => {
 };
 
 const extractRuleIdFromSaveResponse = (saveResponse) => {
-  const data = saveResponse?.data ?? saveResponse?.result ?? saveResponse ?? {};
+  const payload = saveResponse?.data ?? saveResponse?.result ?? saveResponse ?? {};
   const candidates = [
     saveResponse?.ruleId,
     saveResponse?.id,
-    data?.ruleId,
-    data?.id,
-    data?.ruleCode,
+    payload?.ruleId,
+    payload?.id,
+    payload?.ruleCode,
+    payload?.data?.ruleId,
+    payload?.data?.id,
+    payload?.data?.ruleCode,
+    saveResponse?.response?.data?.data?.ruleId,
+    saveResponse?.response?.data?.result?.ruleId,
+    saveResponse?.response?.data?.ruleId,
     saveResponse?.ruleCode
   ];
 
