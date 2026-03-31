@@ -9,7 +9,7 @@
         <div v-if="history.length === 0" class="empty-state">
           <div class="empty-state-icon"><span class="material-icons" style="font-size: 48px;">folder_open</span></div>
           <p>暂无操作记录</p>
-          <p style="font-size: 12px; margin-top: 8px;">鍦ㄨ〃涓厤缃瓫閫?/ 杞崲 / 鎺掑簭 / 鍘婚噸</p>
+          <p style="font-size: 12px; margin-top: 8px;">在表中配置筛选 / 转换 / 排序 / 去重</p>
         </div>
         <div
           v-for="(item, index) in history"
@@ -38,26 +38,16 @@
     </aside>
 
     <div style="flex: 1; min-width: 0;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 8px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
         <button class="btn btn-default btn-sm" @click="showRawPreview = !showRawPreview">
           <span class="material-icons" style="font-size: 16px; vertical-align: middle;">
             {{ showRawPreview ? 'edit' : 'visibility' }}
           </span>
           {{ showRawPreview ? '返回处理预览' : '预览源数据' }}
         </button>
-        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
-          <button class="btn btn-default btn-sm" :disabled="suggestionLoading" @click="regenerateProcessSuggestions">
-            <span class="material-icons" style="font-size: 16px; vertical-align: middle;">auto_awesome</span>
-            {{ suggestionLoading ? '生成中...' : '重新生成建议' }}
-          </button>
-          <button class="btn btn-default btn-sm" :disabled="suggestionLoading || pendingSuggestionCount === 0" @click="applyAllSuggestions">
-            <span class="material-icons" style="font-size: 16px; vertical-align: middle;">playlist_add_check</span>
-            一键应用提醒（{{ pendingSuggestionCount }}）
-          </button>
-          <div v-if="history.length" class="preview-indicator">
-            <span class="material-icons" style="font-size: 14px;">check_circle</span>
-            已配置 {{ history.length }} 个操作
-          </div>
+        <div v-if="history.length" class="preview-indicator">
+          <span class="material-icons" style="font-size: 14px;">check_circle</span>
+          已配置 {{ history.length }} 个操作
         </div>
       </div>
 
@@ -95,7 +85,7 @@
                   {{ f }}
                   <span class="dedup-tag-close" @click="removeDedupField(f)">×</span>
                 </span>
-                <span v-if="dedupConfig.fields.length === 0" style="font-size: 12px; color: #bfbfbf;">鏈€夋嫨瀛楁</span>
+                <span v-if="dedupConfig.fields.length === 0" style="font-size: 12px; color: #bfbfbf;">未选择字段</span>
               </div>
             </div>
           </div>
@@ -103,16 +93,17 @@
           <div>
             <label class="form-label" style="font-size: 13px; margin-bottom: 8px;">保留</label>
             <select class="form-select" v-model="dedupConfig.keep" @change="applyDedupConfig">
-              <option value="first">淇濈暀绗竴琛?/option>
-              <option value="last">淇濈暀鏈€鍚庝竴琛?/option>
-              <option value="any">淇濈暀浠绘剰涓€琛?/option>
+              <option value="first">保留第一行</option>
+              <option value="last">保留最后一行</option>
+              <option value="any">保留任意一行</option>
             </select>
           </div>
         </div>
 
         <div style="margin-top: 12px; font-size: 12px; color: var(--text-secondary);">
           <span class="material-icons" style="font-size: 14px; vertical-align: middle; margin-right: 4px;">info</span>
-          閫夋嫨鍘婚噸瀛楁鍚庯紝灏嗘牴鎹繖浜涘瓧娈电殑缁勫悎閿幓閲?        </div>
+          选择去重字段后，将根据这些字段的组合键去重
+        </div>
       </div>
 
       <div class="data-grid-container" ref="processGridContainer" style="margin-top: 14px; max-height: 560px;">
@@ -137,14 +128,15 @@
                       <span class="material-icons" style="font-size: 24px;">priority_high</span>
                     </button>
                     <span v-if="!showRawPreview && sortConfig.field === field.name" class="sort-indicator">
-                      {{ sortConfig.order === 'asc' ? '鈫? : '鈫? }}
+                      {{ sortConfig.order === 'asc' ? '↑' : '↓' }}
                     </span>
                     <span v-if="!showRawPreview && hasEffectiveTransform(field.name)" class="transform-indicator">转换</span>
                   </div>
                   <div class="header-actions" v-if="!showRawPreview">
                     <div class="main-actions-vert">
                       <button class="header-btn header-btn-main" :class="{ active: isFilterActive(field.name) }" @click.stop="openFilterPopover(field.name, $event)">
-                        <span class="material-icons" style="font-size: 12px; vertical-align: middle;">filter_alt</span>绛涢€?                      </button>
+                        <span class="material-icons" style="font-size: 12px; vertical-align: middle;">filter_alt</span>筛选
+                      </button>
                       <button class="header-btn header-btn-main" :class="{ active: hasEffectiveTransform(field.name) }" @click.stop="openTransformModal(field.name)">
                         <span class="material-icons" style="font-size: 12px; vertical-align: middle;">transform</span>转换
                       </button>
@@ -177,7 +169,7 @@
                     {{ idx > 0 ? ' | ' : '' }}{{ source.name }}
                   </span>
                 </template>
-                <span v-else>{{ getMappingSource(field.name) || '鏈槧灏? }}</span>
+                <span v-else>{{ getMappingSource(field.name) || '未映射' }}</span>
               </th>
             </tr>
           </thead>
@@ -216,9 +208,9 @@
 
       <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center;">
         <div class="field-info">
-          <span><span class="material-icons" style="font-size: 16px; vertical-align: middle;">table_rows</span> 鍏?{{ processedData.length }} 鏉℃暟鎹?/span>
-          <span v-if="hasActiveFilters" style="color: var(--warning);">锛屽凡绛涢€?{{ filteredOutCount }} 鏉?/span>
-          <span v-if="dedupRemovedCount > 0" style="color: var(--purple);">锛屽幓閲嶇Щ闄?{{ dedupRemovedCount }} 鏉?/span>
+          <span><span class="material-icons" style="font-size: 16px; vertical-align: middle;">table_rows</span> 共 {{ processedData.length }} 条数据</span>
+          <span v-if="hasActiveFilters" style="color: var(--warning);">，已筛选 {{ filteredOutCount }} 条</span>
+          <span v-if="dedupRemovedCount > 0" style="color: var(--purple);">，去重移除 {{ dedupRemovedCount }} 条</span>
         </div>
       </div>
     </div>
@@ -231,34 +223,34 @@
     @click.stop
     role="dialog"
     aria-modal="true"
-    :aria-label="columnPopover.type === 'filter' ? '绛涢€夐厤缃? : '鎺掑簭閰嶇疆'"
+    :aria-label="columnPopover.type === 'filter' ? '筛选配置' : '排序配置'"
   >
     <div class="popover-title">
       <span class="material-icons" style="font-size: 18px; vertical-align: middle; margin-right: 6px;">
         {{ columnPopover.type === 'filter' ? 'filter_alt' : 'sort' }}
       </span>
-      {{ columnPopover.type === 'filter' ? '绛涢€夐厤缃? : '鎺掑簭閰嶇疆' }} - {{ columnPopover.field }}
+      {{ columnPopover.type === 'filter' ? '筛选配置' : '排序配置' }} - {{ columnPopover.field }}
     </div>
 
     <div v-if="columnPopover.type === 'filter'">
       <div class="form-group">
-        <label class="form-label" style="font-size: 13px;">ģʽ</label>
+        <label class="form-label" style="font-size: 13px;">模式</label>
         <select v-model="filterConfigs[columnPopover.field].mode" class="form-select">
-          <option value="simple">鏉′欢绛涢€?/option>
-          <option value="compound">澶氭潯浠剁瓫閫?/option>
-          <option value="formula">鍏紡绛涢€?/option>
+          <option value="simple">条件筛选</option>
+          <option value="compound">多条件筛选</option>
+          <option value="formula">公式筛选</option>
         </select>
       </div>
 
       <div v-if="filterConfigs[columnPopover.field].mode === 'simple'">
         <label class="form-label" style="font-size: 13px;">条件</label>
         <select v-model="filterConfigs[columnPopover.field].operator" class="form-select">
-          <option value="">璇烽€夋嫨</option>
+          <option value="">请选择</option>
           <option value="equals">等于</option>
-          <option value="not_equals">涓嶇瓑浜?/option>
+          <option value="not_equals">不等于</option>
           <option value="contains">包含</option>
           <option value="is_empty">为空</option>
-          <option value="is_not_empty">涓嶄负绌?/option>
+          <option value="is_not_empty">不为空</option>
           <option value="greater_than">大于</option>
           <option value="less_than">小于</option>
         </select>
@@ -266,7 +258,7 @@
           v-if="!['is_empty', 'is_not_empty'].includes(filterConfigs[columnPopover.field].operator)"
           v-model="filterConfigs[columnPopover.field].value"
           class="form-input"
-          placeholder="璇疯緭鍏ョ瓫閫夊€?
+          placeholder="请输入筛选值"
           style="margin-top: 10px;"
         />
       </div>
@@ -276,8 +268,8 @@
           <div style="margin-bottom: 10px;">
             <label class="form-label" style="font-size: 13px;">条件逻辑</label>
             <select v-model="filterConfigs[columnPopover.field].logic" class="form-select" style="font-size: 12px;">
-              <option value="AND">AND (全部满足)</option>
-              <option value="OR">OR (任一满足)</option>
+              <option value="AND">且（全部满足）</option>
+              <option value="OR">或（任一满足）</option>
             </select>
           </div>
 
@@ -288,12 +280,12 @@
           >
             <div style="display: flex; align-items: center; gap: 8px;">
               <select v-model="cond.operator" class="form-select" style="flex: 1;">
-                <option value="">璇烽€夋嫨</option>
+                <option value="">请选择</option>
                 <option value="equals">等于</option>
-                <option value="not_equals">涓嶇瓑浜?/option>
+                <option value="not_equals">不等于</option>
                 <option value="contains">包含</option>
                 <option value="is_empty">为空</option>
-                <option value="is_not_empty">涓嶄负绌?/option>
+                <option value="is_not_empty">不为空</option>
                 <option value="greater_than">大于</option>
                 <option value="less_than">小于</option>
               </select>
@@ -301,7 +293,7 @@
                 v-if="!['is_empty', 'is_not_empty'].includes(cond.operator)"
                 v-model="cond.value"
                 class="form-input"
-                placeholder="鍊?
+                placeholder="值"
                 style="flex: 1;"
               />
               <button class="btn btn-danger btn-sm" @click="removeFilterCondition(columnPopover.field, idx)" style="padding: 4px 8px; min-width: auto;">
@@ -317,7 +309,8 @@
         <div v-else style="text-align: center; padding: 20px; color: var(--text-secondary);">
           <div>暂无条件</div>
           <button class="btn btn-default btn-sm" @click="addFilterCondition(columnPopover.field)" style="margin-top: 10px;">
-            <span class="material-icons" style="font-size: 16px; vertical-align: middle;">add</span> 娣诲姞绛涢€夋潯浠?          </button>
+            <span class="material-icons" style="font-size: 16px; vertical-align: middle;">add</span> 添加筛选条件
+          </button>
         </div>
       </div>
 
@@ -326,10 +319,10 @@
         <input
           v-model="filterConfigs[columnPopover.field].formula"
           class="form-input"
-          placeholder="渚嬪锛?value>15 鎴?=NOT(ISBLANK(value))"
+          placeholder="例如：=value>15 或 =NOT(ISBLANK(value))"
         />
         <div class="popover-muted" style="margin-top: 8px;">
-          鏀寔 <code>value</code>銆?code>row</code>銆?code>S('瀛楁鍚?)</code>銆?code>T('鐩爣瀛楁')</code>
+          支持 <code>value</code>、<code>row</code>、<code>S('字段名')</code>、<code>T('目标字段')</code>
         </div>
       </div>
 
@@ -386,13 +379,13 @@
                 </div>
               </div>
               <select v-model="step.type" class="form-select" style="font-size: 13px;" @change="onTransformTypeChange(step)">
-                <option :value="TRANSFORM_TYPES.FORMAT_TIME">鏍煎紡鍖栨椂闂?/option>
-                <option :value="TRANSFORM_TYPES.CALC_WEEK">璁＄畻鏄熸湡鏁?/option>
-                <option :value="TRANSFORM_TYPES.CALC_WEEKDAY">璁＄畻鏄熸湡鍑?/option>
-                <option :value="TRANSFORM_TYPES.SET_VALUE">鍥哄畾璧嬪€?/option>
-                <option :value="TRANSFORM_TYPES.CONCAT">澶氬瓧娈垫嫾鎺?/option>
+                <option :value="TRANSFORM_TYPES.FORMAT_TIME">格式化时间</option>
+                <option :value="TRANSFORM_TYPES.CALC_WEEK">计算星期数</option>
+                <option :value="TRANSFORM_TYPES.CALC_WEEKDAY">计算星期几</option>
+                <option :value="TRANSFORM_TYPES.SET_VALUE">固定赋值</option>
+                <option :value="TRANSFORM_TYPES.CONCAT">多字段拼接</option>
                 <option :value="TRANSFORM_TYPES.REPLACE">替换内容</option>
-                <option :value="TRANSFORM_TYPES.FORMULA">鑷畾涔夊叕寮?/option>
+                <option :value="TRANSFORM_TYPES.FORMULA">自定义公式</option>
               </select>
               <div v-if="step.type === TRANSFORM_TYPES.FORMAT_TIME" style="margin-top: 8px;">
                 <div style="display: flex; flex-wrap: wrap; gap: 6px;">
@@ -405,7 +398,7 @@
                     >
                       YYYY-MM-DD
                     </button>
-                    <span style="font-size: 12px; color: var(--text-secondary);">绀轰緥锛?026-03-28</span>
+                    <span style="font-size: 12px; color: var(--text-secondary);">示例：2026-03-28</span>
                   </div>
                   <div style="display: inline-flex; align-items: center; gap: 6px;">
                     <button
@@ -416,7 +409,7 @@
                     >
                       YYYY
                     </button>
-                    <span style="font-size: 12px; color: var(--text-secondary);">绀轰緥锛?026</span>
+                    <span style="font-size: 12px; color: var(--text-secondary);">示例：2026</span>
                   </div>
                   <div style="display: inline-flex; align-items: center; gap: 6px;">
                     <button
@@ -427,7 +420,7 @@
                     >
                       YYYY-MM
                     </button>
-                    <span style="font-size: 12px; color: var(--text-secondary);">绀轰緥锛?026-03</span>
+                    <span style="font-size: 12px; color: var(--text-secondary);">示例：2026-03</span>
                   </div>
                   <div style="display: inline-flex; align-items: center; gap: 6px;">
                     <button
@@ -438,52 +431,19 @@
                     >
                       hh:mm:ss
                     </button>
-                    <span style="font-size: 12px; color: var(--text-secondary);">绀轰緥锛?4:30:59</span>
-                  </div>
-                  <div style="display: inline-flex; align-items: center; gap: 6px;">
-                    <button
-                      type="button"
-                      class="btn btn-sm"
-                      :class="step.timeFormatMode === TIME_FORMAT_MODE.TIME_MINUTE ? 'btn-primary' : 'btn-default'"
-                      @click="step.timeFormatMode = TIME_FORMAT_MODE.TIME_MINUTE"
-                    >
-                      hh:mm
-                    </button>
-                    <span style="font-size: 12px; color: var(--text-secondary);">绀轰緥锛?4:30</span>
-                  </div>
-                  <div style="display: inline-flex; align-items: center; gap: 6px;">
-                    <button
-                      type="button"
-                      class="btn btn-sm"
-                      :class="step.timeFormatMode === TIME_FORMAT_MODE.DATE_SLASH ? 'btn-primary' : 'btn-default'"
-                      @click="step.timeFormatMode = TIME_FORMAT_MODE.DATE_SLASH"
-                    >
-                      YYYY/MM/DD
-                    </button>
-                    <span style="font-size: 12px; color: var(--text-secondary);">绀轰緥锛?026/03/28</span>
-                  </div>
-                  <div style="display: inline-flex; align-items: center; gap: 6px;">
-                    <button
-                      type="button"
-                      class="btn btn-sm"
-                      :class="step.timeFormatMode === TIME_FORMAT_MODE.MONTH_SLASH ? 'btn-primary' : 'btn-default'"
-                      @click="step.timeFormatMode = TIME_FORMAT_MODE.MONTH_SLASH"
-                    >
-                      YYYY/MM
-                    </button>
-                    <span style="font-size: 12px; color: var(--text-secondary);">绀轰緥锛?026/03</span>
+                    <span style="font-size: 12px; color: var(--text-secondary);">示例：14:30:59</span>
                   </div>
                 </div>
               </div>
               <div v-if="step.type === 'concat'" style="margin-top: 8px;">
-                <input v-model="step.delimiter" class="form-input" placeholder="鎷兼帴鍒嗛殧绗︼紙鍙€夛級" style="font-size: 13px;" />
+                <input v-model="step.delimiter" class="form-input" placeholder="拼接分隔符（可选）" style="font-size: 13px;" />
               </div>
               <div v-if="step.type === 'set_value'" style="margin-top: 8px;">
-                <input v-model="step.fixedValue" class="form-input" placeholder="鍥哄畾鍊? style="font-size: 13px;" />
+                <input v-model="step.fixedValue" class="form-input" placeholder="固定值" style="font-size: 13px;" />
               </div>
               <div v-if="step.type === 'replace'" style="margin-top: 8px;">
                 <input v-model="step.search" class="form-input" placeholder="查找内容" style="margin-bottom: 4px; font-size: 13px;" />
-                <input v-model="step.replace" class="form-input" placeholder="鏇挎崲涓? style="font-size: 13px;" />
+                <input v-model="step.replace" class="form-input" placeholder="替换为" style="font-size: 13px;" />
               </div>
               <div v-if="step.type === 'formula'" style="margin-top: 8px;">
                 <input v-model="step.formula" class="form-input" placeholder="公式，例如：=value*2" style="font-size: 13px;" />
@@ -502,7 +462,8 @@
         <div class="form-group">
           <label class="form-label"><span class="material-icons" style="font-size: 16px; vertical-align: middle; margin-right: 4px;">rule</span>条件转换</label>
           <div class="popover-muted" style="margin-bottom: 12px; padding: 10px; background: #fafafa; border-radius: 6px;">
-            婊¤冻鏉′欢鏃舵墠搴旂敤杞崲瑙勫垯锛涙湭鍛戒腑鍒欎繚鐣欏師鍊?          </div>
+            满足条件时才应用转换规则；未命中则保留原值
+          </div>
 
           <div
             v-for="(rule, index) in transformModal.rules"
@@ -512,28 +473,28 @@
             <div class="form-group">
               <label class="form-label" style="font-size: 12px;">条件</label>
               <select v-model="rule.operator" class="form-select">
-                <option value="">璇烽€夋嫨</option>
+                <option value="">请选择</option>
                 <option value="equals">等于</option>
-                <option value="not_equals">涓嶇瓑浜?/option>
+                <option value="not_equals">不等于</option>
                 <option value="contains">包含</option>
                 <option value="is_empty">为空</option>
-                <option value="is_not_empty">涓嶄负绌?/option>
+                <option value="is_not_empty">不为空</option>
                 <option value="greater_than">大于</option>
                 <option value="less_than">小于</option>
               </select>
-              <input v-if="!['is_empty', 'is_not_empty'].includes(rule.operator)" v-model="rule.value" class="form-input" placeholder="璇疯緭鍏ユ潯浠跺€? style="margin-top: 8px;" />
+              <input v-if="!['is_empty', 'is_not_empty'].includes(rule.operator)" v-model="rule.value" class="form-input" placeholder="请输入条件值" style="margin-top: 8px;" />
             </div>
 
             <div class="form-group">
               <label class="form-label" style="font-size: 12px;">转换类型</label>
               <select v-model="rule.type" class="form-select" @change="onTransformTypeChange(rule)">
-                <option :value="TRANSFORM_TYPES.FORMAT_TIME">鏍煎紡鍖栨椂闂?/option>
-                <option :value="TRANSFORM_TYPES.CALC_WEEK">璁＄畻鏄熸湡鏁?/option>
-                <option :value="TRANSFORM_TYPES.CALC_WEEKDAY">璁＄畻鏄熸湡鍑?/option>
-                <option :value="TRANSFORM_TYPES.SET_VALUE">鍥哄畾璧嬪€?/option>
-                <option :value="TRANSFORM_TYPES.CONCAT">澶氬瓧娈垫嫾鎺?/option>
+                <option :value="TRANSFORM_TYPES.FORMAT_TIME">格式化时间</option>
+                <option :value="TRANSFORM_TYPES.CALC_WEEK">计算星期数</option>
+                <option :value="TRANSFORM_TYPES.CALC_WEEKDAY">计算星期几</option>
+                <option :value="TRANSFORM_TYPES.SET_VALUE">固定赋值</option>
+                <option :value="TRANSFORM_TYPES.CONCAT">多字段拼接</option>
                 <option :value="TRANSFORM_TYPES.REPLACE">替换内容</option>
-                <option :value="TRANSFORM_TYPES.FORMULA">鑷畾涔夊叕寮?/option>
+                <option :value="TRANSFORM_TYPES.FORMULA">自定义公式</option>
               </select>
             </div>
             <div v-if="rule.type === TRANSFORM_TYPES.FORMAT_TIME" class="form-group">
@@ -548,7 +509,7 @@
                   >
                     YYYY-MM-DD
                   </button>
-                  <span style="font-size: 12px; color: var(--text-secondary);">绀轰緥锛?026-03-28</span>
+                  <span style="font-size: 12px; color: var(--text-secondary);">示例：2026-03-28</span>
                 </div>
                 <div style="display: inline-flex; align-items: center; gap: 6px;">
                   <button
@@ -559,7 +520,7 @@
                   >
                     YYYY
                   </button>
-                  <span style="font-size: 12px; color: var(--text-secondary);">绀轰緥锛?026</span>
+                  <span style="font-size: 12px; color: var(--text-secondary);">示例：2026</span>
                 </div>
                 <div style="display: inline-flex; align-items: center; gap: 6px;">
                   <button
@@ -570,7 +531,7 @@
                   >
                     YYYY-MM
                   </button>
-                  <span style="font-size: 12px; color: var(--text-secondary);">绀轰緥锛?026-03</span>
+                  <span style="font-size: 12px; color: var(--text-secondary);">示例：2026-03</span>
                 </div>
                 <div style="display: inline-flex; align-items: center; gap: 6px;">
                   <button
@@ -581,67 +542,35 @@
                   >
                     hh:mm:ss
                   </button>
-                  <span style="font-size: 12px; color: var(--text-secondary);">绀轰緥锛?4:30:59</span>
-                </div>
-                <div style="display: inline-flex; align-items: center; gap: 6px;">
-                  <button
-                    type="button"
-                    class="btn btn-sm"
-                    :class="rule.timeFormatMode === TIME_FORMAT_MODE.TIME_MINUTE ? 'btn-primary' : 'btn-default'"
-                    @click="rule.timeFormatMode = TIME_FORMAT_MODE.TIME_MINUTE"
-                  >
-                    hh:mm
-                  </button>
-                  <span style="font-size: 12px; color: var(--text-secondary);">绀轰緥锛?4:30</span>
-                </div>
-                <div style="display: inline-flex; align-items: center; gap: 6px;">
-                  <button
-                    type="button"
-                    class="btn btn-sm"
-                    :class="rule.timeFormatMode === TIME_FORMAT_MODE.DATE_SLASH ? 'btn-primary' : 'btn-default'"
-                    @click="rule.timeFormatMode = TIME_FORMAT_MODE.DATE_SLASH"
-                  >
-                    YYYY/MM/DD
-                  </button>
-                  <span style="font-size: 12px; color: var(--text-secondary);">绀轰緥锛?026/03/28</span>
-                </div>
-                <div style="display: inline-flex; align-items: center; gap: 6px;">
-                  <button
-                    type="button"
-                    class="btn btn-sm"
-                    :class="rule.timeFormatMode === TIME_FORMAT_MODE.MONTH_SLASH ? 'btn-primary' : 'btn-default'"
-                    @click="rule.timeFormatMode = TIME_FORMAT_MODE.MONTH_SLASH"
-                  >
-                    YYYY/MM
-                  </button>
-                  <span style="font-size: 12px; color: var(--text-secondary);">绀轰緥锛?026/03</span>
+                  <span style="font-size: 12px; color: var(--text-secondary);">示例：14:30:59</span>
                 </div>
               </div>
             </div>
 
             <div v-if="rule.type === 'concat'" class="form-group">
-              <label class="form-label" style="font-size: 12px;">鎷兼帴鍒嗛殧绗?/label>
-              <input v-model="rule.delimiter" class="form-input" placeholder="渚嬪锛歘 鎴?鐣欑┖" />
+              <label class="form-label" style="font-size: 12px;">拼接分隔符</label>
+              <input v-model="rule.delimiter" class="form-input" placeholder="例如：_ 或 留空" />
             </div>
 
             <div v-if="rule.type === 'set_value'" class="form-group">
-              <label class="form-label" style="font-size: 12px;">鍥哄畾鍊?/label>
-              <input v-model="rule.fixedValue" class="form-input" placeholder="渚嬪锛?00" />
+              <label class="form-label" style="font-size: 12px;">固定值</label>
+              <input v-model="rule.fixedValue" class="form-input" placeholder="例如：100" />
             </div>
 
             <div v-if="rule.type === 'replace'" class="form-group">
               <label class="form-label" style="font-size: 12px;">替换内容</label>
               <input v-model="rule.search" class="form-input" placeholder="查找内容" style="margin-bottom: 8px;" />
-              <input v-model="rule.replace" class="form-input" placeholder="鏇挎崲涓? />
+              <input v-model="rule.replace" class="form-input" placeholder="替换为" />
             </div>
 
             <div v-if="rule.type === 'formula'" class="form-group">
               <label class="form-label" style="font-size: 12px;">公式</label>
-              <input v-model="rule.formula" class="form-input" placeholder="渚嬪锛?value*2" />
+              <input v-model="rule.formula" class="form-input" placeholder="例如：=value*2" />
             </div>
 
             <button class="btn btn-danger btn-sm" @click="removeTransformRule(index)">
-              <span class="material-icons" style="font-size: 14px;">delete</span> 鍒犻櫎姝ゆ潯浠惰浆鎹?            </button>
+              <span class="material-icons" style="font-size: 14px;">delete</span> 删除此条件转换
+            </button>
           </div>
 
           <button class="btn btn-default btn-sm" @click="addTransformRule">
@@ -659,7 +588,7 @@
   <div v-if="applyModal.show" class="modal-overlay" @click="closeApplyModal" role="presentation">
     <div class="modal" @click.stop role="dialog" aria-modal="true" aria-labelledby="apply-modal-title" tabindex="-1">
       <div class="modal-header">
-        <span id="apply-modal-title"><span class="material-icons" style="font-size: 20px; vertical-align: middle; margin-right: 8px; color: var(--primary);">content_paste</span>搴旂敤閰嶇疆 - 鏉ユ簮鍒?{{ applyModal.sourceField }}</span>
+        <span id="apply-modal-title"><span class="material-icons" style="font-size: 20px; vertical-align: middle; margin-right: 8px; color: var(--primary);">content_paste</span>应用配置 - 来源列 {{ applyModal.sourceField }}</span>
         <span class="modal-close" @click="closeApplyModal" @keydown.enter="closeApplyModal" role="button" aria-label="关闭弹窗" tabindex="0"><span class="material-icons">close</span></span>
       </div>
       <div class="modal-body">
@@ -671,15 +600,15 @@
         <div class="form-group">
           <label class="form-label">快捷规则</label>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <button class="btn btn-default btn-sm" @click="selectByPrefix">鍚屽墠缂€</button>
-            <button class="btn btn-default btn-sm" @click="selectByType">鍚岀被鍨?/button>
-            <button class="btn btn-default btn-sm" @click="selectAll">鍏ㄩ€?/button>
+            <button class="btn btn-default btn-sm" @click="selectByPrefix">同前缀</button>
+            <button class="btn btn-default btn-sm" @click="selectByType">同类型</button>
+            <button class="btn btn-default btn-sm" @click="selectAll">全选</button>
             <button class="btn btn-default btn-sm" @click="clearAll">清空</button>
           </div>
         </div>
 
         <div class="form-group">
-          <label class="form-label">閫夋嫨鐩爣鍒?/label>
+          <label class="form-label">选择目标列</label>
           <div style="max-height: 240px; overflow:auto; border:1px solid var(--border); border-radius:8px; padding:12px;">
             <div v-for="f in filteredApplyTargets" :key="f.name" style="margin-bottom:8px;">
               <label style="display:flex; align-items:center; gap:10px; cursor: pointer; padding: 6px; border-radius: 4px; transition: background 0.2s;" @mouseover="hoverTarget = f.name" @mouseleave="hoverTarget = null" :style="hoverTarget === f.name ? 'background: #f5f5f5;' : ''">
@@ -694,7 +623,7 @@
         <div class="form-group">
           <label class="form-label">应用内容</label>
           <div style="padding: 12px; background: #fafafa; border-radius: 8px;">
-            <label style="display:block; font-size:13px; margin-bottom:10px; cursor: pointer;"><input type="checkbox" v-model="applyModal.applyFilter" style="margin-right: 8px;" /> 绛涢€?/label>
+            <label style="display:block; font-size:13px; margin-bottom:10px; cursor: pointer;"><input type="checkbox" v-model="applyModal.applyFilter" style="margin-right: 8px;" /> 筛选</label>
             <label style="display:block; font-size:13px; margin-bottom:10px; cursor: pointer;"><input type="checkbox" v-model="applyModal.applyTransform" style="margin-right: 8px;" /> 转换</label>
             <label style="display:block; font-size:13px; margin-bottom:0; cursor: pointer;"><input type="checkbox" v-model="applyModal.applySort" style="margin-right: 8px;" /> 排序</label>
           </div>
@@ -732,7 +661,8 @@
         </div>
         <div style="font-size: 13px; color: var(--text-secondary);">
           <span class="material-icons" style="font-size: 14px; vertical-align: middle; margin-right: 4px;">info</span>
-          鐐瑰嚮"纭搴旂敤"鍚庡皢鑷姩閰嶇疆璇ヨ浆鎹㈣鍒?        </div>
+          点击"确认应用"后将自动配置该转换规则
+        </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-default" @click="dismissSuggestion">取消</button>
@@ -745,9 +675,7 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { DEDUP_KEEP, SORT_ORDER, TRANSFORM_TYPES } from '@/utils/constants/pipeline.js';
-import { apiSystemService } from '@/api/index.js';
 import { useModelStore } from '@/store/model.store.js';
-import { $error, $success, $warning } from '@/utils/message.js';
 
 const props = defineProps({
   store: { type: Object, required: true },
@@ -765,6 +693,45 @@ const filterConfigs = props.store.filters;
 const transforms = props.store.transforms;
 const sortConfig = props.store.sortConfig;
 const dedupConfig = props.store.dedupConfig;
+
+const FILTER_OPERATOR_LABELS = Object.freeze({
+  equals: '等于',
+  not_equals: '不等于',
+  contains: '包含',
+  is_empty: '为空',
+  is_not_empty: '不为空',
+  greater_than: '大于',
+  less_than: '小于'
+});
+
+const FILTER_LOGIC_LABELS = Object.freeze({
+  AND: '且',
+  OR: '或'
+});
+
+const TRANSFORM_TYPE_LABELS = Object.freeze({
+  [TRANSFORM_TYPES.UPPERCASE]: '转大写',
+  [TRANSFORM_TYPES.LOWERCASE]: '转小写',
+  [TRANSFORM_TYPES.TRIM]: '去首尾空格',
+  [TRANSFORM_TYPES.FORMAT_DATETIME]: '格式化日期时间',
+  [TRANSFORM_TYPES.EXTRACT_YEAR]: '提取年份',
+  [TRANSFORM_TYPES.EXTRACT_MONTH]: '提取月份',
+  [TRANSFORM_TYPES.EXTRACT_TIME]: '提取时间',
+  [TRANSFORM_TYPES.FORMAT_TIME]: '格式化时间',
+  [TRANSFORM_TYPES.CALC_WEEK]: '计算星期数',
+  [TRANSFORM_TYPES.CALC_WEEKDAY]: '计算星期几',
+  [TRANSFORM_TYPES.TO_NUMBER]: '转数字',
+  [TRANSFORM_TYPES.REMOVE_THOUSAND_SEP]: '去掉千分位',
+  [TRANSFORM_TYPES.REMOVE_PERCENT]: '去掉百分号',
+  [TRANSFORM_TYPES.SET_VALUE]: '固定赋值',
+  [TRANSFORM_TYPES.CONCAT]: '多字段拼接',
+  [TRANSFORM_TYPES.REPLACE]: '替换内容',
+  [TRANSFORM_TYPES.FORMULA]: '自定义公式'
+});
+
+const getFilterOperatorLabel = (operator) => FILTER_OPERATOR_LABELS[operator] || operator || '';
+const getFilterLogicLabel = (logic) => FILTER_LOGIC_LABELS[logic] || logic || '';
+const getTransformTypeLabel = (type) => TRANSFORM_TYPE_LABELS[type] || type || '';
 
 const history = ref([]);
 const activeHistoryIndex = ref(-1);
@@ -795,24 +762,15 @@ const transformSuggestionModal = reactive({
   show: false,
   field: '',
   suggestion: '',
-  operations: null
+  config: null
 });
 
 const pendingTransformSuggestions = ref({});
-const suggestionLoading = ref(false);
+const demoInitialized = ref(false);
 const dedupFieldSelect = ref('');
-const suggestionRequestSeq = ref(0);
-
-const FILTER_OPERATORS = new Set(['equals', 'not_equals', 'contains', 'is_empty', 'is_not_empty', 'greater_than', 'less_than']);
-const TRANSFORM_ALLOWED_TYPES = new Set(['format_datetime', 'extract_year', 'extract_month', 'extract_time', 'format_time', 'calc_week', 'calc_weekday', 'set_value', 'concat', 'replace']);
-const TIME_TRANSFORM_ALIASES = new Set(['format_datetime', 'extract_year', 'extract_month', 'extract_time', 'format_time']);
-const TIME_FORMAT_MODES = new Set(['date', 'year', 'month', 'time', 'time_minute', 'date_slash', 'month_slash']);
 
 const targetModelFields = computed(() => props.store.targetFields || []);
-const selectedModel = computed(() => {
-  return modelStore.projectModels.find((item) => String(item.id) === String(props.store.selectedModelId)) || null;
-});
-const pendingSuggestionCount = computed(() => Object.keys(pendingTransformSuggestions.value).length);
+
 const debugProcessedData = computed(() => {
   return (Array.isArray(props.debugRows) ? props.debugRows : []).map((item) => {
     const next = item && typeof item === 'object' && !Array.isArray(item)
@@ -831,6 +789,12 @@ const allSourceFields = computed(() => {
     sourceId: field.source
   }));
 });
+
+const selectedModelName = computed(() => {
+  const model = modelStore.projectModels.find((item) => String(item.id) === String(props.store.selectedModelId));
+  return model?.name || '';
+});
+
 const tableAData = computed(() => {
   const file = props.store.uploadedFiles.find((item) => item.source === 'table_a');
   if (!file) return [];
@@ -1166,43 +1130,10 @@ const applyTransformByConfig = (row, field, base, cfg) => {
     case TRANSFORM_TYPES.EXTRACT_TIME:
       return parseDateTime(base).t || '';
     case TRANSFORM_TYPES.FORMAT_TIME: {
-      const mode = cfg.timeFormatMode
-        || resolveTimeFormatModeByType(cfg.type, cfg.originType || cfg.origin_type)
-        || TIME_FORMAT_MODE.DATE;
-
-      if (mode === TIME_FORMAT_MODE.YEAR) {
-        return parseDateTime(base).y || '';
-      }
-      if (mode === TIME_FORMAT_MODE.MONTH) {
-        const parsed = parseDateTime(base);
-        return parsed.y && parsed.m ? parsed.y + '-' + parsed.m.padStart(2, '0') : '';
-      }
-      if (mode === TIME_FORMAT_MODE.TIME) {
-        const parsed = parseDateTime(base);
-        if (parsed.t) return parsed.t;
-        const time = String(base).trim();
-        const match = time.match(/^(\d{1,2}):(\d{2})$/);
-        if (match) return match[1].padStart(2, '0') + ':' + match[2] + ':00';
-        return time;
-      }
-      if (mode === TIME_FORMAT_MODE.TIME_MINUTE) {
-        const parsed = parseDateTime(base);
-        const text = parsed.t || String(base).trim();
-        const match = text.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
-        if (!match) return text;
-        return match[1].padStart(2, '0') + ':' + match[2];
-      }
-      if (mode === TIME_FORMAT_MODE.DATE_SLASH) {
-        const parsed = parseDateTime(base);
-        if (!parsed.y || !parsed.m || !parsed.d) return '';
-        return parsed.y + '/' + parsed.m.padStart(2, '0') + '/' + parsed.d.padStart(2, '0');
-      }
-      if (mode === TIME_FORMAT_MODE.MONTH_SLASH) {
-        const parsed = parseDateTime(base);
-        if (!parsed.y || !parsed.m) return '';
-        return parsed.y + '/' + parsed.m.padStart(2, '0');
-      }
-      return formatDateTime(base);
+      const time = String(base).trim();
+      const match = time.match(/^(\d{1,2}):(\d{2})$/);
+      if (match) return `${match[1].padStart(2, '0')}:${match[2]}:00`;
+      return time;
     }
     case TRANSFORM_TYPES.CALC_WEEK: {
       const parsed = parseDateTime(base);
@@ -1466,7 +1397,7 @@ const applyDedupConfig = () => {
     addHistory(
       'dedup',
       '去重',
-      `鎸?${dedupConfig.fields.join(', ')} 鍘婚噸锛屼繚鐣?{dedupConfig.keep === 'first' ? '绗竴琛? : dedupConfig.keep === 'last' ? '鏈€鍚庝竴琛? : '浠绘剰涓€琛?}`,
+      `按 ${dedupConfig.fields.join(', ')} 去重，保留${dedupConfig.keep === 'first' ? '第一行' : dedupConfig.keep === 'last' ? '最后一行' : '任意一行'}`,
       'GLOBAL'
     );
   } else {
@@ -1489,321 +1420,52 @@ const removeDedupField = (field) => {
   applyDedupConfig();
 };
 
-const toTextValue = (value) => String(value ?? '').trim();
-
-const inferSampleType = (value) => {
-  if (value === null || value === undefined || value === '') return '';
-  if (typeof value === 'boolean') return 'boolean';
-  if (typeof value === 'number') return Number.isInteger(value) ? 'integer' : 'double';
-  const text = toTextValue(value);
-  if (!text) return '';
-  if (!Number.isNaN(Number(text))) return text.includes('.') ? 'double' : 'integer';
-  if (!Number.isNaN(Date.parse(text))) return 'datetime';
-  return 'string';
-};
-
-const findFirstNonEmptySample = (rows = [], fieldName = '') => {
-  for (const row of Array.isArray(rows) ? rows : []) {
-    const value = row?.[fieldName];
-    if (value !== null && value !== undefined && String(value).trim() !== '') {
-      return value;
-    }
-  }
-  return '';
-};
-
-const buildSuggestionPayload = () => {
-  const model = selectedModel.value || {};
-  const modelCode = toTextValue(model?.code || model?.modelCode || model?.id);
-  const involveCalc = Boolean(model?.tags?.involveCalc ?? model?.involveCalc ?? false);
-  const businessModelType = toTextValue(model?.tags?.type || model?.businessModelType || model?.type || '');
-
-  const fieldList = (targetModelFields.value || [])
-    .map((field, index) => ({
-      modelCode,
-      fieldName: toTextValue(field?.name),
-      fieldType: toTextValue(field?.type),
-      fieldDesc: toTextValue(field?.description),
-      dataFormat: toTextValue(field?.format),
-      dataExample: toTextValue(field?.sampleValue || field?.example),
-      fieldBusinessType: toTextValue(field?.businessType),
-      isNull: field?.isNull !== undefined ? !!field.isNull : true,
-      seq: index + 1
-    }))
-    .filter((item) => item.fieldName);
-
-  const sourceFields = (allSourceFields.value || []).map((field) => {
-    const sourceTable = toTextValue(field?.source || field?.sourceId);
-    const fieldName = toTextValue(field?.name);
-    const file = (props.store.uploadedFiles || []).find((item) => item.source === sourceTable);
-    const rows = Array.isArray(file?.rows) ? file.rows : [];
-    const sampleValue = findFirstNonEmptySample(rows, fieldName);
-
-    return {
-      fieldKey: toTextValue(field?.key),
-      fieldName,
-      sourceTable,
-      fieldType: toTextValue(field?.fieldType || inferSampleType(sampleValue)),
-      sampleValue: toTextValue(sampleValue)
-    };
-  }).filter((item) => item.fieldKey && item.fieldName && item.sourceTable);
-
-  const sourceData = {};
-  (props.store.uploadedFiles || []).forEach((file) => {
-    const source = toTextValue(file?.source);
-    if (!source) return;
-    const rows = Array.isArray(file?.rows) ? file.rows : [];
-    sourceData[source] = rows.slice(0, 50);
-  });
-
-  const dslDefinitions = {
-    filter: {
-      modes: ['simple', 'compound'],
-      operators: ['equals', 'not_equals', 'contains', 'is_empty', 'is_not_empty', 'greater_than', 'less_than'],
-      logic: ['AND', 'OR']
-    },
-    transform: {
-      types: ['format_datetime', 'calc_week', 'calc_weekday', 'set_value', 'concat', 'replace'],
-      operators: [
-        {
-          type: 'format_datetime',
-          description: 'datetime format',
-          params: [
-            { name: 'originType', type: 'string', required: true, desc: 'source datetime template, e.g. YYYY/MM/DD' }
-          ],
-          required: ['originType']
+const getTransformSuggestions = (modelName) => {
+  const suggestions = {
+    UM_4G_HW_小时级Counter: {
+      TIME_YEAR: { config: { type: TRANSFORM_TYPES.EXTRACT_YEAR }, suggestion: '根据原始格式推断，应该使用方法"提取年份"' },
+      TIME_MONTH: { config: { type: TRANSFORM_TYPES.EXTRACT_MONTH }, suggestion: '根据原始格式推断，应该使用方法"提取月份"' },
+      TIME_TIME: { config: { type: TRANSFORM_TYPES.FORMAT_TIME }, suggestion: '根据原始格式推断，应该使用方法"格式化时间"' },
+      TIME_DAY: { config: { type: TRANSFORM_TYPES.CALC_WEEKDAY }, suggestion: '根据原始格式推断，应该使用方法"计算星期几"' },
+      DATE_TIME: {
+        config: { type: TRANSFORM_TYPES.FORMULA, formula: 'time_format("YYYY-MM-DD hh:mm:ss", concat(" ", Date, Time))' },
+        suggestion: '识别到目标字段日期格式为"YYYY-MM-DD hh:mm:ss"，应该自定义公式为"time_format(\"YYYY-MM-DD hh:mm:ss\", concat(\" \", Date, Time))"'
+      },
+      TIME_WEEK: { config: { type: TRANSFORM_TYPES.CALC_WEEK }, suggestion: '识别到目标字段语义为"星期"，应该使用方法"计算星期数"' },
+      COMMON5: { config: { type: TRANSFORM_TYPES.SET_VALUE, fixedValue: 'HW' }, suggestion: '根据内容及上下文推断，应该设置固定值为 HW' },
+      PARTITION_FIELD: {
+        config: { type: TRANSFORM_TYPES.FORMULA, formula: 'time_format("YYYY-MM-DD hh:mm:ss", concat(" ", Date, Time))' },
+        suggestion: '识别到目标字段日期格式为"YYYY-MM-DD hh:mm:ss"，应该自定义公式为"time_format(\"YYYY-MM-DD hh:mm:ss\", concat(\" \", Date, Time))"'
+      },
+      FIELD0004: {
+        config: {
+          rules: [{ operator: 'equals', value: 'NIL', type: TRANSFORM_TYPES.SET_VALUE, fixedValue: '0.0' }]
         },
-        {
-          type: 'calc_week',
-          description: 'calculate week number',
-          params: [],
-          required: []
-        },
-        {
-          type: 'calc_weekday',
-          description: 'calculate weekday',
-          params: [],
-          required: []
-        },
-        {
-          type: 'set_value',
-          description: 'replace with fixed value',
-          params: [
-            { name: 'fixedValue', type: 'string', required: true, desc: 'replacement value' }
-          ],
-          required: ['fixedValue']
-        },
-        {
-          type: 'concat',
-          description: 'string concat',
-          params: [
-            { name: 'delimiter', type: 'string', required: false, desc: 'join delimiter' }
-          ],
-          required: []
-        },
-        {
-          type: 'replace',
-          description: 'string replace',
-          params: [
-            { name: 'search', type: 'string', required: true, desc: 'search text' },
-            { name: 'replace', type: 'string', required: true, desc: 'replacement text' }
-          ],
-          required: ['search', 'replace']
-        }
-      ],
-      disallow: ['formula']
-    },
-    sort: {
-      orders: ['asc', 'desc']
+        suggestion: '存在异常值，应该使用条件转换，当值为NIL时，转换为0.0'
+      }
     }
   };
 
-  return {
-    code: modelCode,
-    modelName: toTextValue(model?.name || model?.modelName),
-    modelDesc: toTextValue(model?.description || model?.modelDesc),
-    modelType: toTextValue(model?.modelType || 'business'),
-    referenceModelCode: toTextValue(model?.refStandardModel || model?.referenceModelCode),
-    factory: toTextValue(model?.tags?.vendor || model?.factory),
-    format: toTextValue(model?.tags?.standard || model?.format),
-    timeGranularity: toTextValue(model?.tags?.timeGranularity || model?.timeGranularity),
-    businessModelType,
-    involveCalc,
-    fieldList,
-    sourceFields,
-    sourceData,
-    mappings: props.store.mappings || {},
-    dslDefinitions
-  };
+  return suggestions[modelName] || {};
 };
 
-const isValidOriginTypeTemplate = (originType) => {
-  const text = toTextValue(originType);
-  if (!text) return false;
-  const tokenRegex = /(YYYY|MM|DD|hh|mm|ss)/g;
-  if (!tokenRegex.test(text)) return false;
-  const stripped = text.replace(tokenRegex, '');
-  const asciiOnly = stripped.replace(/T/g, '');
-  return !/[A-Za-z]/.test(asciiOnly);
-};
+const initPendingSuggestions = (modelName) => {
+  const suggestions = getTransformSuggestions(modelName);
+  const next = { ...pendingTransformSuggestions.value };
 
-const sanitizeFilterOperation = (raw = {}) => {
-  if (!raw || typeof raw !== 'object') return null;
-  const mode = toTextValue(raw.mode || 'simple').toLowerCase();
-
-  if (mode === 'compound') {
-    const logic = toTextValue(raw.logic || 'AND').toUpperCase() === 'OR' ? 'OR' : 'AND';
-    const conditions = (Array.isArray(raw.conditions) ? raw.conditions : []).map((item) => {
-      const operator = toTextValue(item?.operator).toLowerCase();
-      if (!FILTER_OPERATORS.has(operator)) return null;
-      return { operator, value: item?.value ?? '' };
-    }).filter(Boolean);
-
-    if (conditions.length === 0) return null;
-    return { mode: 'compound', logic, conditions, operator: '', value: '', formula: '' };
-  }
-
-  const operator = toTextValue(raw.operator).toLowerCase();
-  if (!FILTER_OPERATORS.has(operator)) return null;
-  return {
-    mode: 'simple',
-    operator,
-    value: raw?.value ?? '',
-    formula: '',
-    conditions: [],
-    logic: 'AND'
-  };
-};
-
-const resolveTimeModeByTargetFormat = (fieldName) => {
-  const field = (targetModelFields.value || []).find((item) => toTextValue(item?.name) === toTextValue(fieldName));
-  const format = toTextValue(field?.format).toUpperCase();
-  if (format === 'YYYY') return 'year';
-  if (format === 'YYYY-MM') return 'month';
-  if (format === 'YYYY/MM') return 'month_slash';
-  if (format === 'YYYY/MM/DD') return 'date_slash';
-  if (format === 'HH:MM') return 'time_minute';
-  if (format === 'HH:MM:SS') return 'time';
-  return 'date';
-};
-
-const normalizeTransformType = (rawType = '') => {
-  const type = toTextValue(rawType).toLowerCase();
-  if (TIME_TRANSFORM_ALIASES.has(type)) return 'format_time';
-  return type;
-};
-
-const sanitizeSingleTransform = (raw = {}, { allowOriginType = true, preferredMode = 'date' } = {}) => {
-  const rawType = toTextValue(raw.type).toLowerCase();
-  const type = normalizeTransformType(rawType);
-  if (!TRANSFORM_ALLOWED_TYPES.has(rawType) && !TRANSFORM_ALLOWED_TYPES.has(type)) return null;
-
-  const next = {
-    type,
-    delimiter: raw?.delimiter ?? '',
-    fixedValue: raw?.fixedValue ?? '',
-    search: raw?.search ?? '',
-    replace: raw?.replace ?? '',
-    formula: '',
-    timeFormatMode: ''
-  };
-
-  if (type === 'format_time') {
-    const mode = toTextValue(raw?.timeFormatMode).toLowerCase();
-    const modeByOrigin = resolveTimeFormatModeByOriginType(raw?.originType);
-    const modeByType = resolveTimeFormatModeByType(rawType, raw?.originType || raw?.timeFormatMode);
-    const fallbackMode = TIME_FORMAT_MODES.has(modeByOrigin)
-      ? modeByOrigin
-      : (TIME_FORMAT_MODES.has(modeByType) ? modeByType : (TIME_FORMAT_MODES.has(preferredMode) ? preferredMode : 'date'));
-    next.timeFormatMode = TIME_FORMAT_MODES.has(mode) ? mode : fallbackMode;
-    next.originType = allowOriginType && isValidOriginTypeTemplate(raw?.originType) ? toTextValue(raw?.originType) : '';
-  }
-
-  return next;
-};
-
-const sanitizeTransformOperation = (fieldName, raw = {}) => {
-  if (!raw || typeof raw !== 'object') return null;
-  const sourceKeys = Array.isArray(props.store.mappings?.[fieldName]) ? props.store.mappings[fieldName] : [];
-  const allowOriginType = sourceKeys.length === 1;
-  const preferredMode = resolveTimeModeByTargetFormat(fieldName);
-
-  if (Array.isArray(raw.chain) && raw.chain.length > 0) {
-    const chain = raw.chain
-      .map((step) => sanitizeSingleTransform(step, { allowOriginType, preferredMode }))
-      .filter(Boolean);
-    if (chain.length === 0) return null;
-    return { rules: [], chain };
-  }
-
-  if (Array.isArray(raw.rules) && raw.rules.length > 0) {
-    const rules = raw.rules.map((item) => {
-      const operator = toTextValue(item?.operator).toLowerCase();
-      if (!FILTER_OPERATORS.has(operator)) return null;
-      const transformStep = sanitizeSingleTransform(item, { allowOriginType, preferredMode });
-      if (!transformStep) return null;
-      return {
-        operator,
-        value: item?.value ?? '',
-        type: transformStep.type,
-        delimiter: transformStep.delimiter,
-        fixedValue: transformStep.fixedValue,
-        search: transformStep.search,
-        replace: transformStep.replace,
-        formula: '',
-        timeFormatMode: transformStep.timeFormatMode,
-        originType: transformStep.originType || ''
-      };
-    }).filter(Boolean);
-
-    if (rules.length === 0) return null;
-    return { rules, chain: [] };
-  }
-
-  const single = sanitizeSingleTransform(raw, { allowOriginType, preferredMode });
-  if (!single) return null;
-  return { ...single, rules: [], chain: [] };
-};
-const sanitizeSortOperation = (raw = {}) => {
-  if (!raw || typeof raw !== 'object') return null;
-  const order = toTextValue(raw.order || raw.direction || 'asc').toLowerCase();
-  if (!['asc', 'desc'].includes(order)) return null;
-  return { order };
-};
-
-const normalizeSuggestionMap = (rawSuggestions = {}) => {
-  const map = rawSuggestions && typeof rawSuggestions === 'object' ? rawSuggestions : {};
-  const result = {};
-
-  (targetModelFields.value || []).forEach((field) => {
-    const fieldName = toTextValue(field?.name);
-    if (!fieldName) return;
-
-    const rawItem = map[fieldName];
-    if (!rawItem || typeof rawItem !== 'object') return;
-
-    const operationsRaw = rawItem.operations && typeof rawItem.operations === 'object'
-      ? rawItem.operations
-      : (rawItem.config && typeof rawItem.config === 'object' ? { transform: rawItem.config } : {});
-
-    const operations = {};
-    const filter = sanitizeFilterOperation(operationsRaw.filter);
-    const transform = sanitizeTransformOperation(fieldName, operationsRaw.transform);
-    const sort = sanitizeSortOperation(operationsRaw.sort);
-
-    if (filter) operations.filter = filter;
-    if (transform) operations.transform = transform;
-    if (sort) operations.sort = sort;
-    if (Object.keys(operations).length === 0) return;
-
-    result[fieldName] = {
-      needAttention: rawItem.needAttention !== false,
-      hint: toTextValue(rawItem.hint || rawItem.suggestion || '建议检查该列处理配置'),
-      operations
-    };
+  Object.entries(suggestions).forEach(([field, suggestionData]) => {
+    if (targetModelFields.value.find((item) => item.name === field) && !transforms[field]) {
+      if (!next[field]) next[field] = suggestionData;
+    }
   });
 
-  return result;
+  Object.keys(next).forEach((field) => {
+    if (!suggestions[field] || transforms[field]) {
+      delete next[field];
+    }
+  });
+
+  pendingTransformSuggestions.value = next;
 };
 
 const hasPendingSuggestion = (fieldName) => pendingTransformSuggestions.value[fieldName] !== undefined;
@@ -1813,164 +1475,38 @@ const openSuggestionModal = (fieldName) => {
   if (!suggestion) return;
   transformSuggestionModal.show = true;
   transformSuggestionModal.field = fieldName;
-  transformSuggestionModal.suggestion = suggestion.hint || '';
-  transformSuggestionModal.operations = suggestion.operations || null;
+  transformSuggestionModal.suggestion = suggestion.suggestion;
+  transformSuggestionModal.config = suggestion.config;
 };
 
 const closeSuggestionModal = () => {
   transformSuggestionModal.show = false;
   transformSuggestionModal.field = '';
   transformSuggestionModal.suggestion = '';
-  transformSuggestionModal.operations = null;
-};
-
-const applySuggestionForField = (fieldName, { notify = true, removeAfterApply = true } = {}) => {
-  const suggestion = pendingTransformSuggestions.value[fieldName];
-  if (!suggestion || !suggestion.operations) return false;
-
-  let changed = false;
-  let notifyType = '';
-
-  if (suggestion.operations.filter) {
-    filterConfigs[fieldName] = JSON.parse(JSON.stringify(suggestion.operations.filter));
-    addHistory('filter', '筛选', `${fieldName} 应用智能筛选建议`, fieldName);
-    changed = true;
-    notifyType = notifyType || 'filter';
-  }
-
-  if (suggestion.operations.transform) {
-    transforms[fieldName] = JSON.parse(JSON.stringify(suggestion.operations.transform));
-    addHistory('transform', '数据转换', `${fieldName} 应用智能转换建议`, fieldName);
-    changed = true;
-    notifyType = 'transform';
-  }
-
-  if (suggestion.operations.sort) {
-    sortConfig.field = fieldName;
-    sortConfig.order = suggestion.operations.sort.order || SORT_ORDER.ASC;
-    addHistory('sort', '排序', `${fieldName} ${sortConfig.order === 'asc' ? '升序' : '降序'}`, fieldName);
-    changed = true;
-    notifyType = notifyType || 'sort';
-  }
-
-  if (removeAfterApply) {
-    delete pendingTransformSuggestions.value[fieldName];
-  }
-
-  if (changed && notify) {
-    notifyOperationApplied(notifyType || 'transform', fieldName);
-  }
-
-  return changed;
+  transformSuggestionModal.config = null;
 };
 
 const confirmSuggestion = () => {
   const fieldName = transformSuggestionModal.field;
-  if (!fieldName) {
-    closeSuggestionModal();
-    return;
-  }
-
-  const applied = applySuggestionForField(fieldName, { notify: true, removeAfterApply: true });
-  if (applied) {
-    $success('已应用处理建议');
-  } else {
-    $warning('该列没有可应用的建议');
+  const config = transformSuggestionModal.config;
+  if (fieldName && config) {
+    transforms[fieldName] = config;
+    addHistory('transform', '数据转换', `${fieldName}: 应用推荐转换`, fieldName);
+    delete pendingTransformSuggestions.value[fieldName];
+    notifyOperationApplied('transform', fieldName);
   }
   closeSuggestionModal();
 };
 
 const dismissSuggestion = () => {
-  const fieldName = transformSuggestionModal.field;
-  if (fieldName) {
-    delete pendingTransformSuggestions.value[fieldName];
-  }
   closeSuggestionModal();
 };
 
-const applyAllSuggestions = () => {
-  const fields = (targetModelFields.value || []).map((item) => item?.name).filter((name) => hasPendingSuggestion(name));
-  if (fields.length === 0) {
-    $warning('当前没有可应用的提醒');
-    return;
-  }
-
-  let appliedCount = 0;
-  fields.forEach((fieldName) => {
-    if (applySuggestionForField(fieldName, { notify: false, removeAfterApply: true })) {
-      appliedCount += 1;
-    }
-  });
-
-  if (appliedCount > 0) {
-    notifyOperationApplied('transform', 'GLOBAL');
-    $success(`已应用 ${appliedCount} 条处理建议`);
-  } else {
-    $warning('没有可应用的处理建议');
-  }
-
-  closeSuggestionModal();
-};
-
-const requestProcessSuggestions = async ({ manual = false } = {}) => {
-  if (suggestionLoading.value) return;
-
-  const payload = buildSuggestionPayload();
-  if (!Array.isArray(payload.fieldList) || payload.fieldList.length === 0 || payload.sourceFields.length === 0) {
-    pendingTransformSuggestions.value = {};
-    if (manual) {
-      $warning('缺少字段信息，无法生成处理建议');
-    }
-    return;
-  }
-
-  if (!payload.mappings || Object.keys(payload.mappings).length === 0) {
-    pendingTransformSuggestions.value = {};
-    if (manual) {
-      $warning('请先完成字段映射后再生成处理建议');
-    }
-    return;
-  }
-
-  suggestionLoading.value = true;
-  const requestSeq = suggestionRequestSeq.value + 1;
-  suggestionRequestSeq.value = requestSeq;
-
-  try {
-    const response = await apiSystemService.generateProcessConfig(payload, { hideMsgTips: true });
-    if (requestSeq !== suggestionRequestSeq.value) return;
-
-    const raw = response?.data || {};
-    const rawSuggestions = raw?.suggestions || raw?.data?.suggestions || {};
-    const normalized = normalizeSuggestionMap(rawSuggestions);
-    pendingTransformSuggestions.value = normalized;
-
-    if (manual) {
-      if (Object.keys(normalized).length > 0) {
-        $success(`已生成 ${Object.keys(normalized).length} 条处理建议`);
-      } else {
-        $warning('未生成可应用的处理建议');
-      }
-    }
-  } catch (error) {
-    if (requestSeq !== suggestionRequestSeq.value) return;
-
-    pendingTransformSuggestions.value = {};
-    const message = toTextValue(error?.response?.data?.msg || error?.data?.msg || error?.message);
-    if (manual) {
-      $error(message || '处理建议生成失败');
-    } else {
-      $warning(message || '处理建议生成失败，请稍后重试');
-    }
-  } finally {
-    if (requestSeq === suggestionRequestSeq.value) {
-      suggestionLoading.value = false;
-    }
-  }
-};
-
-const regenerateProcessSuggestions = async () => {
-  await requestProcessSuggestions({ manual: true });
+const applyPresets = async (modelName) => {
+  await nextTick();
+  initFilters();
+  initPendingSuggestions(modelName);
+  demoInitialized.value = true;
 };
 
 const isFilterActive = (field) => {
@@ -2022,21 +1558,29 @@ const openSortPopover = (field, event) => {
 const applyFilterConfig = (field) => {
   const conf = filterConfigs[field];
   if (conf.mode === 'simple' && conf.operator) {
-    addHistory("filter", "ɸѡ", `${field} ${conf.operator} ${conf.value || ""}`, field);
+    const valueDesc = conf.value || '';
+    const suffix = valueDesc ? ` ${valueDesc}` : '';
+    addHistory('filter', '筛选', `${field} ${getFilterOperatorLabel(conf.operator)}${suffix}`, field);
   } else if (conf.mode === 'compound' && conf.conditions && conf.conditions.length > 0) {
     const activeConds = conf.conditions.filter((item) => item.operator);
     if (activeConds.length > 0) {
       const logic = conf.logic || 'AND';
-      const desc = activeConds.map((item) => `${item.operator} ${item.value || ''}`).join(` ${logic} `);
-      addHistory("filter", "ɸѡ", `${field} [${logic}] ${desc}`, field);
+      const logicLabel = getFilterLogicLabel(logic);
+      const desc = activeConds
+        .map((item) => {
+          const valueDesc = item.value || '';
+          const suffix = valueDesc ? ` ${valueDesc}` : '';
+          return `${getFilterOperatorLabel(item.operator)}${suffix}`;
+        })
+        .join(` ${logicLabel} `);
+      addHistory('filter', '筛选', `${field} [${logicLabel}] ${desc}`, field);
     }
   } else if (conf.mode === 'formula' && conf.formula) {
-    addHistory("filter", "筛选", `${field} 公式: ${conf.formula}`, field);
+    addHistory('filter', '筛选', `${field} 公式: ${conf.formula}`, field);
   }
   columnPopover.show = false;
   notifyOperationApplied('filter', field);
 };
-
 const clearFilter = (field) => {
   filterConfigs[field] = { mode: 'simple', operator: '', value: '', formula: '', conditions: [], logic: 'AND' };
   history.value = history.value.filter((item) => !(item.type === 'filter' && item.field === field));
@@ -2080,39 +1624,10 @@ const TIME_FORMAT_MODE = Object.freeze({
   DATE: 'date',
   YEAR: 'year',
   MONTH: 'month',
-  TIME: 'time',
-  TIME_MINUTE: 'time_minute',
-  DATE_SLASH: 'date_slash',
-  MONTH_SLASH: 'month_slash'
+  TIME: 'time'
 });
 
-const resolveTimeFormatModeByOriginType = (originType) => {
-  const normalized = String(originType || '').trim().toUpperCase();
-  if (normalized === 'YYYY') return TIME_FORMAT_MODE.YEAR;
-  if (normalized === 'YYYY-MM') return TIME_FORMAT_MODE.MONTH;
-  if (normalized === 'YYYY-MM-DD') return TIME_FORMAT_MODE.DATE;
-  if (normalized === 'HH:MM:SS') return TIME_FORMAT_MODE.TIME;
-  if (normalized === 'HH:MM') return TIME_FORMAT_MODE.TIME_MINUTE;
-  if (normalized === 'YYYY/MM/DD') return TIME_FORMAT_MODE.DATE_SLASH;
-  if (normalized === 'YYYY/MM') return TIME_FORMAT_MODE.MONTH_SLASH;
-  return '';
-};
-
-const resolveOriginTypeByTimeFormatMode = (mode) => {
-  if (mode === TIME_FORMAT_MODE.YEAR) return 'YYYY';
-  if (mode === TIME_FORMAT_MODE.MONTH) return 'YYYY-MM';
-  if (mode === TIME_FORMAT_MODE.TIME) return 'hh:mm:ss';
-  if (mode === TIME_FORMAT_MODE.TIME_MINUTE) return 'hh:mm';
-  if (mode === TIME_FORMAT_MODE.DATE_SLASH) return 'YYYY/MM/DD';
-  if (mode === TIME_FORMAT_MODE.MONTH_SLASH) return 'YYYY/MM';
-  return 'YYYY-MM-DD';
-};
-
-const resolveTimeFormatModeByType = (type, originType = '') => {
-  const normalizedMode = String(originType || '').trim().toLowerCase();
-  if (Object.values(TIME_FORMAT_MODE).includes(normalizedMode)) return normalizedMode;
-  const byOrigin = resolveTimeFormatModeByOriginType(originType);
-  if (byOrigin) return byOrigin;
+const resolveTimeFormatModeByType = (type) => {
   if (type === TRANSFORM_TYPES.FORMAT_DATETIME) return TIME_FORMAT_MODE.DATE;
   if (type === TRANSFORM_TYPES.EXTRACT_YEAR) return TIME_FORMAT_MODE.YEAR;
   if (type === TRANSFORM_TYPES.EXTRACT_MONTH) return TIME_FORMAT_MODE.MONTH;
@@ -2120,19 +1635,23 @@ const resolveTimeFormatModeByType = (type, originType = '') => {
   return '';
 };
 
+const resolveStoredTypeByTimeFormatMode = (mode) => {
+  if (mode === TIME_FORMAT_MODE.YEAR) return TRANSFORM_TYPES.EXTRACT_YEAR;
+  if (mode === TIME_FORMAT_MODE.MONTH) return TRANSFORM_TYPES.EXTRACT_MONTH;
+  if (mode === TIME_FORMAT_MODE.TIME) return TRANSFORM_TYPES.FORMAT_TIME;
+  return TRANSFORM_TYPES.FORMAT_DATETIME;
+};
+
 const toModalTransformItem = (item = {}) => {
   const next = { ...item };
-  const timeFormatMode = resolveTimeFormatModeByType(next.type, next.originType || next.origin_type || next.timeFormatMode);
+  const timeFormatMode = resolveTimeFormatModeByType(next.type);
   if (timeFormatMode) {
     next.type = TRANSFORM_TYPES.FORMAT_TIME;
     next.timeFormatMode = timeFormatMode;
-    next.originType = next.originType || resolveOriginTypeByTimeFormatMode(timeFormatMode);
   } else if (next.type === TRANSFORM_TYPES.FORMAT_TIME) {
     next.timeFormatMode = next.timeFormatMode || TIME_FORMAT_MODE.DATE;
-    next.originType = next.originType || resolveOriginTypeByTimeFormatMode(next.timeFormatMode);
   } else {
     next.timeFormatMode = '';
-    delete next.originType;
   }
   return next;
 };
@@ -2140,12 +1659,9 @@ const toModalTransformItem = (item = {}) => {
 const toStoredTransformItem = (item = {}) => {
   const next = { ...item };
   if (next.type === TRANSFORM_TYPES.FORMAT_TIME) {
-    next.timeFormatMode = next.timeFormatMode || TIME_FORMAT_MODE.DATE;
-    next.originType = next.originType || resolveOriginTypeByTimeFormatMode(next.timeFormatMode);
-  } else {
-    next.timeFormatMode = '';
-    delete next.originType;
+    next.type = resolveStoredTypeByTimeFormatMode(next.timeFormatMode);
   }
+  delete next.timeFormatMode;
   return next;
 };
 
@@ -2153,11 +1669,9 @@ const onTransformTypeChange = (item) => {
   if (!item || typeof item !== 'object') return;
   if (item.type === TRANSFORM_TYPES.FORMAT_TIME) {
     item.timeFormatMode = item.timeFormatMode || TIME_FORMAT_MODE.DATE;
-    item.originType = item.originType || resolveOriginTypeByTimeFormatMode(item.timeFormatMode);
     return;
   }
   item.timeFormatMode = '';
-  delete item.originType;
 };
 
 const addTransformRule = () => {
@@ -2245,7 +1759,7 @@ const confirmTransform = () => {
     rules: storedRules,
     chain: storedChain
   };
-  const chainDesc = storedChain.length > 0 ? ' [閾?' + storedChain.map((step) => step.type).join('鈫?) + ']' : '';
+  const chainDesc = storedChain.length > 0 ? ' [链:' + storedChain.map((step) => getTransformTypeLabel(step.type)).join('→') + ']' : '';
   addHistory('transform', '数据转换', transformModal.field + chainDesc, transformModal.field);
   notifyOperationApplied('transform', transformModal.field);
   closeTransformModal();
@@ -2318,7 +1832,7 @@ const applyColumnConfig = () => {
     if (applyModal.applyFilter && copiedConfig.value.filter) {
       if (applyModal.override || !isFilterActive(target)) {
         filterConfigs[target] = JSON.parse(JSON.stringify(copiedConfig.value.filter));
-        addHistory("filter", "筛选", `${target} 复制筛选配置`, target);
+        addHistory('filter', '筛选', `${target} 复制筛选配置`, target);
       }
     }
 
@@ -2414,28 +1928,35 @@ watch([showRawPreview, targetModelFields, previewData], async () => {
 });
 
 watch(
-  [() => props.store.selectedModelId, () => props.store.uploadedFiles.length, () => JSON.stringify(props.store.mappings || {})],
-  () => {
-    pendingTransformSuggestions.value = {};
-    suggestionRequestSeq.value += 1;
+  () => selectedModelName.value,
+  (newModel, oldModel) => {
+    if (oldModel && oldModel !== newModel) {
+      demoInitialized.value = false;
+      pendingTransformSuggestions.value = {};
+    }
   }
 );
 
 watch(
-  () => props.store.currentStep,
-  async (step, oldStep) => {
-    if (step === 2) {
-      await nextTick();
-      await requestProcessSuggestions({ manual: false });
-      return;
-    }
-
-    if (oldStep === 2) {
-      closeSuggestionModal();
+  [() => selectedModelName.value, () => props.store.uploadedFiles.length],
+  async ([modelName, fileCount]) => {
+    if (modelName && fileCount > 0 && !demoInitialized.value) {
+      await applyPresets(modelName);
     }
   },
   { immediate: true }
 );
+
+watch(
+  [() => props.store.currentStep, () => selectedModelName.value],
+  async ([step, modelName]) => {
+    if (step === 2 && modelName) {
+      await nextTick();
+      initPendingSuggestions(modelName);
+    }
+  }
+);
+
 watch(
   processedData,
   (rows) => {
@@ -2455,20 +1976,3 @@ onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside);
 });
 </script>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
