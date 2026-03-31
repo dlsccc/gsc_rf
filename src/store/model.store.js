@@ -94,6 +94,8 @@ const defaultProjectModels = [];
 
 const normalizeField = (field = {}) => {
   const businessType = inferBusinessType(field);
+  const rawSeq = field.seq ?? field.fieldSeq ?? field.field_seq;
+  const seq = Number.isFinite(Number(rawSeq)) ? Number(rawSeq) : null;
   return {
     name: toText(field.name || field.fieldName),
     type: toText(field.type || field.fieldType),
@@ -101,13 +103,19 @@ const normalizeField = (field = {}) => {
     businessType,
     isNull: field.isNull !== undefined ? !!field.isNull : true,
     description: toText(field.description || field.fieldDesc),
-    example: toText(field.example || field.sampleValue || field.dataExample)
+    example: toText(field.example || field.sampleValue || field.dataExample),
+    seq
   };
 };
 
 const normalizeFields = (fields) => {
   const normalized = (Array.isArray(fields) ? fields : []).map((field) => normalizeField(field));
-  if (normalized.length > 0) return normalized;
+  if (normalized.length > 0) {
+    const withSeq = normalized.filter((item) => Number.isFinite(item.seq));
+    const withoutSeq = normalized.filter((item) => !Number.isFinite(item.seq));
+    withSeq.sort((a, b) => a.seq - b.seq);
+    return [...withSeq, ...withoutSeq];
+  }
   return [normalizeField()];
 };
 
