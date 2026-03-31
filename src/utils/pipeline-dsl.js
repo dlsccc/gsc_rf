@@ -235,17 +235,18 @@ const buildConditionExpression = (rule = {}, columnRef = '$rule_input[0].key_col
   return '';
 };
 
-const toRuleInputsByRawSources = (sourceKeys = []) => {
+const toRuleInputsByRawSources = (sourceKeys = [], sourceAliasToId = {}) => {
   const grouped = new Map();
 
   (Array.isArray(sourceKeys) ? sourceKeys : []).forEach((key) => {
     const parsed = parseSourceKey(key);
     if (!parsed.column) return;
+    const resolvedSourceTable = trimText(sourceAliasToId?.[parsed.sourceTable] || parsed.sourceTable || 'raw');
 
-    if (!grouped.has(parsed.sourceTable)) {
-      grouped.set(parsed.sourceTable, []);
+    if (!grouped.has(resolvedSourceTable)) {
+      grouped.set(resolvedSourceTable, []);
     }
-    grouped.get(parsed.sourceTable).push(parsed.column);
+    grouped.get(resolvedSourceTable).push(parsed.column);
   });
 
   return Array.from(grouped.entries()).map(([sourceTable, columns]) => {
@@ -408,6 +409,17 @@ const toDataSourceDsl = (uploadedFiles = []) => {
   });
 };
 
+const buildSourceAliasToIdMap = (sourceFiles = [], tablesDsl = []) => {
+  const aliasMap = {};
+  sourceFiles.forEach((file, index) => {
+    const alias = trimText(file?.source);
+    const sourceId = trimText(tablesDsl?.[index]?.source_id);
+    if (!alias || !sourceId) return;
+    aliasMap[alias] = sourceId;
+  });
+  return aliasMap;
+};
+
 const toTargetColumns = (selectedModel = {}) => {
   const fields = Array.isArray(selectedModel?.fields) ? selectedModel.fields : [];
   const involveCalc = selectedModel?.tags?.involveCalc !== undefined
@@ -527,7 +539,8 @@ const buildDataProcessingDsl = ({
   mappings = {},
   filters = {},
   transforms = {},
-  sortConfig = {}
+  sortConfig = {},
+  sourceAliasToId = {}
 }) => {
   const modelCode = getModelCode(selectedModel);
   const targetFields = resolveTargetFieldNames(selectedModel, mappings);
@@ -543,7 +556,7 @@ const buildDataProcessingDsl = ({
   targetFields.forEach((fieldName) => {
     idx += 1;
     const sourceKeys = mappings[fieldName] || [];
-    const ruleInputs = toRuleInputsByRawSources(sourceKeys);
+    const ruleInputs = toRuleInputsByRawSources(sourceKeys, sourceAliasToId);
     const baseRuleInput = ruleInputs.length > 0 ? ruleInputs : [makeRuleInput('', [])];
     const baseRuleOutput = makeRuleOutput(modelCode, fieldName);
 
@@ -662,6 +675,8 @@ export const buildPipelineDsl = ({
 } = {}) => {
   const sourceFiles = toSourceFiles(uploadedFiles);
   const hasJoin = sourceFiles.length >= 2;
+  const tablesDsl = toDataSourceDsl(sourceFiles);
+  const sourceAliasToId = buildSourceAliasToIdMap(sourceFiles, tablesDsl);
 
   const modelCode = getModelCode(selectedModel);
   const dedupDsl = buildDedupDsl(dedupConfig);
@@ -680,7 +695,7 @@ export const buildPipelineDsl = ({
     global_setting: {
       index: 'mapping_step_001',
       data_sources: {
-        tables: toDataSourceDsl(sourceFiles)
+        tables: tablesDsl
       },
       ...(hasJoin ? { join_config: buildJoinDsl(sourceFiles, joinConfig) } : {}),
       ...(dedupDsl ? { deduplicate: dedupDsl } : {})
@@ -690,7 +705,8 @@ export const buildPipelineDsl = ({
       mappings,
       filters,
       transforms,
-      sortConfig
+      sortConfig,
+      sourceAliasToId
     }),
     write_config: buildWriteDsl(selectedModel, writeConfig, dedupConfig)
   };
@@ -710,4 +726,3 @@ export const downloadDslFile = (dsl, fileName = 'pipeline_dsl.json') => {
 
   window.URL.revokeObjectURL(url);
 };
-
