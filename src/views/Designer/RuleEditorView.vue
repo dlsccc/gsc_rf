@@ -304,7 +304,7 @@ const collectRuleInputSourceTables = (dsl = {}) => {
     inputs.forEach((inputItem) => {
       const sourceTable = pickValue(inputItem?.sourceTable, inputItem?.source_table);
       if (sourceTable) {
-        sourceTables.add(sourceTable);
+        sourceTables.add(toText(sourceTable));
       }
     });
   });
@@ -337,7 +337,8 @@ const buildDebugEdmList = (dsl = {}) => {
 
   const dslTableEntries = dslTables
     .map((table, index) => ({
-      source: sourceOrder[index] || `table_${index + 1}`,
+      source: pickValue(table?.sourceId, table?.source_id) || sourceOrder[index] || `table_${index + 1}`,
+      legacySource: sourceOrder[index] || `table_${index + 1}`,
       edmId: pickValue(table?.edmId, table?.edmID, table?.fileCode),
       tableName: pickValue(table?.sourceId, table?.source_id),
       fieldInfoList: normalizeDebugFieldInfoList(table?.fieldInfoList || table?.field_info_list)
@@ -346,15 +347,21 @@ const buildDebugEdmList = (dsl = {}) => {
 
   const fallbackEntries = toArrayValue(pipelineStore.uploadedFiles)
     .map((file, index) => ({
-      source: toText(file?.source) || sourceOrder[index] || `table_${index + 1}`,
+      source: toText(file?.sourceId || file?.source_id || file?.source) || sourceOrder[index] || `table_${index + 1}`,
+      legacySource: toText(file?.source) || sourceOrder[index] || `table_${index + 1}`,
       edmId: resolveEdmId(file),
-      tableName: toText(file?.source),
+      tableName: toText(file?.sourceId || file?.source_id || file?.source),
       fieldInfoList: normalizeDebugFieldInfoList(file?.fieldInfoList || file?.field_info_list)
     }))
     .filter((item) => item.edmId && item.tableName);
 
   const sourceEntries = dslTableEntries.length > 0 ? dslTableEntries : fallbackEntries;
-  const tableEntries = sourceEntries.filter((item) => includeAll || sourceTables.has(item.source));
+  const tableEntries = sourceEntries.filter((item) => {
+    if (includeAll) return true;
+    return sourceTables.has(toText(item.source))
+      || sourceTables.has(toText(item.tableName))
+      || sourceTables.has(toText(item.legacySource));
+  });
 
   const entryMap = tableEntries.reduce((acc, item) => {
     const key = `${item.edmId}::${item.tableName}`;
