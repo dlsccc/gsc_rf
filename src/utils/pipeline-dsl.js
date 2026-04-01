@@ -241,7 +241,13 @@ const toRuleInputsByRawSources = (sourceKeys = [], sourceAliasToId = {}) => {
   (Array.isArray(sourceKeys) ? sourceKeys : []).forEach((key) => {
     const parsed = parseSourceKey(key);
     if (!parsed.column) return;
-    const resolvedSourceTable = trimText(sourceAliasToId?.[parsed.sourceTable] || parsed.sourceTable || 'raw');
+    const rawSourceTable = trimText(parsed.sourceTable);
+    const resolvedSourceTable = trimText(
+      sourceAliasToId?.[rawSourceTable]
+      || sourceAliasToId?.[rawSourceTable.toLowerCase?.()]
+      || rawSourceTable
+      || 'raw'
+    );
 
     if (!grouped.has(resolvedSourceTable)) {
       grouped.set(resolvedSourceTable, []);
@@ -411,12 +417,22 @@ const toDataSourceDsl = (uploadedFiles = []) => {
 
 const buildSourceAliasToIdMap = (sourceFiles = [], tablesDsl = []) => {
   const aliasMap = {};
+  const setAlias = (alias, sourceId) => {
+    const normalizedAlias = trimText(alias);
+    const normalizedSourceId = trimText(sourceId);
+    if (!normalizedAlias || !normalizedSourceId) return;
+    aliasMap[normalizedAlias] = normalizedSourceId;
+    aliasMap[normalizedAlias.toLowerCase()] = normalizedSourceId;
+  };
+
   sourceFiles.forEach((file, index) => {
     const alias = trimText(file?.source);
     const sourceId = trimText(tablesDsl?.[index]?.source_id);
-    if (!alias || !sourceId) return;
-    aliasMap[alias] = sourceId;
+    setAlias(alias, sourceId);
   });
+
+  setAlias('table_a', tablesDsl?.[0]?.source_id);
+  setAlias('table_b', tablesDsl?.[1]?.source_id);
   return aliasMap;
 };
 
@@ -451,12 +467,21 @@ const normalizeJoinType = (type) => {
   return allowed.includes(value) ? value : 'left';
 };
 
-const buildJoinDsl = (uploadedFiles = [], joinConfig = {}) => {
+const buildJoinDsl = (uploadedFiles = [], joinConfig = {}, sourceAliasToId = {}) => {
   const sourceFiles = toSourceFiles(uploadedFiles);
   if (sourceFiles.length < 2) return undefined;
 
   const tableA = sourceFiles.find((item) => item.source === 'table_a') || sourceFiles[0];
   const tableB = sourceFiles.find((item) => item.source === 'table_b') || sourceFiles[1];
+  const resolveSourceTable = (source) => {
+    const raw = trimText(source);
+    return trimText(
+      sourceAliasToId?.[raw]
+      || sourceAliasToId?.[raw.toLowerCase?.()]
+      || raw
+      || 'raw'
+    );
+  };
 
   const pairs = (Array.isArray(joinConfig.fields) ? joinConfig.fields : [])
     .filter((item) => item.leftField || item.rightField);
@@ -485,8 +510,8 @@ const buildJoinDsl = (uploadedFiles = [], joinConfig = {}) => {
   return {
     index: 'join_tables',
     rule_input: [
-      makeRuleInput(tableA?.source || 'table_a', leftKeys),
-      makeRuleInput(tableB?.source || 'table_b', rightKeys)
+      makeRuleInput(resolveSourceTable(tableA?.source || 'table_a'), leftKeys),
+      makeRuleInput(resolveSourceTable(tableB?.source || 'table_b'), rightKeys)
     ],
     rule_output: makeRuleOutput('table_joined'),
     rule: {
@@ -697,7 +722,7 @@ export const buildPipelineDsl = ({
       data_sources: {
         tables: tablesDsl
       },
-      ...(hasJoin ? { join_config: buildJoinDsl(sourceFiles, joinConfig) } : {}),
+      ...(hasJoin ? { join_config: buildJoinDsl(sourceFiles, joinConfig, sourceAliasToId) } : {}),
       ...(dedupDsl ? { deduplicate: dedupDsl } : {})
     },
     data_processing: buildDataProcessingDsl({

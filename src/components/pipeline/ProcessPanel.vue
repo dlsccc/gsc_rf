@@ -45,9 +45,30 @@
           </span>
           {{ showRawPreview ? '返回处理预览' : '预览源数据' }}
         </button>
-        <div v-if="history.length" class="preview-indicator">
-          <span class="material-icons" style="font-size: 14px;">check_circle</span>
-          已配置 {{ history.length }} 个操作
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <button
+            class="btn btn-default btn-sm"
+            :disabled="!canGenerateSuggestions || suggestionLoading"
+            @click="generateSmartSuggestions"
+          >
+            <span class="material-icons" style="font-size: 16px; vertical-align: middle;">
+              {{ suggestionLoading ? 'hourglass_top' : 'auto_awesome' }}
+            </span>
+            {{ suggestionLoading ? '\u667a\u80fd\u63a8\u8350\u4e2d...' : '\u667a\u80fd\u63a8\u8350' }}
+          </button>
+          <button
+            v-if="pendingSuggestionCount > 0"
+            class="btn btn-primary btn-sm"
+            :disabled="suggestionLoading"
+            @click="applyAllSuggestions"
+          >
+            <span class="material-icons" style="font-size: 16px; vertical-align: middle;">done_all</span>
+            {{ '\u4e00\u952e\u91c7\u7eb3' }}({{ pendingSuggestionCount }})
+          </button>
+          <div v-if="history.length" class="preview-indicator">
+            <span class="material-icons" style="font-size: 14px;">check_circle</span>
+            {{ '\u5df2\u914d\u7f6e' }} {{ history.length }} {{ '\u4e2a\u64cd\u4f5c' }}
+          </div>
         </div>
       </div>
 
@@ -675,7 +696,9 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { DEDUP_KEEP, SORT_ORDER, TRANSFORM_TYPES } from '@/utils/constants/pipeline.js';
+import { apiSystemService } from '@/api/index.js';
 import { useModelStore } from '@/store/model.store.js';
+import { $error, $success, $warning } from '@/utils/message.js';
 
 const props = defineProps({
   store: { type: Object, required: true },
@@ -766,7 +789,7 @@ const transformSuggestionModal = reactive({
 });
 
 const pendingTransformSuggestions = ref({});
-const demoInitialized = ref(false);
+const suggestionLoading = ref(false);
 const dedupFieldSelect = ref('');
 
 const targetModelFields = computed(() => props.store.targetFields || []);
@@ -790,9 +813,19 @@ const allSourceFields = computed(() => {
   }));
 });
 
-const selectedModelName = computed(() => {
-  const model = modelStore.projectModels.find((item) => String(item.id) === String(props.store.selectedModelId));
-  return model?.name || '';
+const selectedModel = computed(() => {
+  return modelStore.projectModels.find((item) => String(item.id) === String(props.store.selectedModelId)) || null;
+});
+
+const selectedModelName = computed(() => selectedModel.value?.name || '');
+
+const pendingSuggestionCount = computed(() => Object.keys(pendingTransformSuggestions.value || {}).length);
+
+const canGenerateSuggestions = computed(() => {
+  const hasModel = !!selectedModel.value;
+  const hasFiles = Array.isArray(props.store.uploadedFiles) && props.store.uploadedFiles.length > 0;
+  const hasMappings = Object.keys(props.store.mappings || {}).length > 0;
+  return hasModel && hasFiles && hasMappings;
 });
 
 const tableAData = computed(() => {
@@ -1420,52 +1453,302 @@ const removeDedupField = (field) => {
   applyDedupConfig();
 };
 
-const getTransformSuggestions = (modelName) => {
-  const suggestions = {
-    UM_4G_HW_小时级Counter: {
-      TIME_YEAR: { config: { type: TRANSFORM_TYPES.EXTRACT_YEAR }, suggestion: '根据原始格式推断，应该使用方法"提取年份"' },
-      TIME_MONTH: { config: { type: TRANSFORM_TYPES.EXTRACT_MONTH }, suggestion: '根据原始格式推断，应该使用方法"提取月份"' },
-      TIME_TIME: { config: { type: TRANSFORM_TYPES.FORMAT_TIME }, suggestion: '根据原始格式推断，应该使用方法"格式化时间"' },
-      TIME_DAY: { config: { type: TRANSFORM_TYPES.CALC_WEEKDAY }, suggestion: '根据原始格式推断，应该使用方法"计算星期几"' },
-      DATE_TIME: {
-        config: { type: TRANSFORM_TYPES.FORMULA, formula: 'time_format("YYYY-MM-DD hh:mm:ss", concat(" ", Date, Time))' },
-        suggestion: '识别到目标字段日期格式为"YYYY-MM-DD hh:mm:ss"，应该自定义公式为"time_format(\"YYYY-MM-DD hh:mm:ss\", concat(\" \", Date, Time))"'
-      },
-      TIME_WEEK: { config: { type: TRANSFORM_TYPES.CALC_WEEK }, suggestion: '识别到目标字段语义为"星期"，应该使用方法"计算星期数"' },
-      COMMON5: { config: { type: TRANSFORM_TYPES.SET_VALUE, fixedValue: 'HW' }, suggestion: '根据内容及上下文推断，应该设置固定值为 HW' },
-      PARTITION_FIELD: {
-        config: { type: TRANSFORM_TYPES.FORMULA, formula: 'time_format("YYYY-MM-DD hh:mm:ss", concat(" ", Date, Time))' },
-        suggestion: '识别到目标字段日期格式为"YYYY-MM-DD hh:mm:ss"，应该自定义公式为"time_format(\"YYYY-MM-DD hh:mm:ss\", concat(\" \", Date, Time))"'
-      },
-      FIELD0004: {
-        config: {
-          rules: [{ operator: 'equals', value: 'NIL', type: TRANSFORM_TYPES.SET_VALUE, fixedValue: '0.0' }]
-        },
-        suggestion: '存在异常值，应该使用条件转换，当值为NIL时，转换为0.0'
-      }
-    }
-  };
-
-  return suggestions[modelName] || {};
+const trimText = (value) => String(value ?? "").trim();
+const toArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (value === null || value === undefined) return [];
+  return [value];
 };
 
-const initPendingSuggestions = (modelName) => {
-  const suggestions = getTransformSuggestions(modelName);
-  const next = { ...pendingTransformSuggestions.value };
+const isPlainObject = (value) => Object.prototype.toString.call(value) === '[object Object]';
 
-  Object.entries(suggestions).forEach(([field, suggestionData]) => {
-    if (targetModelFields.value.find((item) => item.name === field) && !transforms[field]) {
-      if (!next[field]) next[field] = suggestionData;
-    }
+const toCamelKey = (key) => String(key ?? '').replace(/_([a-zA-Z0-9])/g, (_, char) => char.toUpperCase());
+
+const deepCamelize = (value) => {
+  if (Array.isArray(value)) return value.map((item) => deepCamelize(item));
+  if (!isPlainObject(value)) return value;
+  return Object.entries(value).reduce((acc, [key, next]) => {
+    acc[toCamelKey(key)] = deepCamelize(next);
+    return acc;
+  }, {});
+};
+
+const PROCESS_DSL_DEFINITIONS = Object.freeze({
+  filter: {
+    modes: ['simple', 'compound'],
+    operators: ['equals', 'not_equals', 'contains', 'is_empty', 'is_not_empty', 'greater_than', 'less_than'],
+    logic: ['AND', 'OR']
+  },
+  transform: {
+    types: ['format_datetime', 'extract_year', 'extract_month', 'extract_time', 'format_time', 'calc_week', 'calc_weekday', 'set_value', 'concat', 'replace'],
+    operators: [
+      {
+        type: 'format_datetime',
+        params: [
+          { name: 'originType', type: 'string', required: false },
+          { name: 'targetType', type: 'string', required: false }
+        ],
+        required: []
+      },
+      { type: 'calc_week', params: [], required: [] },
+      { type: 'calc_weekday', params: [], required: [] },
+      { type: 'set_value', params: [{ name: 'fixedValue', type: 'string', required: true }], required: ['fixedValue'] },
+      { type: 'concat', params: [{ name: 'delimiter', type: 'string', required: false }], required: [] },
+      { type: 'replace', params: [{ name: 'search', type: 'string', required: true }, { name: 'replace', type: 'string', required: true }], required: ['search', 'replace'] }
+    ],
+    disallow: ['formula']
+  },
+  sort: { orders: ['asc', 'desc'] }
+});
+
+const normalizeTransformType = (value) => {
+  const type = trimText(value).toLowerCase();
+  const typeMap = {
+    format_datetime: TRANSFORM_TYPES.FORMAT_DATETIME,
+    formatdatetime: TRANSFORM_TYPES.FORMAT_DATETIME,
+    extract_year: TRANSFORM_TYPES.EXTRACT_YEAR,
+    extractyear: TRANSFORM_TYPES.EXTRACT_YEAR,
+    extract_month: TRANSFORM_TYPES.EXTRACT_MONTH,
+    extractmonth: TRANSFORM_TYPES.EXTRACT_MONTH,
+    extract_time: TRANSFORM_TYPES.EXTRACT_TIME,
+    extracttime: TRANSFORM_TYPES.EXTRACT_TIME,
+    format_time: TRANSFORM_TYPES.FORMAT_TIME,
+    formattime: TRANSFORM_TYPES.FORMAT_TIME,
+    calc_week: TRANSFORM_TYPES.CALC_WEEK,
+    calcweek: TRANSFORM_TYPES.CALC_WEEK,
+    calc_weekday: TRANSFORM_TYPES.CALC_WEEKDAY,
+    calcweekday: TRANSFORM_TYPES.CALC_WEEKDAY,
+    set_value: TRANSFORM_TYPES.SET_VALUE,
+    setvalue: TRANSFORM_TYPES.SET_VALUE,
+    concat: TRANSFORM_TYPES.CONCAT,
+    replace: TRANSFORM_TYPES.REPLACE,
+    formula: TRANSFORM_TYPES.FORMULA
+  };
+  if (typeMap[type]) return typeMap[type];
+  if (Object.values(TRANSFORM_TYPES).includes(type)) return type;
+  return type;
+};
+
+const inferSampleType = (value) => {
+  if (value === null || value === undefined || value === '') return '';
+  if (typeof value === 'boolean') return 'boolean';
+  if (typeof value === 'number') return Number.isInteger(value) ? 'integer' : 'double';
+  const text = trimText(value);
+  if (!text) return '';
+  if (!Number.isNaN(Number(text))) return text.includes('.') ? 'double' : 'integer';
+  if (!Number.isNaN(Date.parse(text))) return 'datetime';
+  return 'string';
+};
+
+const resolveFieldTypeFromInfo = (file = {}, fieldName = "") => {
+  const target = trimText(fieldName);
+  if (!target) return '';
+  const fieldInfoList = Array.isArray(file?.fieldInfoList) ? file.fieldInfoList : (Array.isArray(file?.field_info_list) ? file.field_info_list : []);
+  const matched = fieldInfoList.find((item) => {
+    const name = trimText(item?.fieldName || item?.field_name || item?.name);
+    const alias = trimText(item?.fieldAlias || item?.field_alias || item?.alias);
+    return name === target || alias === target;
   });
+  return trimText(matched?.fieldType || matched?.field_type || matched?.type);
+};
 
-  Object.keys(next).forEach((field) => {
-    if (!suggestions[field] || transforms[field]) {
-      delete next[field];
-    }
+const pickSampleValue = (rows = [], fieldName = "") => {
+  const target = trimText(fieldName);
+  if (!target) return '';
+  const matched = (Array.isArray(rows) ? rows : []).find((row) => {
+    const value = row?.[target];
+    return value !== null && value !== undefined && String(value).trim() !== '';
   });
+  const raw = matched?.[target] ?? '';
+  return raw === null || raw === undefined ? '' : String(raw);
+};
 
-  pendingTransformSuggestions.value = next;
+const toModelFieldListPayload = (model = null) => {
+  if (!model) return [];
+  const modelCode = trimText(model?.code || model?.modelCode);
+  const fields = Array.isArray(model?.fields) ? model.fields : [];
+  return fields.map((field, index) => {
+    const rawSeq = field?.seq;
+    const seq = Number.isFinite(Number(rawSeq)) ? Number(rawSeq) : (index + 1);
+    return {
+      modelCode,
+      fieldName: trimText(field?.name || field?.fieldName),
+      fieldType: trimText(field?.type || field?.fieldType),
+      fieldDesc: trimText(field?.description || field?.fieldDesc),
+      dataFormat: trimText(field?.format || field?.dataFormat),
+      dataExample: trimText(field?.example || field?.dataExample),
+      fieldBusinessType: trimText(field?.businessType || field?.fieldBusinessType),
+      isNull: field?.isNull !== undefined ? !!field.isNull : true,
+      seq
+    };
+  }).filter((field) => field.fieldName);
+};
+
+const toSourceFieldsPayload = () => {
+  const fileMap = (Array.isArray(props.store.uploadedFiles) ? props.store.uploadedFiles : []).reduce((acc, file) => {
+    const source = trimText(file?.source);
+    if (source) acc[source] = file;
+    return acc;
+  }, {});
+
+  return allSourceFields.value.map((field) => {
+    const sourceTable = trimText(field?.sourceId || field?.source);
+    const fieldName = trimText(field?.name);
+    const fieldKey = trimText(field?.key);
+    if (!sourceTable || !fieldName || !fieldKey) return null;
+    const sourceFile = fileMap[sourceTable] || {};
+    const sampleValue = pickSampleValue(sourceFile?.rows || [], fieldName);
+    const fieldType = resolveFieldTypeFromInfo(sourceFile, fieldName) || inferSampleType(sampleValue);
+    return { fieldKey, fieldName, sourceTable, fieldType: trimText(fieldType), sampleValue };
+  }).filter(Boolean);
+};
+
+const toSourceDataPayload = () => {
+  const sourceData = {};
+  (Array.isArray(props.store.uploadedFiles) ? props.store.uploadedFiles : []).forEach((file) => {
+    const sourceTable = trimText(file?.source);
+    if (!sourceTable) return;
+    sourceData[sourceTable] = (Array.isArray(file?.rows) ? file.rows : []).slice(0, 50).map((row) => (isPlainObject(row) ? row : {}));
+  });
+  return sourceData;
+};
+
+const toMappingsPayload = () => {
+  const mappings = {};
+  Object.entries(props.store.mappings || {}).forEach(([targetField, sourceKeys]) => {
+    const target = trimText(targetField);
+    if (!target) return;
+    const keys = toArray(sourceKeys).map((item) => trimText(item)).filter(Boolean);
+    if (keys.length > 0) mappings[target] = keys;
+  });
+  return mappings;
+};
+
+const buildGenerateSuggestionPayload = () => {
+  const model = selectedModel.value;
+  if (!model) return null;
+  return {
+    code: trimText(model?.code || model?.modelCode),
+    modelName: trimText(model?.name || model?.modelName),
+    modelDesc: trimText(model?.description || model?.modelDesc),
+    modelType: trimText(model?.modelType || 'business'),
+    referenceModelCode: trimText(model?.refStandardModel || model?.referenceModelCode),
+    factory: trimText(model?.tags?.vendor || model?.factory),
+    format: trimText(model?.tags?.standard || model?.format),
+    timeGranularity: trimText(model?.tags?.timeGranularity || model?.timeGranularity),
+    businessModelType: trimText(model?.tags?.type || model?.businessModelType),
+    involveCalc: model?.tags?.involveCalc !== undefined ? !!model.tags.involveCalc : !!model?.involveCalc,
+    fieldList: toModelFieldListPayload(model),
+    sourceFields: toSourceFieldsPayload(),
+    sourceData: toSourceDataPayload(),
+    mappings: toMappingsPayload(),
+    dslDefinitions: PROCESS_DSL_DEFINITIONS
+  };
+};
+
+const normalizeFilterConfig = (rawFilter) => {
+  if (!rawFilter) return null;
+  const filter = deepCamelize(rawFilter);
+  if (trimText(filter.mode).toLowerCase() === 'formula' || trimText(filter.formula)) {
+    return { mode: 'formula', operator: '', value: '', formula: trimText(filter.formula), conditions: [], logic: 'AND' };
+  }
+  const conditions = Array.isArray(filter.conditions)
+    ? filter.conditions.map((item) => ({ operator: trimText(item?.operator), value: trimText(item?.value) })).filter((item) => item.operator)
+    : [];
+  if (conditions.length > 0 || trimText(filter.mode).toLowerCase() === 'compound') {
+    return { mode: 'compound', operator: '', value: '', formula: '', conditions, logic: trimText(filter.logic).toUpperCase() === 'OR' ? 'OR' : 'AND' };
+  }
+  const operator = trimText(filter.operator);
+  if (!operator) return null;
+  return { mode: 'simple', operator, value: trimText(filter.value), formula: '', conditions: [], logic: 'AND' };
+};
+
+const normalizeTransformItem = (rawItem) => {
+  if (!rawItem) return null;
+  const item = deepCamelize(rawItem);
+  const paramValueList = Array.isArray(item.paramValue) ? item.paramValue : (Array.isArray(item.paramvalue) ? item.paramvalue : []);
+  const paramValue = isPlainObject(paramValueList[0]) ? deepCamelize(paramValueList[0]) : {};
+  const merged = { ...item, ...paramValue };
+  const type = normalizeTransformType(merged.type || merged.transformType || merged.transform || merged.abilityName);
+  if (!type) return null;
+  const normalized = { type };
+  if (merged.delimiter !== undefined) normalized.delimiter = trimText(merged.delimiter);
+  if (merged.fixedValue !== undefined || merged.value !== undefined) normalized.fixedValue = trimText(merged.fixedValue ?? merged.value);
+  if (merged.search !== undefined || merged.searchValue !== undefined) normalized.search = trimText(merged.search ?? merged.searchValue);
+  if (merged.replace !== undefined || merged.replaceValue !== undefined) normalized.replace = trimText(merged.replace ?? merged.replaceValue);
+  if (merged.formula !== undefined) normalized.formula = trimText(merged.formula);
+  if (merged.originType !== undefined) normalized.originType = trimText(merged.originType);
+  if (merged.targetType !== undefined) normalized.targetType = trimText(merged.targetType);
+  if (merged.inputFormat !== undefined) normalized.inputFormat = trimText(merged.inputFormat);
+  if (merged.outputFormat !== undefined) normalized.outputFormat = trimText(merged.outputFormat);
+  if (merged.precision !== undefined && merged.precision !== null && merged.precision !== "") normalized.precision = Number(merged.precision);
+  return normalized;
+};
+
+const normalizeTransformConfig = (rawTransform) => {
+  if (!rawTransform) return null;
+  const transform = deepCamelize(rawTransform);
+  const chainItems = Array.isArray(transform.chain) ? transform.chain : (Array.isArray(transform.steps) ? transform.steps : []);
+  if (chainItems.length > 0) {
+    const chain = chainItems.map((item) => normalizeTransformItem(item)).filter(Boolean);
+    if (chain.length > 0) return { chain };
+  }
+  if (Array.isArray(transform.rules) && transform.rules.length > 0) {
+    const rules = transform.rules.map((rule) => {
+      const base = normalizeTransformItem(rule);
+      if (!base) return null;
+      const operator = trimText(rule?.operator);
+      if (!operator) return null;
+      return { operator, value: trimText(rule?.value), ...base };
+    }).filter(Boolean);
+    if (rules.length > 0) return { rules };
+  }
+  return normalizeTransformItem(transform);
+};
+
+const normalizeSortConfig = (rawSort) => {
+  if (!rawSort) return null;
+  const sort = deepCamelize(rawSort);
+  const order = trimText(sort.order || sort.direction || sort.directions).toLowerCase();
+  if (!['asc', 'desc'].includes(order)) return null;
+  return { order };
+};
+
+const normalizeSuggestionOperations = (rawOperations) => {
+  const operations = deepCamelize(rawOperations || {});
+  return {
+    filter: normalizeFilterConfig(operations.filter),
+    transform: normalizeTransformConfig(operations.transform),
+    sort: normalizeSortConfig(operations.sort)
+  };
+};
+
+const hasMeaningfulOperations = (operations = {}) => !!(operations.filter || operations.transform || operations.sort);
+
+const hasFieldOperationConfigured = (fieldName) => {
+  const filter = filterConfigs[fieldName];
+  const hasFilter = !!(filter && ((filter.mode === "simple" && filter.operator) || (filter.mode === "formula" && filter.formula) || (filter.mode === "compound" && Array.isArray(filter.conditions) && filter.conditions.some((item) => item.operator))));
+  const transform = transforms[fieldName];
+  const hasTransform = !!(transform && ((Array.isArray(transform.chain) && transform.chain.length > 0) || (Array.isArray(transform.rules) && transform.rules.length > 0) || transform.type));
+  const hasSort = trimText(sortConfig.field) === trimText(fieldName);
+  return hasFilter || hasTransform || hasSort;
+};
+
+const toPendingSuggestions = (rawSuggestions = {}) => {
+  const suggestions = deepCamelize(rawSuggestions || {});
+  const targetFieldSet = new Set(targetModelFields.value.map((field) => trimText(field?.name)).filter(Boolean));
+  const next = {};
+  Object.entries(suggestions).forEach(([rawField, item]) => {
+    const fieldName = trimText(rawField);
+    if (!fieldName || !targetFieldSet.has(fieldName)) return;
+    const needAttention = item?.needAttention !== false;
+    if (!needAttention) return;
+    if (hasFieldOperationConfigured(fieldName)) return;
+    const operations = normalizeSuggestionOperations(item?.operations || item?.operation || {});
+    if (!hasMeaningfulOperations(operations)) return;
+    next[fieldName] = { suggestion: trimText(item?.hint || item?.message || '\u5efa\u8bae\u68c0\u67e5\u8be5\u5b57\u6bb5\u5904\u7406\u914d\u7f6e'), operations };
+  });
+  return next;
 };
 
 const hasPendingSuggestion = (fieldName) => pendingTransformSuggestions.value[fieldName] !== undefined;
@@ -1476,7 +1759,7 @@ const openSuggestionModal = (fieldName) => {
   transformSuggestionModal.show = true;
   transformSuggestionModal.field = fieldName;
   transformSuggestionModal.suggestion = suggestion.suggestion;
-  transformSuggestionModal.config = suggestion.config;
+  transformSuggestionModal.config = suggestion.operations;
 };
 
 const closeSuggestionModal = () => {
@@ -1486,14 +1769,34 @@ const closeSuggestionModal = () => {
   transformSuggestionModal.config = null;
 };
 
+const applySuggestionForField = (fieldName, operations = {}, withHistory = true) => {
+  let applied = false;
+  if (operations.filter) {
+    filterConfigs[fieldName] = JSON.parse(JSON.stringify(operations.filter));
+    if (withHistory) addHistory('filter', '\u7b5b\u9009', `${fieldName}: \u5e94\u7528\u667a\u80fd\u63a8\u8350\u7b5b\u9009`, fieldName);
+    applied = true;
+  }
+  if (operations.transform) {
+    transforms[fieldName] = JSON.parse(JSON.stringify(operations.transform));
+    if (withHistory) addHistory('transform', '\u6570\u636e\u8f6c\u6362', `${fieldName}: \u5e94\u7528\u667a\u80fd\u63a8\u8350\u8f6c\u6362`, fieldName);
+    applied = true;
+  }
+  if (operations.sort) {
+    sortConfig.field = fieldName;
+    sortConfig.order = operations.sort.order;
+    if (withHistory) addHistory('sort', '\u6392\u5e8f', `${fieldName} ${sortConfig.order === 'asc' ? '\u5347\u5e8f' : '\u964d\u5e8f'}(\u667a\u80fd\u63a8\u8350)`, fieldName);
+    applied = true;
+  }
+  if (applied) notifyOperationApplied('smart_recommend', fieldName);
+  return applied;
+};
+
 const confirmSuggestion = () => {
   const fieldName = transformSuggestionModal.field;
-  const config = transformSuggestionModal.config;
-  if (fieldName && config) {
-    transforms[fieldName] = config;
-    addHistory('transform', '数据转换', `${fieldName}: 应用推荐转换`, fieldName);
-    delete pendingTransformSuggestions.value[fieldName];
-    notifyOperationApplied('transform', fieldName);
+  const operations = transformSuggestionModal.config;
+  if (fieldName && operations) {
+    const applied = applySuggestionForField(fieldName, operations, true);
+    if (applied) delete pendingTransformSuggestions.value[fieldName];
   }
   closeSuggestionModal();
 };
@@ -1502,11 +1805,55 @@ const dismissSuggestion = () => {
   closeSuggestionModal();
 };
 
-const applyPresets = async (modelName) => {
-  await nextTick();
-  initFilters();
-  initPendingSuggestions(modelName);
-  demoInitialized.value = true;
+const applyAllSuggestions = () => {
+  const entries = Object.entries(pendingTransformSuggestions.value || {});
+  if (entries.length === 0) {
+    $warning('\u5f53\u524d\u6ca1\u6709\u53ef\u91c7\u7eb3\u7684\u667a\u80fd\u63a8\u8350');
+    return;
+  }
+  let appliedCount = 0;
+  entries.forEach(([fieldName, item]) => {
+    const applied = applySuggestionForField(fieldName, item?.operations || {}, true);
+    if (applied) appliedCount += 1;
+  });
+  pendingTransformSuggestions.value = {};
+  closeSuggestionModal();
+  if (appliedCount > 0) {
+    $success(`\u5df2\u91c7\u7eb3 ${appliedCount} \u6761\u667a\u80fd\u63a8\u8350`);
+  } else {
+    $warning('\u63a8\u8350\u9879\u65e0\u53ef\u5e94\u7528\u914d\u7f6e');
+  }
+};
+
+const generateSmartSuggestions = async () => {
+  if (suggestionLoading.value) return;
+  if (!canGenerateSuggestions.value) {
+    $warning('\u8bf7\u5148\u5b8c\u6210\u6a21\u578b\u9009\u62e9\u3001\u4e0a\u4f20\u6570\u636e\u548c\u5b57\u6bb5\u6620\u5c04\uff0c\u518d\u6267\u884c\u667a\u80fd\u63a8\u8350');
+    return;
+  }
+  const payload = buildGenerateSuggestionPayload();
+  if (!payload || payload.fieldList.length === 0 || payload.sourceFields.length === 0) {
+    $warning('\u7f3a\u5c11\u667a\u80fd\u63a8\u8350\u6240\u9700\u7684\u6a21\u578b\u5b57\u6bb5\u6216\u6e90\u5b57\u6bb5\u4fe1\u606f');
+    return;
+  }
+  suggestionLoading.value = true;
+  closeSuggestionModal();
+  try {
+    const response = await apiSystemService.generateProcessConfig(payload, { hideMsgTips: true });
+    const suggestions = response?.data?.suggestions || response?.data?.data?.suggestions || {};
+    const nextSuggestions = toPendingSuggestions(suggestions);
+    pendingTransformSuggestions.value = nextSuggestions;
+    if (Object.keys(nextSuggestions).length > 0) {
+      $success(`\u667a\u80fd\u63a8\u8350\u5b8c\u6210\uff0c\u8bc6\u522b\u5230 ${Object.keys(nextSuggestions).length} \u4e2a\u5f85\u786e\u8ba4\u5b57\u6bb5`);
+    } else {
+      $warning('\u667a\u80fd\u63a8\u8350\u5b8c\u6210\uff0c\u5f53\u524d\u672a\u53d1\u73b0\u9700\u8981\u5904\u7406\u7684\u5b57\u6bb5');
+    }
+  } catch (error) {
+    const message = trimText(error?.response?.data?.msg || error?.data?.msg || error?.message);
+    $error(message || '\u667a\u80fd\u63a8\u8350\u8c03\u7528\u5931\u8d25');
+  } finally {
+    suggestionLoading.value = false;
+  }
 };
 
 const isFilterActive = (field) => {
@@ -1928,31 +2275,27 @@ watch([showRawPreview, targetModelFields, previewData], async () => {
 });
 
 watch(
-  () => selectedModelName.value,
-  (newModel, oldModel) => {
-    if (oldModel && oldModel !== newModel) {
-      demoInitialized.value = false;
-      pendingTransformSuggestions.value = {};
-    }
+  [() => selectedModelName.value, () => props.store.uploadedFiles.length],
+  () => {
+    pendingTransformSuggestions.value = {};
+    closeSuggestionModal();
   }
 );
 
 watch(
-  [() => selectedModelName.value, () => props.store.uploadedFiles.length],
-  async ([modelName, fileCount]) => {
-    if (modelName && fileCount > 0 && !demoInitialized.value) {
-      await applyPresets(modelName);
-    }
+  () => props.store.mappings,
+  () => {
+    pendingTransformSuggestions.value = {};
+    closeSuggestionModal();
   },
-  { immediate: true }
+  { deep: true }
 );
 
 watch(
-  [() => props.store.currentStep, () => selectedModelName.value],
-  async ([step, modelName]) => {
-    if (step === 2 && modelName) {
-      await nextTick();
-      initPendingSuggestions(modelName);
+  () => props.store.currentStep,
+  (step) => {
+    if (step !== 2) {
+      closeSuggestionModal();
     }
   }
 );
