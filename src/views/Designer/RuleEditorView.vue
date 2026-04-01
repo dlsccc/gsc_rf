@@ -947,6 +947,23 @@ watch(
   }
 );
 
+watch(
+  () => ({
+    filters: pipelineStore.filters,
+    transforms: pipelineStore.transforms,
+    sortField: pipelineStore.sortConfig.field,
+    sortOrder: pipelineStore.sortConfig.order,
+    dedupEnabled: pipelineStore.dedupConfig.enabled,
+    dedupKeep: pipelineStore.dedupConfig.keep,
+    dedupFields: pipelineStore.dedupConfig.fields
+  }),
+  () => {
+    if (Number(pipelineStore.currentStep) !== 2) return;
+    scheduleSqlDebug();
+  },
+  { deep: true }
+);
+
 onUnmounted(() => {
   clearSqlDebugTimer();
   sqlDebugRequestSeq.value += 1;
