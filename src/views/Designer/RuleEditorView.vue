@@ -600,7 +600,19 @@ const buildUploadedFilesFromTables = (tables = []) => {
   });
 };
 
-const parseMappingsAndConfigsFromRules = (rules = []) => {
+const buildSourceTableAliasMap = (tables = []) => {
+  return tables.slice(0, 2).reduce((acc, table, index) => {
+    const alias = index === 0 ? 'table_a' : 'table_b';
+    const sourceId = pickValue(table?.sourceId, table?.source_id);
+    if (sourceId) {
+      acc[toText(sourceId)] = alias;
+    }
+    acc[alias] = alias;
+    return acc;
+  }, {});
+};
+
+const parseMappingsAndConfigsFromRules = (rules = [], sourceAliasMap = {}) => {
   const mappings = {};
   const filters = {};
   const transforms = {};
@@ -615,7 +627,8 @@ const parseMappingsAndConfigsFromRules = (rules = []) => {
     const sourceKeys = [];
 
     inputs.forEach((inputItem) => {
-      const source = pickValue(inputItem?.sourceTable, inputItem?.source_table);
+      const sourceRaw = pickValue(inputItem?.sourceTable, inputItem?.source_table);
+      const source = pickValue(sourceAliasMap?.[toText(sourceRaw)], sourceRaw);
       const columns = toArrayValue(inputItem?.keyColumns || inputItem?.key_columns);
       columns.forEach((column) => {
         const col = toText(column);
@@ -781,7 +794,8 @@ const applyRuleJsonToPipeline = (ruleJson = {}) => {
     pipelineStore.setUploadedFiles(uploadedFiles);
   }
 
-  const parsed = parseMappingsAndConfigsFromRules(sections.rules);
+  const sourceAliasMap = buildSourceTableAliasMap(sections.tables);
+  const parsed = parseMappingsAndConfigsFromRules(sections.rules, sourceAliasMap);
   pipelineStore.setMappings(parsed.mappings);
 
   const joinConfig = parseJoinConfigFromDsl(sections.joinConfig);
