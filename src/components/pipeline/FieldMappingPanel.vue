@@ -330,6 +330,13 @@ const isMultiMapped = (targetField) => {
   return Array.isArray(sources) && sources.length > 1;
 };
 
+const getDisplayFieldName = (value) => {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  const parts = text.split('.');
+  return parts.length > 1 ? parts.slice(1).join('.') : text;
+};
+
 const getMappedSources = (targetField) => {
   const keys = props.store.mappings[targetField] || [];
   return keys.map((key) => {
@@ -343,7 +350,7 @@ const getMappedSources = (targetField) => {
 
     return {
       key,
-      name: key,
+      name: getDisplayFieldName(key),
       sourceId: key.startsWith('table_b') ? 'table_b' : 'table_a'
     };
   });
