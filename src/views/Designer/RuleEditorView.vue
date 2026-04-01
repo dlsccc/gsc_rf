@@ -222,10 +222,21 @@ const extractRuleIdFromSaveResponse = (saveResponse) => {
 
 const toArrayValue = (value) => (Array.isArray(value) ? value : []);
 
+const isPlainObject = (value) => Object.prototype.toString.call(value) === '[object Object]';
 
 const normalizeSqlList = (value) => {
   if (Array.isArray(value)) {
-    return value.map((item) => toText(item)).filter(Boolean);
+    return value.flatMap((item) => normalizeSqlList(item));
+  }
+
+  if (isPlainObject(value)) {
+    return normalizeSqlList(
+      value.sqlList
+      ?? value.sql_list
+      ?? value.sql
+      ?? value.data
+      ?? value.result
+    );
   }
 
   const text = toText(value);
@@ -235,8 +246,17 @@ const normalizeSqlList = (value) => {
     try {
       const parsed = JSON.parse(text);
       if (Array.isArray(parsed)) {
-        return parsed.map((item) => toText(item)).filter(Boolean);
+        return parsed.flatMap((item) => normalizeSqlList(item));
       }
+    } catch {
+      // keep raw text fallback
+    }
+  }
+
+  if (text.startsWith('{') && text.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(text);
+      return normalizeSqlList(parsed);
     } catch {
       // keep raw text fallback
     }
@@ -250,8 +270,17 @@ const extractSqlListFromSaveResponse = (saveResponse) => {
   const candidates = [
     payload?.sqlList,
     payload?.sql_list,
+    payload?.sql,
+    payload?.data?.sqlList,
+    payload?.data?.sql_list,
+    payload?.data?.sql,
     payload?.data,
     saveResponse?.sqlList,
+    saveResponse?.sql_list,
+    saveResponse?.sql,
+    saveResponse?.data?.sqlList,
+    saveResponse?.data?.sql_list,
+    saveResponse?.data?.sql,
     saveResponse?.data
   ];
 
