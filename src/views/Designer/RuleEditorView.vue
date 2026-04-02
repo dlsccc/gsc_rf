@@ -579,11 +579,18 @@ const readRuleJsonSections = (ruleJson = {}) => {
   };
 };
 
+const buildTableAliasByIndex = (index) => {
+  if (index >= 0 && index < 26) {
+    return `table_${String.fromCharCode(97 + index)}`;
+  }
+  return `table_${index + 1}`;
+};
+
 const buildUploadedFilesFromTables = (tables = []) => {
-  return tables.slice(0, 2).map((table, index) => {
-    const fallbackSource = index === 0 ? 'table_a' : 'table_b';
+  return tables.map((table, index) => {
+    const fallbackSource = buildTableAliasByIndex(index);
     const rawSource = pickValue(table?.sourceId, table?.source_id);
-    const source = ['table_a', 'table_b'].includes(rawSource) ? rawSource : fallbackSource;
+    const source = rawSource || fallbackSource;
     const edmId = pickValue(table?.edmId, table?.edmID, table?.fileCode);
     const columns = toArrayValue(table?.columns);
     const fieldInfoList = toArrayValue(table?.fieldInfoList || table?.field_info_list);
@@ -608,13 +615,15 @@ const buildUploadedFilesFromTables = (tables = []) => {
 };
 
 const buildSourceTableAliasMap = (tables = []) => {
-  return tables.slice(0, 2).reduce((acc, table, index) => {
-    const alias = index === 0 ? 'table_a' : 'table_b';
+  return tables.reduce((acc, table, index) => {
+    const alias = buildTableAliasByIndex(index);
     const sourceId = pickValue(table?.sourceId, table?.source_id);
     if (sourceId) {
       acc[toText(sourceId)] = alias;
+      acc[toText(sourceId).toLowerCase()] = alias;
     }
     acc[alias] = alias;
+    acc[alias.toLowerCase()] = alias;
     return acc;
   }, {});
 };
@@ -731,27 +740,51 @@ const parseMappingsAndConfigsFromRules = (rules = [], sourceAliasMap = {}) => {
   return { mappings, filters, transforms, sortConfig };
 };
 
-const parseJoinConfigFromDsl = (joinDsl) => {
-  const fallback = { type: 'left', fields: [{ leftField: '', rightField: '' }] };
-  if (!joinDsl) return fallback;
+const parseJoinConfigFromDsl = (joinDsl, sourceAliasMap = {}) => {
+  const fallbackFields = [{ leftField: '', rightField: '' }];
+  const list = toArrayValue(joinDsl);
+  if (list.length === 0) {
+    return { type: 'left', fields: fallbackFields, links: [] };
+  }
 
-  const inputs = toArrayValue(joinDsl?.ruleInput || joinDsl?.rule_input);
-  if (inputs.length < 2) return fallback;
+  const links = list.map((item, index) => {
+    const inputs = toArrayValue(item?.ruleInput || item?.rule_input);
+    const leftInput = inputs[0] || {};
+    const rightInput = inputs[1] || {};
 
-  const leftColumns = toArrayValue(inputs[0]?.keyColumns || inputs[0]?.key_columns).map((item) => toText(item)).filter(Boolean);
-  const rightColumns = toArrayValue(inputs[1]?.keyColumns || inputs[1]?.key_columns).map((item) => toText(item)).filter(Boolean);
-  const maxLength = Math.max(leftColumns.length, rightColumns.length, 1);
-  const fields = Array.from({ length: maxLength }, (_, index) => ({
-    leftField: leftColumns[index] || '',
-    rightField: rightColumns[index] || ''
-  }));
+    const leftRaw = pickValue(leftInput?.sourceTable, leftInput?.source_table, 'table_a');
+    const rightRaw = pickValue(rightInput?.sourceTable, rightInput?.source_table, buildTableAliasByIndex(index + 1));
+    const leftSource = pickValue(sourceAliasMap?.[toText(leftRaw)], sourceAliasMap?.[toText(leftRaw).toLowerCase()], leftRaw);
+    const rightSource = pickValue(sourceAliasMap?.[toText(rightRaw)], sourceAliasMap?.[toText(rightRaw).toLowerCase()], rightRaw);
 
-  const params = toParamMap(joinDsl?.rule?.params || []);
-  const joinType = pickValue(params.join_type, 'left').toLowerCase();
+    const leftColumns = toArrayValue(leftInput?.keyColumns || leftInput?.key_columns).map((value) => toText(value)).filter(Boolean);
+    const rightColumns = toArrayValue(rightInput?.keyColumns || rightInput?.key_columns).map((value) => toText(value)).filter(Boolean);
+    const maxLength = Math.max(leftColumns.length, rightColumns.length, 1);
+    const fields = Array.from({ length: maxLength }, (_, fieldIndex) => ({
+      leftField: leftColumns[fieldIndex] || '',
+      rightField: rightColumns[fieldIndex] || ''
+    }));
 
+    const params = toParamMap(item?.rule?.params || []);
+    const joinType = pickValue(params.join_type, 'left').toLowerCase();
+
+    return {
+      leftSource: toText(leftSource) || 'table_a',
+      rightSource: toText(rightSource),
+      type: ['inner', 'left', 'full'].includes(joinType) ? joinType : 'left',
+      fields
+    };
+  }).filter((item) => item.rightSource);
+
+  if (links.length === 0) {
+    return { type: 'left', fields: fallbackFields, links: [] };
+  }
+
+  const first = links[0];
   return {
-    type: ['inner', 'left', 'full'].includes(joinType) ? joinType : 'left',
-    fields
+    type: first.type,
+    fields: Array.isArray(first.fields) && first.fields.length > 0 ? first.fields : fallbackFields,
+    links
   };
 };
 
@@ -805,9 +838,17 @@ const applyRuleJsonToPipeline = (ruleJson = {}) => {
   const parsed = parseMappingsAndConfigsFromRules(sections.rules, sourceAliasMap);
   pipelineStore.setMappings(parsed.mappings);
 
-  const joinConfig = parseJoinConfigFromDsl(sections.joinConfig);
+  const joinConfig = parseJoinConfigFromDsl(sections.joinConfig, sourceAliasMap);
   pipelineStore.joinConfig.type = joinConfig.type;
   pipelineStore.joinConfig.fields = joinConfig.fields;
+  pipelineStore.joinConfig.links = Array.isArray(joinConfig.links)
+    ? joinConfig.links.map((item) => ({
+      leftSource: item.leftSource,
+      rightSource: item.rightSource,
+      type: item.type,
+      fields: toArrayValue(item.fields).map((pair) => ({ leftField: pair.leftField || '', rightField: pair.rightField || '' }))
+    }))
+    : [];
 
   Object.keys(pipelineStore.filters).forEach((key) => delete pipelineStore.filters[key]);
   Object.entries(parsed.filters).forEach(([field, config]) => {
@@ -885,9 +926,10 @@ const loadRules = async () => {
 
 const resolveRuleInputTablesForSave = () => {
   if (pipelineStore.uploadedFiles.length > 0) {
-    return RULE_INPUT_TABLES
-      .slice(0, Math.min(pipelineStore.uploadedFiles.length, 2))
-      .map((table) => ({ ...table }));
+    return pipelineStore.uploadedFiles.map((file, index) => ({
+      id: toText(file?.source) || `table_${index + 1}`,
+      label: toText(file?.name) || `数据表${index + 1}`
+    }));
   }
   return [{ ...RULE_INPUT_TABLES[0] }];
 };

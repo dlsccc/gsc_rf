@@ -1,4 +1,4 @@
-﻿import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { defineStore } from 'pinia';
 import { PIPELINE_STEPS, SORT_ORDER, DEDUP_KEEP, JOIN_TYPES } from '@/utils/constants/pipeline.js';
 import { buildPreviewRows, buildProcessedRows } from '@/utils/useDataPipeline.js';
@@ -20,7 +20,8 @@ export const usePipelineStore = defineStore('pipeline', () => {
 
   const joinConfig = reactive({
     type: JOIN_TYPES.LEFT,
-    fields: [{ leftField: '', rightField: '' }]
+    fields: [{ leftField: '', rightField: '' }],
+    links: []
   });
 
   const writeConfig = reactive({
@@ -124,28 +125,65 @@ export const usePipelineStore = defineStore('pipeline', () => {
     mappings.value = { ...(nextMappings || {}) };
   };
 
+  const resolveSourceAlias = (index) => {
+    if (index >= 0 && index < 26) {
+      return `table_${String.fromCharCode(97 + index)}`;
+    }
+    return `table_${index + 1}`;
+  };
+
   const normalizeUploadedFiles = () => {
-    uploadedFiles.value = uploadedFiles.value
-      .slice(0, 2)
-      .map((file, index) => ({
-        ...file,
-        source: index === 0 ? 'table_a' : 'table_b'
-      }));
+    uploadedFiles.value = uploadedFiles.value.map((file, index) => ({
+      ...file,
+      source: resolveSourceAlias(index)
+    }));
+  };
+
+  const createDefaultJoinFields = (mainFile, rightFile) => {
+    const commonFields = (mainFile?.fields || []).filter((field) => (rightFile?.fields || []).includes(field));
+    if (commonFields.length > 0) {
+      return [{ leftField: commonFields[0], rightField: commonFields[0] }];
+    }
+    return [{ leftField: '', rightField: '' }];
   };
 
   const syncJoinFields = () => {
     if (uploadedFiles.value.length < 2) {
+      joinConfig.links = [];
+      joinConfig.type = JOIN_TYPES.LEFT;
       joinConfig.fields = [{ leftField: '', rightField: '' }];
       return;
     }
 
-    const [tableA, tableB] = uploadedFiles.value;
-    const commonFields = (tableA?.fields || []).filter((field) => (tableB?.fields || []).includes(field));
-    if (commonFields.length > 0) {
-      joinConfig.fields = [{ leftField: commonFields[0], rightField: commonFields[0] }];
+    const [mainTable, ...secondaryTables] = uploadedFiles.value;
+    const previousLinks = Array.isArray(joinConfig.links) ? joinConfig.links : [];
+
+    joinConfig.links = secondaryTables.map((rightTable) => {
+      const previous = previousLinks.find((item) => item?.rightSource === rightTable?.source) || null;
+      const previousFields = Array.isArray(previous?.fields)
+        ? previous.fields.filter((item) => item?.leftField || item?.rightField)
+        : [];
+
+      return {
+        leftSource: mainTable?.source || 'table_a',
+        rightSource: rightTable?.source || '',
+        type: previous?.type || joinConfig.type || JOIN_TYPES.LEFT,
+        fields: previousFields.length > 0
+          ? previousFields.map((item) => ({ leftField: item.leftField || '', rightField: item.rightField || '' }))
+          : createDefaultJoinFields(mainTable, rightTable)
+      };
+    });
+
+    const firstLink = joinConfig.links[0];
+    if (firstLink) {
+      joinConfig.type = firstLink.type || JOIN_TYPES.LEFT;
+      joinConfig.fields = Array.isArray(firstLink.fields) && firstLink.fields.length > 0
+        ? firstLink.fields.map((item) => ({ leftField: item.leftField || '', rightField: item.rightField || '' }))
+        : [{ leftField: '', rightField: '' }];
       return;
     }
 
+    joinConfig.type = JOIN_TYPES.LEFT;
     joinConfig.fields = [{ leftField: '', rightField: '' }];
   };
 
@@ -168,15 +206,12 @@ export const usePipelineStore = defineStore('pipeline', () => {
   };
 
   const uploadLocalFiles = async (fileList) => {
-    const availableSlots = Math.max(0, 2 - uploadedFiles.value.length);
-    if (availableSlots === 0) return;
-
-    const files = Array.from(fileList || []).slice(0, availableSlots);
+    const files = Array.from(fileList || []);
     if (files.length === 0) return;
 
     const parsed = await Promise.all(
       files.map((file, index) => {
-        const source = uploadedFiles.value.length + index === 0 ? 'table_a' : 'table_b';
+        const source = resolveSourceAlias(uploadedFiles.value.length + index);
         return parseLocalFile(file, source);
       })
     );
@@ -294,6 +329,7 @@ export const usePipelineStore = defineStore('pipeline', () => {
     dedupConfig.keep = DEDUP_KEEP.FIRST;
     joinConfig.type = JOIN_TYPES.LEFT;
     joinConfig.fields = [{ leftField: '', rightField: '' }];
+    joinConfig.links = [];
     writeConfig.mode = 'append';
     writeConfig.deduplication = false;
     writeConfig.dedupFields = [];
@@ -347,7 +383,3 @@ export const usePipelineStore = defineStore('pipeline', () => {
     resetPipeline
   };
 });
-
-
-
-

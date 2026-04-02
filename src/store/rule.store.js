@@ -65,14 +65,13 @@ export const normalizeRuleInputTables = (rule) => {
 
   const tables = rule.inputTables
     .map((table, index) => {
-      const fallback = RULE_INPUT_TABLES[index] || RULE_INPUT_TABLES[RULE_INPUT_TABLES.length - 1];
+      const fallback = RULE_INPUT_TABLES[index] || { id: `table_${index + 1}`, label: `数据表${index + 1}` };
       return {
         id: table && table.id ? String(table.id) : fallback.id,
         label: table && String(table.label || '').trim() ? String(table.label).trim() : fallback.label
       };
     })
-    .filter((table, index, arr) => table.id && arr.findIndex((item) => item.id === table.id) === index)
-    .slice(0, 2);
+    .filter((table, index, arr) => table.id && arr.findIndex((item) => item.id === table.id) === index);
 
   if (tables.length === 0) {
     return [{ ...RULE_INPUT_TABLES[0] }];
@@ -88,14 +87,13 @@ const ruleJsonToInputTables = (ruleJson = {}) => {
     .map((item, index) => {
       const sourceId = toText(item?.sourceId || item?.source_id);
       if (!sourceId) return null;
-      const fallback = RULE_INPUT_TABLES[index] || RULE_INPUT_TABLES[RULE_INPUT_TABLES.length - 1];
+      const fallback = RULE_INPUT_TABLES[index] || { id: `table_${index + 1}`, label: `数据表${index + 1}` };
       return {
         id: sourceId,
         label: toText(item?.sourceName || item?.source_name) || fallback.label || sourceId
       };
     })
-    .filter(Boolean)
-    .slice(0, 2);
+    .filter(Boolean);
 
   if (sourceTables.length === 0) {
     return [{ ...RULE_INPUT_TABLES[0] }];
@@ -148,7 +146,7 @@ export const mapApiRuleToEntity = (item = {}, projectId) => {
   const parsedInputTables = Array.isArray(fromRuleInput)
     ? fromRuleInput.map((tableId, index) => ({
       id: toText(tableId),
-      label: RULE_INPUT_TABLES[index]?.label || toText(tableId)
+      label: RULE_INPUT_TABLES[index]?.label || `数据表${index + 1}`
     })).filter((table) => table.id)
     : [];
 

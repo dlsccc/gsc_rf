@@ -828,83 +828,139 @@ const canGenerateSuggestions = computed(() => {
   return hasModel && hasFiles && hasMappings;
 });
 
-const tableAData = computed(() => {
-  const file = props.store.uploadedFiles.find((item) => item.source === 'table_a');
-  if (!file) return [];
-
-  return (file.rows || []).map((row) => {
-    const next = {};
-    (file.fields || []).forEach((field) => {
-      next[`table_a.${field}`] = row[field];
-    });
-    return next;
-  });
+const sourceFiles = computed(() => {
+  return Array.isArray(props.store.uploadedFiles) ? props.store.uploadedFiles : [];
 });
 
-const tableBData = computed(() => {
-  const file = props.store.uploadedFiles.find((item) => item.source === 'table_b');
-  if (!file) return [];
+const fileRowsBySource = computed(() => {
+  return sourceFiles.value.reduce((acc, file) => {
+    const source = String(file?.source || '').trim();
+    if (!source) return acc;
 
-  return (file.rows || []).map((row) => {
-    const next = {};
-    (file.fields || []).forEach((field) => {
-      next[`table_b.${field}`] = row[field];
+    const rows = (file?.rows || []).map((row) => {
+      const next = {};
+      (file?.fields || []).forEach((field) => {
+        next[`${source}.${field}`] = row?.[field];
+      });
+      return next;
     });
-    return next;
-  });
+
+    acc[source] = rows;
+    return acc;
+  }, {});
 });
 
-const checkJoinMatch = (rowA, rowB) => {
-  return (props.store.joinConfig.fields || []).every((pair) => {
+const normalizeJoinType = (type) => {
+  const value = String(type || '').trim().toLowerCase();
+  return ['inner', 'left', 'full'].includes(value) ? value : 'left';
+};
+
+const normalizeJoinFields = (fields = []) => {
+  const list = (Array.isArray(fields) ? fields : []).filter((item) => item?.leftField || item?.rightField);
+  if (list.length > 0) {
+    return list.map((item) => ({ leftField: item.leftField || '', rightField: item.rightField || '' }));
+  }
+  return [{ leftField: '', rightField: '' }];
+};
+
+const joinLinks = computed(() => {
+  const links = Array.isArray(props.store.joinConfig?.links) ? props.store.joinConfig.links : [];
+  if (links.length > 0) {
+    return links;
+  }
+
+  if (sourceFiles.value.length < 2) {
+    return [];
+  }
+
+  return [{
+    leftSource: sourceFiles.value[0]?.source || '',
+    rightSource: sourceFiles.value[1]?.source || '',
+    type: props.store.joinConfig?.type || 'left',
+    fields: normalizeJoinFields(props.store.joinConfig?.fields)
+  }];
+});
+
+const isJoinMatch = (leftRow, rightRow, link) => {
+  const leftSource = String(link?.leftSource || '').trim();
+  const rightSource = String(link?.rightSource || '').trim();
+  const pairs = normalizeJoinFields(link?.fields);
+
+  return pairs.every((pair) => {
     if (!pair.leftField || !pair.rightField) return true;
-    return rowA[`table_a.${pair.leftField}`] === rowB[`table_b.${pair.rightField}`];
+    return leftRow?.[`${leftSource}.${pair.leftField}`] === rightRow?.[`${rightSource}.${pair.rightField}`];
   });
 };
 
-const previewData = computed(() => {
-  if (props.store.uploadedFiles.length < 2) {
-    return tableAData.value;
-  }
+const buildBlankRow = (keys = []) => {
+  return keys.reduce((acc, key) => {
+    acc[key] = '';
+    return acc;
+  }, {});
+};
+
+const applyJoin = (leftRows = [], rightRows = [], link) => {
+  if (leftRows.length === 0) return [];
+
+  const joinType = normalizeJoinType(link?.type);
+  const rightMatched = new Set();
+  const leftKeys = [...new Set(leftRows.flatMap((row) => Object.keys(row || {})))];
+  const rightKeys = [...new Set(rightRows.flatMap((row) => Object.keys(row || {})))];
+  const rightBlank = buildBlankRow(rightKeys);
+  const leftBlank = buildBlankRow(leftKeys);
 
   const result = [];
-  const joinType = props.store.joinConfig.type || 'left';
 
-  if (['left', 'inner', 'full'].includes(joinType)) {
-    tableAData.value.forEach((rowA) => {
-      const matchingB = tableBData.value.find((rowB) => checkJoinMatch(rowA, rowB));
-      if (matchingB || joinType === 'left') {
-        const merged = { ...rowA };
-        if (matchingB) {
-          Object.keys(matchingB).forEach((key) => {
-            merged[key] = matchingB[key];
-          });
-        } else {
-          const bFile = props.store.uploadedFiles.find((item) => item.source === 'table_b');
-          (bFile?.fields || []).forEach((field) => {
-            merged[`table_b.${field}`] = '';
-          });
-        }
-        result.push(merged);
-      }
-    });
-  }
+  leftRows.forEach((leftRow) => {
+    const matchIndex = rightRows.findIndex((rightRow) => isJoinMatch(leftRow, rightRow, link));
+    const matchedRow = matchIndex >= 0 ? rightRows[matchIndex] : null;
+
+    if (matchedRow) {
+      rightMatched.add(matchIndex);
+      result.push({ ...leftRow, ...matchedRow });
+      return;
+    }
+
+    if (joinType === 'left' || joinType === 'full') {
+      result.push({ ...leftRow, ...rightBlank });
+    }
+  });
 
   if (joinType === 'full') {
-    tableBData.value.forEach((rowB) => {
-      const matchingA = tableAData.value.find((rowA) => checkJoinMatch(rowA, rowB));
-      if (!matchingA) {
-        const merged = {};
-        const aFile = props.store.uploadedFiles.find((item) => item.source === 'table_a');
-        (aFile?.fields || []).forEach((field) => {
-          merged[`table_a.${field}`] = '';
-        });
-        Object.keys(rowB).forEach((key) => {
-          merged[key] = rowB[key];
-        });
-        result.push(merged);
-      }
+    rightRows.forEach((rightRow, index) => {
+      if (rightMatched.has(index)) return;
+      result.push({ ...leftBlank, ...rightRow });
     });
   }
+
+  if (joinType === 'inner') {
+    return result;
+  }
+
+  return result;
+};
+
+const previewData = computed(() => {
+  if (sourceFiles.value.length === 0) {
+    return [];
+  }
+
+  const mainSource = String(sourceFiles.value[0]?.source || '').trim();
+  if (!mainSource) {
+    return [];
+  }
+
+  let result = [...(fileRowsBySource.value[mainSource] || [])];
+  if (sourceFiles.value.length < 2) {
+    return result;
+  }
+
+  joinLinks.value.forEach((link) => {
+    const rightSource = String(link?.rightSource || '').trim();
+    if (!rightSource) return;
+    const rightRows = fileRowsBySource.value[rightSource] || [];
+    result = applyJoin(result, rightRows, link);
+  });
 
   return result;
 });
@@ -922,12 +978,26 @@ const getDisplayFieldName = (value) => {
   return parts.length > 1 ? parts.slice(1).join('.') : text;
 };
 
+const inferSourceIdFromKey = (key) => {
+  const text = String(key || '').trim();
+  if (!text) return '';
+  const dotIndex = text.indexOf('.');
+  if (dotIndex > 0) {
+    return text.slice(0, dotIndex);
+  }
+  const sourceField = allSourceFields.value.find((item) => item.key === text);
+  if (sourceField?.sourceId) {
+    return sourceField.sourceId;
+  }
+  return String(sourceFiles.value[0]?.source || '').trim();
+};
+
 const getMappedSources = (targetField) => {
   const keys = props.store.mappings[targetField] || [];
   return keys.map((key) => {
     const field = allSourceFields.value.find((item) => item.key === key);
     if (field) return field;
-    return { key, name: getDisplayFieldName(key), sourceId: key.startsWith('table_b') ? 'table_b' : 'table_a' };
+    return { key, name: getDisplayFieldName(key), sourceId: inferSourceIdFromKey(key) };
   });
 };
 
@@ -994,8 +1064,14 @@ const getSourceValue = (row, name) => {
   const field = allSourceFields.value.find((item) => item.name === name);
   if (field && row[field.key] !== undefined) return row[field.key];
 
-  if (row[`table_a.${name}`] !== undefined) return row[`table_a.${name}`];
-  if (row[`table_b.${name}`] !== undefined) return row[`table_b.${name}`];
+  for (const file of sourceFiles.value) {
+    const source = String(file?.source || '').trim();
+    if (!source) continue;
+    const sourceKey = `${source}.${name}`;
+    if (row[sourceKey] !== undefined) {
+      return row[sourceKey];
+    }
+  }
   return '';
 };
 
@@ -1018,8 +1094,14 @@ const evalFormula = (formula, ctx) => {
       return row[sourceField.key] ?? '';
     }
     if (row[name] !== undefined) return row[name];
-    if (row[`table_a.${name}`] !== undefined) return row[`table_a.${name}`];
-    if (row[`table_b.${name}`] !== undefined) return row[`table_b.${name}`];
+    for (const file of sourceFiles.value) {
+      const source = String(file?.source || '').trim();
+      if (!source) continue;
+      const sourceKey = `${source}.${name}`;
+      if (row[sourceKey] !== undefined) {
+        return row[sourceKey];
+      }
+    }
     return '';
   };
 

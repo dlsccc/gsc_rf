@@ -56,15 +56,25 @@ const getModelCode = (selectedModel) => {
   );
 };
 
-const sourceOrder = {
-  table_a: 0,
-  table_b: 1
+const resolveSourceOrder = (source) => {
+  const value = trimText(source).toLowerCase();
+  const alphaMatch = value.match(/^table_([a-z])$/);
+  if (alphaMatch) {
+    return alphaMatch[1].charCodeAt(0) - 97;
+  }
+
+  const numberMatch = value.match(/^table_(\d+)$/);
+  if (numberMatch) {
+    return Number(numberMatch[1]) - 1;
+  }
+
+  return Number.MAX_SAFE_INTEGER;
 };
 
 const toSourceFiles = (uploadedFiles = []) => {
   return [...uploadedFiles].sort((a, b) => {
-    const oa = sourceOrder[a?.source] ?? 99;
-    const ob = sourceOrder[b?.source] ?? 99;
+    const oa = resolveSourceOrder(a?.source);
+    const ob = resolveSourceOrder(b?.source);
     return oa - ob;
   });
 };
@@ -429,6 +439,7 @@ const buildSourceAliasToIdMap = (sourceFiles = [], tablesDsl = []) => {
     const alias = trimText(file?.source);
     const sourceId = trimText(tablesDsl?.[index]?.source_id);
     setAlias(alias, sourceId);
+    setAlias(`table_${index + 1}`, sourceId);
   });
 
   setAlias('table_a', tablesDsl?.[0]?.source_id);
@@ -467,12 +478,52 @@ const normalizeJoinType = (type) => {
   return allowed.includes(value) ? value : 'left';
 };
 
+const normalizeJoinLinks = (joinConfig = {}, sourceFiles = []) => {
+  if (sourceFiles.length < 2) return [];
+
+  const [mainFile, ...secondaryFiles] = sourceFiles;
+  const configuredLinks = Array.isArray(joinConfig?.links) ? joinConfig.links : [];
+
+  if (configuredLinks.length > 0) {
+    return configuredLinks
+      .map((link, index) => {
+        const rightSource = trimText(link?.rightSource) || trimText(secondaryFiles[index]?.source);
+        if (!rightSource) return null;
+
+        const rightFile = sourceFiles.find((item) => trimText(item?.source) === rightSource) || secondaryFiles[index];
+        const pairs = (Array.isArray(link?.fields) ? link.fields : []).filter((item) => item?.leftField || item?.rightField);
+        const fallbackPairs = defaultJoinFields(mainFile?.fields || [], rightFile?.fields || []);
+
+        return {
+          leftSource: trimText(link?.leftSource) || trimText(mainFile?.source) || 'table_a',
+          rightSource,
+          type: normalizeJoinType(link?.type || joinConfig?.type),
+          fields: pairs.length > 0 ? pairs : fallbackPairs
+        };
+      })
+      .filter(Boolean);
+  }
+
+  return secondaryFiles.map((rightFile, index) => {
+    const fallbackPairs = defaultJoinFields(mainFile?.fields || [], rightFile?.fields || []);
+    const configuredPairs = index === 0
+      ? (Array.isArray(joinConfig?.fields) ? joinConfig.fields.filter((item) => item?.leftField || item?.rightField) : [])
+      : [];
+
+    return {
+      leftSource: trimText(mainFile?.source) || 'table_a',
+      rightSource: trimText(rightFile?.source),
+      type: normalizeJoinType(joinConfig?.type),
+      fields: configuredPairs.length > 0 ? configuredPairs : fallbackPairs
+    };
+  });
+};
+
 const buildJoinDsl = (uploadedFiles = [], joinConfig = {}, sourceAliasToId = {}) => {
   const sourceFiles = toSourceFiles(uploadedFiles);
   if (sourceFiles.length < 2) return undefined;
 
-  const tableA = sourceFiles.find((item) => item.source === 'table_a') || sourceFiles[0];
-  const tableB = sourceFiles.find((item) => item.source === 'table_b') || sourceFiles[1];
+  const mainFile = sourceFiles[0];
   const resolveSourceTable = (source) => {
     const raw = trimText(source);
     return trimText(
@@ -483,42 +534,53 @@ const buildJoinDsl = (uploadedFiles = [], joinConfig = {}, sourceAliasToId = {})
     );
   };
 
-  const pairs = (Array.isArray(joinConfig.fields) ? joinConfig.fields : [])
-    .filter((item) => item.leftField || item.rightField);
-  const finalPairs = pairs.length > 0 ? pairs : defaultJoinFields(tableA?.fields || [], tableB?.fields || []);
+  const links = normalizeJoinLinks(joinConfig, sourceFiles);
+  const joinList = links
+    .map((link, index) => {
+      const rightFile = sourceFiles.find((item) => trimText(item?.source) === trimText(link?.rightSource)) || sourceFiles[index + 1];
+      if (!rightFile) return null;
 
-  const leftKeys = finalPairs.map((item) => item.leftField).filter(Boolean);
-  const rightKeys = finalPairs.map((item) => item.rightField).filter(Boolean);
+      const pairs = (Array.isArray(link?.fields) ? link.fields : []).filter((item) => item.leftField || item.rightField);
+      const finalPairs = pairs.length > 0
+        ? pairs
+        : defaultJoinFields(mainFile?.fields || [], rightFile?.fields || []);
 
-  const params = [
-    makeParam('join_type', 'enum', normalizeJoinType(joinConfig.type)),
-    makeParam('left_table', 'string', '$rule_input[0].source_table'),
-    makeParam('right_table', 'string', '$rule_input[1].source_table')
-  ];
+      const leftKeys = finalPairs.map((item) => item.leftField).filter(Boolean);
+      const rightKeys = finalPairs.map((item) => item.rightField).filter(Boolean);
 
-  if (leftKeys.length <= 1 && rightKeys.length <= 1) {
-    params.push(makeParam('left_key', 'string', '$rule_input[0].key_columns[0]'));
-    params.push(makeParam('right_key', 'string', '$rule_input[1].key_columns[0]'));
-  } else {
-    params.push(makeParam('left_keys', 'array', '$rule_input[0].key_columns'));
-    params.push(makeParam('right_keys', 'array', '$rule_input[1].key_columns'));
-  }
+      const params = [
+        makeParam('join_type', 'enum', normalizeJoinType(link?.type)),
+        makeParam('left_table', 'string', '$rule_input[0].source_table'),
+        makeParam('right_table', 'string', '$rule_input[1].source_table')
+      ];
 
-  params.push(makeParam('suffix', 'string', '_right'));
-  params.push(makeParam('on_no_match', 'enum', 'null'));
+      if (leftKeys.length <= 1 && rightKeys.length <= 1) {
+        params.push(makeParam('left_key', 'string', '$rule_input[0].key_columns[0]'));
+        params.push(makeParam('right_key', 'string', '$rule_input[1].key_columns[0]'));
+      } else {
+        params.push(makeParam('left_keys', 'array', '$rule_input[0].key_columns'));
+        params.push(makeParam('right_keys', 'array', '$rule_input[1].key_columns'));
+      }
 
-  return {
-    index: 'join_tables',
-    rule_input: [
-      makeRuleInput(resolveSourceTable(tableA?.source || 'table_a'), leftKeys),
-      makeRuleInput(resolveSourceTable(tableB?.source || 'table_b'), rightKeys)
-    ],
-    rule_output: makeRuleOutput('table_joined'),
-    rule: {
-      ability_name: 'join',
-      params
-    }
-  };
+      params.push(makeParam('suffix', 'string', '_right'));
+      params.push(makeParam('on_no_match', 'enum', 'null'));
+
+      return {
+        index: 'join_tables',
+        rule_input: [
+          makeRuleInput(resolveSourceTable(link?.leftSource || mainFile?.source || 'table_a'), leftKeys),
+          makeRuleInput(resolveSourceTable(link?.rightSource || rightFile?.source || 'table_b'), rightKeys)
+        ],
+        rule_output: makeRuleOutput('table_joined'),
+        rule: {
+          ability_name: 'join',
+          params
+        }
+      };
+    })
+    .filter(Boolean);
+
+  return joinList.length > 0 ? joinList : undefined;
 };
 
 const buildDedupDsl = (dedupConfig = {}) => {
@@ -699,9 +761,10 @@ export const buildPipelineDsl = ({
   writeConfig = {}
 } = {}) => {
   const sourceFiles = toSourceFiles(uploadedFiles);
-  const hasJoin = sourceFiles.length >= 2;
   const tablesDsl = toDataSourceDsl(sourceFiles);
   const sourceAliasToId = buildSourceAliasToIdMap(sourceFiles, tablesDsl);
+  const joinDslList = buildJoinDsl(sourceFiles, joinConfig, sourceAliasToId);
+  const hasJoin = Array.isArray(joinDslList) && joinDslList.length > 0;
 
   const modelCode = getModelCode(selectedModel);
   const dedupDsl = buildDedupDsl(dedupConfig);
@@ -722,7 +785,7 @@ export const buildPipelineDsl = ({
       data_sources: {
         tables: tablesDsl
       },
-      ...(hasJoin ? { join_config: buildJoinDsl(sourceFiles, joinConfig, sourceAliasToId) } : {}),
+      ...(hasJoin ? { join_config: joinDslList } : {}),
       ...(dedupDsl ? { deduplicate: dedupDsl } : {})
     },
     data_processing: buildDataProcessingDsl({

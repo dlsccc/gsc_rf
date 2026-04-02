@@ -21,14 +21,14 @@
     <div v-if="store.uploadedFiles.length > 0" class="form-group">
       <label class="form-label"><span class="material-icons">attach_file</span>已上传文件</label>
       <div v-for="(file, index) in store.uploadedFiles" :key="file.id" class="file-card">
-        <div class="file-card-icon" :class="file.source === 'table_a' ? 'table-a' : 'table-b'">
+        <div class="file-card-icon" :class="index === 0 ? 'table-a' : 'table-b'">
           <span class="material-icons">description</span>
         </div>
         <div class="file-card-info">
           <div class="file-card-name">
             {{ file.name }}
-            <span class="source-badge" :class="file.source === 'table_a' ? 'table-a' : 'table-b'">
-              {{ file.source === 'table_a' ? '主表' : '从表' }}
+            <span class="source-badge" :class="index === 0 ? 'table-a' : 'table-b'">
+              {{ index === 0 ? '主表' : `从表${index}` }}
             </span>
           </div>
         </div>
@@ -45,7 +45,7 @@
         <button class="btn btn-default btn-sm" @click="store.removeFile(file.id)" :disabled="uploading"><span class="material-icons" style="font-size: 16px;">delete</span></button>
       </div>
 
-      <button class="btn btn-default" @click="addMoreFiles" style="margin-top: 12px;" v-if="store.uploadedFiles.length < 2" :disabled="uploading">
+      <button class="btn btn-default" @click="addMoreFiles" style="margin-top: 12px;" :disabled="uploading">
         <span class="material-icons" style="font-size: 18px;">add</span>
         添加更多源文件
       </button>
@@ -55,15 +55,13 @@
 
 <script setup>
 import { ref } from 'vue';
-import { $error, $warning } from '@/utils/message.js';
+import { $error } from '@/utils/message.js';
 import {
   fileUtilUploadFile,
   normalizeUploadResult,
   queryFileDetail,
   resolveEdmId
 } from '@/utils/fileUtils.js';
-
-const MAX_SOURCE_FILES = 2;
 
 const props = defineProps({
   store: { type: Object, required: true }
@@ -96,11 +94,6 @@ const onDrop = async (event) => {
   await handleSelectedFiles(event.dataTransfer?.files);
 };
 
-const resolveAvailableSlots = () => {
-  const count = Array.isArray(props.store.uploadedFiles) ? props.store.uploadedFiles.length : 0;
-  return Math.max(0, MAX_SOURCE_FILES - count);
-};
-
 const ensureUploadMeta = (uploadData, file) => {
   const list = normalizeUploadResult(uploadData);
   if (list.length === 0) {
@@ -128,19 +121,8 @@ const createFileEntity = ({ uploadMeta, detail }) => {
 const handleSelectedFiles = async (fileList) => {
   if (uploading.value) return;
 
-  const allFiles = Array.from(fileList || []);
-  if (allFiles.length === 0) return;
-
-  const availableSlots = resolveAvailableSlots();
-  if (availableSlots <= 0) {
-    $warning('最多仅支持 2 个源文件（主表/从表）');
-    return;
-  }
-
-  const files = allFiles.slice(0, availableSlots);
-  if (files.length < allFiles.length) {
-    $warning(`最多仅支持 2 个源文件，本次仅上传前 ${files.length} 个文件`);
-  }
+  const files = Array.from(fileList || []);
+  if (files.length === 0) return;
 
   uploading.value = true;
 
