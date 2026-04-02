@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="function-menu" style="margin-top: 64px;">
     <div class="menu-header">
       <div class="back-btn" @click="goEntrance"><span class="material-icons">arrow_back</span></div>
@@ -21,11 +21,10 @@
         <div class="function-desc">选择入湖规则，执行数据入湖任务</div>
       </div>
 
-      <div class="function-card disabled">
+      <div class="function-card" @click="openReportGeneration">
         <div class="function-icon history"><span class="material-icons" style="font-size: 24px;">assessment</span></div>
         <div class="function-name">报告生成</div>
         <div class="function-desc">选择报告模板，生成数据报告</div>
-        <div class="function-status pending"><span class="material-icons">schedule</span><span>规划中</span></div>
       </div>
     </div>
   </div>
@@ -45,6 +44,11 @@ onMounted(() => {
 
 const goEntrance = () => router.push('/');
 const openLakeExecute = () => router.push('/operator/execute');
+const REPORT_GENERATION_URL = 'https://2000-itsc-gde-runtime.sd.huawei.com/adc-codeagent/static/rf-report/generation-entry.html';
+
+const openReportGeneration = () => {
+  window.open(REPORT_GENERATION_URL, '_blank', 'noopener,noreferrer');
+};
 </script>
 
 
