@@ -554,13 +554,8 @@ const buildJoinDsl = (uploadedFiles = [], joinConfig = {}, sourceAliasToId = {})
         makeParam('right_table', 'string', '$rule_input[1].source_table')
       ];
 
-      if (leftKeys.length <= 1 && rightKeys.length <= 1) {
-        params.push(makeParam('left_key', 'string', '$rule_input[0].key_columns[0]'));
-        params.push(makeParam('right_key', 'string', '$rule_input[1].key_columns[0]'));
-      } else {
-        params.push(makeParam('left_keys', 'array', '$rule_input[0].key_columns'));
-        params.push(makeParam('right_keys', 'array', '$rule_input[1].key_columns'));
-      }
+      params.push(makeParam('left_keys', 'array', '$rule_input[0].key_columns'));
+      params.push(makeParam('right_keys', 'array', '$rule_input[1].key_columns'));
 
       params.push(makeParam('suffix', 'string', '_right'));
       params.push(makeParam('on_no_match', 'enum', 'null'));
