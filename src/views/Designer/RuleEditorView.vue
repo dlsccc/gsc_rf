@@ -987,30 +987,8 @@ onMounted(async () => {
 watch(
   () => pipelineStore.currentStep,
   (step) => {
-    if (Number(step) === 2) {
-      scheduleSqlDebug();
-      return;
-    }
-
     clearSqlDebugTimer();
   }
-);
-
-watch(
-  () => ({
-    filters: pipelineStore.filters,
-    transforms: pipelineStore.transforms,
-    sortField: pipelineStore.sortConfig.field,
-    sortOrder: pipelineStore.sortConfig.order,
-    dedupEnabled: pipelineStore.dedupConfig.enabled,
-    dedupKeep: pipelineStore.dedupConfig.keep,
-    dedupFields: pipelineStore.dedupConfig.fields
-  }),
-  () => {
-    if (Number(pipelineStore.currentStep) !== 2) return;
-    scheduleSqlDebug();
-  },
-  { deep: true }
 );
 
 onUnmounted(() => {
