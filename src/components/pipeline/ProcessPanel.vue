@@ -1824,10 +1824,11 @@ const hasFieldOperationConfigured = (fieldName) => {
 };
 
 const toPendingSuggestions = (rawSuggestions = {}) => {
-  const suggestions = deepCamelize(rawSuggestions || {});
+  const suggestions = isPlainObject(rawSuggestions) ? rawSuggestions : {};
   const targetFieldSet = new Set(targetModelFields.value.map((field) => trimText(field?.name)).filter(Boolean));
   const next = {};
-  Object.entries(suggestions).forEach(([rawField, item]) => {
+  Object.entries(suggestions).forEach(([rawField, rawItem]) => {
+    const item = deepCamelize(rawItem || {});
     const fieldName = trimText(rawField);
     if (!fieldName || !targetFieldSet.has(fieldName)) return;
     const needAttention = item?.needAttention !== false;
