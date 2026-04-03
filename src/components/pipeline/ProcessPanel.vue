@@ -1831,8 +1831,6 @@ const toPendingSuggestions = (rawSuggestions = {}) => {
     const item = deepCamelize(rawItem || {});
     const fieldName = trimText(rawField);
     if (!fieldName || !targetFieldSet.has(fieldName)) return;
-    const needAttention = item?.needAttention !== false;
-    if (!needAttention) return;
     if (hasFieldOperationConfigured(fieldName)) return;
     const operations = normalizeSuggestionOperations(item?.operations || item?.operation || {});
     if (!hasMeaningfulOperations(operations)) return;
