@@ -390,11 +390,14 @@
         
         /* Data Grid */
         .data-grid-container {
-            overflow: auto;
+            overflow: scroll;
             max-height: 480px;
             border: 1px solid var(--border);
             border-radius: 12px;
             background: #fff;
+            scrollbar-gutter: stable both-edges;
+            -ms-overflow-style: auto;
+            scrollbar-width: auto;
         }
         .data-grid { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
         .data-grid th {
@@ -1778,9 +1781,12 @@
         /* 字段定义表格 */
         .field-table-container {
             max-height: clamp(300px, 52vh, 560px);
-            overflow: auto;
+            overflow: scroll;
             border: 1px solid var(--border);
             border-radius: 12px;
+            scrollbar-gutter: stable both-edges;
+            -ms-overflow-style: auto;
+            scrollbar-width: auto;
         }
         .field-table {
             width: 100%;
