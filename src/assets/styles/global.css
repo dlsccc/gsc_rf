@@ -427,6 +427,15 @@
             font-size: 12px;
             padding: 10px 12px;
             border-bottom: 2px solid var(--border);
+            max-width: 0;
+            overflow: hidden;
+        }
+        .data-grid-sub-header {
+            display: block;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         .data-grid th.level-1 {
             background: var(--primary-bg);

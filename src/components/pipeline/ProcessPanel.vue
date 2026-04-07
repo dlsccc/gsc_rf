@@ -183,14 +183,11 @@
               <th
                 v-for="field in targetModelFields"
                 :key="`sub-${field.name}`"
-                :colspan="isMultiMapped(field.name) ? getMappedSources(field.name).length : 1"
+                :colspan="isMultiMapped(field.name) && !isMergedOutput(field.name) ? getMappedSources(field.name).length : 1"
               >
-                <template v-if="isMultiMapped(field.name) && !isMergedOutput(field.name)">
-                  <span v-for="(source, idx) in getMappedSources(field.name)" :key="source.key">
-                    {{ idx > 0 ? ' | ' : '' }}{{ source.name }}
-                  </span>
-                </template>
-                <span v-else>{{ getMappingSource(field.name) || '未映射' }}</span>
+                <span class="data-grid-sub-header" :title="getSubHeaderText(field.name) || '未映射'">
+                  {{ getSubHeaderText(field.name) || '未映射' }}
+                </span>
               </th>
             </tr>
           </thead>
@@ -1014,6 +1011,18 @@ const getMappingSource = (targetField) => {
   }
   const field = allSourceFields.value.find((item) => item.key === keys[0]);
   return field ? field.name : getDisplayFieldName(keys[0]);
+};
+
+const getSubHeaderText = (targetField) => {
+  if (isMultiMapped(targetField) && !isMergedOutput(targetField)) {
+    const names = getMappedSources(targetField)
+      .map((source) => String(source?.name || '').trim())
+      .filter(Boolean);
+    if (names.length > 0) {
+      return names.join(' | ');
+    }
+  }
+  return getMappingSource(targetField);
 };
 
 const parseDateTime = (val) => {
