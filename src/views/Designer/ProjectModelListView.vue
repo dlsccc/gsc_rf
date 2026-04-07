@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="model-list-container" style="margin-top: 64px; background: linear-gradient(135deg, #e6f7ff 0%, #fafafa 100%);">
     <div class="model-edit-header">
       <div class="back-btn" @click="router.push('/designer')"><span class="material-icons">arrow_back</span></div>
@@ -19,16 +19,16 @@
         <div class="model-card-header">
           <div class="model-name">
             <span class="material-icons" style="color: var(--primary);">account_tree</span>
-            {{ item.name }}
+            <span class="model-name-text" :title="item.name">{{ item.name }}</span>
           </div>
           <span class="model-status" :class="item.status">{{ item.status === 'active' ? '已发布' : '草稿' }}</span>
         </div>
 
-        <div class="model-desc">{{ item.description || '暂无描述' }}</div>
+        <div class="model-desc" :title="item.description || '暂无描述'">{{ item.description || '暂无描述' }}</div>
 
         <div class="model-meta">
-          <div class="model-meta-item"><span class="material-icons">link</span>引用: {{ resolveRefStandardModelName(item.refStandardModel) }}</div>
-          <div class="model-meta-item"><span class="material-icons">view_column</span>{{ item.fields.length }} 个字段</div>
+          <div class="model-meta-item"><span class="material-icons">link</span><span class="model-meta-item-text" :title="'引用: ' + resolveRefStandardModelName(item.refStandardModel)">引用: {{ resolveRefStandardModelName(item.refStandardModel) }}</span></div>
+          <div class="model-meta-item"><span class="material-icons">view_column</span><span class="model-meta-item-text" :title="item.fields.length + ' 个字段'">{{ item.fields.length }} 个字段</span></div>
         </div>
 
         <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; padding-top: 12px; border-top: 1px solid #f5f5f5;">

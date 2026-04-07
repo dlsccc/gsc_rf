@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="model-list-container" style="margin-top: 64px; background: linear-gradient(135deg, #fff7e6 0%, #fafafa 100%);">
     <div class="model-edit-header">
       <div class="back-btn" @click="router.push('/designer')"><span class="material-icons">arrow_back</span></div>
@@ -19,21 +19,21 @@
         <div class="model-card-header">
           <div class="model-name">
             <span class="material-icons" style="color: #fa8c16;">rule</span>
-            {{ item.name }}
+            <span class="model-name-text" :title="item.name">{{ item.name }}</span>
           </div>
           <span class="model-status" :class="item.status">{{ item.status === 'active' ? '已发布' : '草稿' }}</span>
         </div>
 
-        <div class="model-desc">{{ item.description || '暂无描述' }}</div>
+        <div class="model-desc" :title="item.description || '暂无描述'">{{ item.description || '暂无描述' }}</div>
 
         <div class="model-meta">
           <div class="model-meta-item">
             <span class="material-icons">database</span>
-            目标模型: {{ item.targetModelName || item.targetModel || '-' }}
+            <span class="model-meta-item-text" :title="'目标模型: ' + (item.targetModelName || item.targetModel || '-')">目标模型: {{ item.targetModelName || item.targetModel || '-' }}</span>
           </div>
           <div class="model-meta-item">
             <span class="material-icons">schedule</span>
-            {{ item.updateTime }}
+            <span class="model-meta-item-text" :title="item.updateTime">{{ item.updateTime }}</span>
           </div>
         </div>
 

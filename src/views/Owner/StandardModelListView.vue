@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="model-list-container" style="margin-top: 64px; background: linear-gradient(135deg, #f0f5ff 0%, #fafafa 100%);">
     <div class="model-edit-header">
       <div class="back-btn" @click="router.push('/owner')">
@@ -21,21 +21,21 @@
         <div class="model-card-header">
           <div class="model-name">
             <span class="material-icons">table_chart</span>
-            {{ item.name }}
+            <span class="model-name-text" :title="item.name">{{ item.name }}</span>
           </div>
           <span class="model-status" :class="item.status">{{ item.status === 'active' ? '已发布' : '草稿' }}</span>
         </div>
 
-        <div class="model-desc">{{ item.description || '暂无描述' }}</div>
+        <div class="model-desc" :title="item.description || '暂无描述'">{{ item.description || '暂无描述' }}</div>
 
         <div class="model-meta">
           <div class="model-meta-item">
             <span class="material-icons">view_column</span>
-            {{ item.fields.length }} 个字段
+            <span class="model-meta-item-text" :title="item.fields.length + ' 个字段'">{{ item.fields.length }} 个字段</span>
           </div>
           <div class="model-meta-item">
             <span class="material-icons">schedule</span>
-            {{ item.updateTime }}
+            <span class="model-meta-item-text" :title="item.updateTime">{{ item.updateTime }}</span>
           </div>
         </div>
 
