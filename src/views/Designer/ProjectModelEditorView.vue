@@ -1,73 +1,80 @@
-<template>
+﻿<template>
   <div class="model-edit-container" style="margin-top: 64px; background: linear-gradient(135deg, #e6f7ff 0%, #fafafa 100%);">
     <div class="model-edit-header">
       <div class="back-btn" @click="router.push('/designer/project-models')"><span class="material-icons">arrow_back</span></div>
-      <div class="model-edit-title">{{ isEdit ? '编辑数据模型' : '新建数据模型' }}</div>
+      <div class="model-edit-title">{{ isEdit ? '缂栬緫鏁版嵁妯″瀷' : '鏂板缓鏁版嵁妯″瀷' }}</div>
     </div>
 
     <div class="model-form-section">
-      <div class="section-title"><span class="material-icons">info</span>基本信息</div>
+      <div class="section-title"><span class="material-icons">info</span>鍩烘湰淇℃伅</div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label"><span class="material-icons">link</span>引用标准数据模型 *</label>
+          <label class="form-label"><span class="material-icons">link</span>寮曠敤鏍囧噯鏁版嵁妯″瀷 *</label>
           <select v-model="form.refStandardModel" class="form-select" @change="onRefModelChange">
-            <option value="">请选择标准数据模型</option>
+            <option value="">璇烽€夋嫨鏍囧噯鏁版嵁妯″瀷</option>
             <option v-for="model in modelStore.standardModels" :key="model.id" :value="model.modelCode || model.code || model.id">{{ model.name }}</option>
           </select>
-          <div class="form-hint">选择引用的标准数据模型，将自动继承其字段定义</div>
+          <div class="form-hint">閫夋嫨寮曠敤鐨勬爣鍑嗘暟鎹ā鍨嬶紝灏嗚嚜鍔ㄧ户鎵垮叾瀛楁瀹氫箟</div>
         </div>
         <div class="form-group">
-          <label class="form-label"><span class="material-icons">table_chart</span>模型名称 *</label>
-          <input v-model="form.name" class="form-input" type="text" placeholder="请输入模型名称" />
-          <div class="form-hint">模型名称使用大写字母和下划线</div>
+          <label class="form-label"><span class="material-icons">table_chart</span>妯″瀷鍚嶇О *</label>
+          <input v-model="form.name" class="form-input" type="text" placeholder="璇疯緭鍏ユā鍨嬪悕绉? />
+          <div class="form-hint">妯″瀷鍚嶇О浣跨敤澶у啓瀛楁瘝鍜屼笅鍒掔嚎</div>
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label"><span class="material-icons">label</span>模型描述</label>
-          <input v-model="form.description" class="form-input" type="text" placeholder="请输入模型描述" />
+          <label class="form-label"><span class="material-icons">label</span>妯″瀷鎻忚堪</label>
+          <input v-model="form.description" class="form-input" type="text" placeholder="璇疯緭鍏ユā鍨嬫弿杩? />
         </div>
       </div>
     </div>
 
     <div class="model-form-section">
-      <div class="section-title"><span class="material-icons">local_offer</span>模型标签</div>
+      <div class="section-title"><span class="material-icons">local_offer</span>妯″瀷鏍囩</div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label"><span class="material-icons">business</span>厂商</label>
+          <label class="form-label"><span class="material-icons">business</span>鍘傚晢</label>
           <select v-model="form.tags.vendor" class="form-select">
-            <option value="">请选择厂商</option>
+            <option value="">璇烽€夋嫨鍘傚晢</option>
             <option v-for="opt in vendorOptions" :key="opt" :value="opt">{{ opt }}</option>
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label"><span class="material-icons">settings_input_antenna</span>制式</label>
+          <label class="form-label"><span class="material-icons">settings_input_antenna</span>鍒跺紡</label>
           <select v-model="form.tags.standard" class="form-select">
-            <option value="">请选择制式</option>
+            <option value="">璇烽€夋嫨鍒跺紡</option>
             <option v-for="opt in standardOptions" :key="opt" :value="opt">{{ opt }}</option>
           </select>
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label"><span class="material-icons">schedule</span>时间粒度</label>
+          <label class="form-label"><span class="material-icons">schedule</span>鏃堕棿绮掑害</label>
           <select v-model="form.tags.timeGranularity" class="form-select">
-            <option value="">请选择时间粒度</option>
+            <option value="">璇烽€夋嫨鏃堕棿绮掑害</option>
             <option v-for="opt in timeGranularityOptions" :key="opt" :value="opt">{{ opt }}</option>
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label"><span class="material-icons">category</span>类型</label>
+          <label class="form-label"><span class="material-icons">place</span>绌洪棿绮掑害</label>
+          <select v-model="form.tags.spaceGranularity" class="form-select" :disabled="spaceGranularityOptions.length === 0">
+            <option value="">{{ spaceGranularityOptions.length === 0 ? '璇峰厛鍦ㄥ瓧娈靛畾涔変腑閰嶇疆绌洪棿瀛楁' : '璇烽€夋嫨绌洪棿绮掑害' }}</option>
+            <option v-for="opt in spaceGranularityOptions" :key="opt" :value="opt">{{ opt }}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label"><span class="material-icons">category</span>绫诲瀷</label>
           <select v-model="form.tags.type" class="form-select">
-            <option value="">请选择类型</option>
+            <option value="">璇烽€夋嫨绫诲瀷</option>
             <option v-for="opt in typeOptions" :key="opt" :value="opt">{{ opt }}</option>
           </select>
           <div v-if="needInvolveCalc" style="margin-top: 8px;">
             <label class="form-label" style="display: flex; align-items: center; gap: 8px; font-weight: 500;">
               <input v-model="form.tags.involveCalc" type="checkbox" />
-              <span>空值/异常值是否参与计算</span>
+              <span>绌哄€?寮傚父鍊兼槸鍚﹀弬涓庤绠?/span>
             </label>
-            <div class="form-hint">异常值：NIL, NAN, NULL, /0等</div>
+            <div class="form-hint">寮傚父鍊硷細NIL, NAN, NULL, /0绛?/div>
           </div>
         </div>
       </div>
@@ -76,30 +83,30 @@
     <div class="model-form-section">
       <div class="section-title">
         <span class="material-icons">view_column</span>
-        字段定义
-        <span style="font-size: 12px; color: var(--text-secondary); font-weight: normal; margin-left: 8px;">（基于引用的标准模型，可修改）</span>
+        瀛楁瀹氫箟
+        <span style="font-size: 12px; color: var(--text-secondary); font-weight: normal; margin-left: 8px;">锛堝熀浜庡紩鐢ㄧ殑鏍囧噯妯″瀷锛屽彲淇敼锛?/span>
       </div>
       <div class="field-table-container">
         <table class="field-table">
           <thead>
             <tr>
               <th style="width: 50px;">#</th>
-              <th style="width: 180px;">字段名称 *</th>
-              <th style="width: 140px;">字段类型 *</th>
-              <th style="width: 140px;">数据格式</th>
-              <th style="width: 120px;">业务类型</th>
-              <th>业务描述</th>
-              <th style="width: 120px;">样例值</th>
-              <th style="width: 80px;">操作</th>
+              <th style="width: 180px;">瀛楁鍚嶇О *</th>
+              <th style="width: 140px;">瀛楁绫诲瀷 *</th>
+              <th style="width: 140px;">鏁版嵁鏍煎紡</th>
+              <th style="width: 120px;">涓氬姟绫诲瀷</th>
+              <th>涓氬姟鎻忚堪</th>
+              <th style="width: 120px;">鏍蜂緥鍊?/th>
+              <th style="width: 80px;">鎿嶄綔</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="(field, index) in form.fields" :key="index">
               <td class="field-index">{{ index + 1 }}</td>
-              <td><input v-model="field.name" class="field-input" type="text" placeholder="字段名称" /></td>
+              <td><input v-model="field.name" class="field-input" type="text" placeholder="瀛楁鍚嶇О" /></td>
               <td>
                 <select v-model="field.type" class="field-select" @change="onFieldTypeChange(field)">
-                  <option value="">请选择</option>
+                  <option value="">璇烽€夋嫨</option>
                   <option value="STRING">STRING</option>
                   <option value="INT64">INT64</option>
                   <option value="FLOAT64">FLOAT64</option>
@@ -115,16 +122,16 @@
                   <option v-for="type in businessTypeOptions" :key="type.value" :value="type.value">{{ type.label }}</option>
                 </select>
               </td>
-              <td><input v-model="field.description" class="field-input" type="text" placeholder="业务含义描述" /></td>
-              <td><input v-model="field.example" class="field-input" type="text" placeholder="样例" /></td>
+              <td><input v-model="field.description" class="field-input" type="text" placeholder="涓氬姟鍚箟鎻忚堪" /></td>
+              <td><input v-model="field.example" class="field-input" type="text" placeholder="鏍蜂緥" /></td>
               <td class="field-actions">
-                <button class="field-action-btn move" :disabled="index === 0" title="上移" @click="moveFieldUp(index)">
+                <button class="field-action-btn move" :disabled="index === 0" title="涓婄Щ" @click="moveFieldUp(index)">
                   <span class="material-icons" style="font-size: 16px;">arrow_upward</span>
                 </button>
-                <button class="field-action-btn move" :disabled="index === form.fields.length - 1" title="下移" @click="moveFieldDown(index)">
+                <button class="field-action-btn move" :disabled="index === form.fields.length - 1" title="涓嬬Щ" @click="moveFieldDown(index)">
                   <span class="material-icons" style="font-size: 16px;">arrow_downward</span>
                 </button>
-                <button class="field-action-btn" title="删除" @click="removeField(index)">
+                <button class="field-action-btn" title="鍒犻櫎" @click="removeField(index)">
                   <span class="material-icons" style="font-size: 16px;">delete</span>
                 </button>
               </td>
@@ -135,23 +142,23 @@
 
       <button class="btn btn-default" style="margin-top: 16px;" @click="addField">
         <span class="material-icons" style="font-size: 18px;">add</span>
-        添加字段
+        娣诲姞瀛楁
       </button>
     </div>
 
     <div class="model-edit-actions">
-      <button class="btn btn-default" @click="router.push('/designer/project-models')">取消</button>
+      <button class="btn btn-default" @click="router.push('/designer/project-models')">鍙栨秷</button>
       <button class="btn btn-default" @click="triggerImportModel">
         <span class="material-icons" style="font-size: 18px;">upload_file</span>
         Import Model
       </button>
       <button class="btn btn-default" @click="saveProjectModel">
         <span class="material-icons" style="font-size: 18px;">save</span>
-        保存模型
+        淇濆瓨妯″瀷
       </button>
       <button class="btn btn-primary" @click="publishProjectModel">
         <span class="material-icons" style="font-size: 18px;">publish</span>
-        发布模型
+        鍙戝竷妯″瀷
       </button>
       <button class="btn btn-default" @click="exportProjectModel">
         <span class="material-icons" style="font-size: 18px;">download</span>
@@ -173,14 +180,14 @@ import { useAppStore } from '@/store/app.store.js';
 import { downloadFile } from '@/utils/fileUtils.js';
 import { normalizeProjectModel, normalizeStandardModel, resolveModelCode, toModelSavePayload, unwrapApiData, unwrapApiList, useModelStore } from '@/store/model.store.js';
 
-const vendorOptions = ['华为', '中兴', '其他'];
+const vendorOptions = ['鍗庝负', '涓叴', '鍏朵粬'];
 const standardOptions = ['4G', '5G'];
-const timeGranularityOptions = ['小时级', '天级'];
-const typeOptions = ['Counter', 'KPI', '工参', '配置', '其他'];
+const timeGranularityOptions = ['灏忔椂绾?, '澶╃骇'];
+const typeOptions = ['Counter', 'KPI', '宸ュ弬', '閰嶇疆', '鍏朵粬'];
 const businessTypeOptions = [
-  { value: 'time', label: '时间' },
-  { value: 'space', label: '空间' },
-  { value: 'metric', label: '指标' }
+  { value: 'time', label: '鏃堕棿' },
+  { value: 'space', label: '绌洪棿' },
+  { value: 'metric', label: '鎸囨爣' }
 ];
 
 
@@ -264,7 +271,7 @@ const emptyModel = () => ({
   description: '',
   status: 'draft',
   refStandardModel: '',
-  tags: { vendor: '', standard: '', timeGranularity: '', type: '', involveCalc: false },
+  tags: { vendor: '', standard: '', timeGranularity: '', spaceGranularity: '', type: '', involveCalc: false },
   projectId: null,
   fields: [emptyField()]
 });
@@ -280,6 +287,13 @@ const isEdit = computed(() => !!editId.value);
 const form = reactive(emptyModel());
 const importInputRef = ref(null);
 const needInvolveCalc = computed(() => ['Counter', 'KPI'].includes(String(form.tags?.type || '').trim()));
+const spaceGranularityOptions = computed(() => {
+  const options = (Array.isArray(form.fields) ? form.fields : [])
+    .filter((field) => String(field?.businessType || '').trim().toLowerCase() === 'space')
+    .map((field) => String(field?.name || '').trim())
+    .filter(Boolean);
+  return [...new Set(options)];
+});
 
 const resolveCurrentProjectCode = () => {
   return String(appStore.currentProjectCode || appStore.currentProject || '').trim();
@@ -295,7 +309,7 @@ const loadStandardModels = async () => {
       modelStore.setStandardModels(list.map((item) => normalizeStandardModel(item)));
     }
   } catch {
-    // 无后端时保留本地状态。
+    // 鏃犲悗绔椂淇濈暀鏈湴鐘舵€併€?
   }
 };
 
@@ -352,13 +366,18 @@ const fillForm = (data) => {
   Object.assign(form, source);
 
   if (!form.tags) {
-    form.tags = { vendor: '', standard: '', timeGranularity: '', type: '', involveCalc: false };
+    form.tags = { vendor: '', standard: '', timeGranularity: '', spaceGranularity: '', type: '', involveCalc: false };
   }
   form.tags.involveCalc = form.tags.involveCalc === true || String(form.tags.involveCalc).toLowerCase() === 'true';
+  form.tags.spaceGranularity = String(form.tags.spaceGranularity || '').trim();
   if (!Array.isArray(form.fields) || form.fields.length === 0) {
     form.fields = [emptyField()];
   }
   form.fields = normalizeFieldRows(form.fields);
+  const currentSpaceGranularity = String(form.tags.spaceGranularity || '').trim();
+  if (currentSpaceGranularity && !spaceGranularityOptions.value.includes(currentSpaceGranularity)) {
+    form.tags.spaceGranularity = '';
+  }
 
   const refModel = resolveStandardModel(form.refStandardModel);
   if (refModel) {
@@ -383,6 +402,16 @@ watch(
   (value) => {
     if (!['Counter', 'KPI'].includes(String(value || '').trim())) {
       form.tags.involveCalc = false;
+    }
+  }
+);
+
+watch(
+  spaceGranularityOptions,
+  (options) => {
+    const current = String(form.tags.spaceGranularity || '').trim();
+    if (current && !options.includes(current)) {
+      form.tags.spaceGranularity = '';
     }
   }
 );
@@ -426,15 +455,15 @@ const moveFieldDown = (index) => {
 
 const validateBase = () => {
   if (!form.name?.trim()) {
-    $warning('请输入模型名称');
+    $warning('璇疯緭鍏ユā鍨嬪悕绉?);
     return false;
   }
   if (!form.refStandardModel) {
-    $warning('请选择引用标准数据模型');
+    $warning('璇烽€夋嫨寮曠敤鏍囧噯鏁版嵁妯″瀷');
     return false;
   }
   if (!Array.isArray(form.fields) || form.fields.length === 0 || !form.fields.some((item) => item.name?.trim())) {
-    $warning('请至少配置一个字段');
+    $warning('璇疯嚦灏戦厤缃竴涓瓧娈?);
     return false;
   }
   return true;
@@ -668,3 +697,4 @@ const publishProjectModel = async () => {
   router.push('/designer/project-models');
 };
 </script>
+

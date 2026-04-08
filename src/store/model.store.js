@@ -123,6 +123,7 @@ const normalizeTags = (model = {}) => ({
   vendor: model.tags?.vendor || model.factory || '',
   standard: model.tags?.standard || model.format || '',
   timeGranularity: model.tags?.timeGranularity || model.timeGranularity || '',
+  spaceGranularity: model.tags?.spaceGranularity || model.spaceGranularity || '',
   type: model.tags?.type || model.businessModelType || '',
   involveCalc: model.tags?.involveCalc !== undefined
     ? toBoolean(model.tags?.involveCalc)
@@ -197,6 +198,7 @@ export const toModelSavePayload = ({ entity, modelType, projectCode = '' }) => {
     factory: toText(entity.tags?.vendor),
     format: toText(entity.tags?.standard),
     timeGranularity: toText(entity.tags?.timeGranularity),
+    spaceGranularity: toText(entity.tags?.spaceGranularity),
     businessModelType: toText(entity.tags?.type),
     involveCalc,
     ...(projectCode ? { projectCode } : {})
