@@ -384,6 +384,14 @@ const buildDebugEdmList = (dsl = {}) => {
   return [...entryMap.values()].filter((item) => item.edmId && item.tableName);
 };
 
+const buildDebugJoinConfig = (dsl = {}) => {
+  const globalSetting = dsl?.globalSetting || dsl?.global_setting || {};
+  const joinConfig = globalSetting?.joinConfig || globalSetting?.join_config;
+  if (Array.isArray(joinConfig)) return joinConfig;
+  if (joinConfig && typeof joinConfig === 'object') return [joinConfig];
+  return [];
+};
+
 const extractDebugResultRows = (debugResponse) => {
   const payload = debugResponse?.data ?? debugResponse?.result ?? debugResponse ?? {};
   const candidates = [
@@ -1233,9 +1241,12 @@ const runSqlDebug = async () => {
       throw new Error('保存规则后未返回可调试的 SQL 列表');
     }
 
+    const joinConfig = buildDebugJoinConfig(dsl);
+
     const debugResponse = await rulesApi.debugSql({
       sqlList,
-      edmList
+      edmList,
+      joinConfig
     });
 
     if (requestSeq !== sqlDebugRequestSeq.value) {
