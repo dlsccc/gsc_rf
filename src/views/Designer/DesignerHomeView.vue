@@ -12,6 +12,7 @@
         </div>
         <div class="menu-subtitle">基于标准模型进行数据建模，设计数据入湖规则</div>
       </div>
+      <button class="btn btn-primary publish-entry-btn" @click="goPublish">发布</button>
     </div>
 
     <div class="function-cards">
@@ -54,9 +55,17 @@ onMounted(() => {
 const REPORT_TEMPLATE_URL = 'https://astr-lab.gts.huawei.com/dacs/rfreport#/';
 
 const goReportTemplate = () => {
-  window.open(REPORT_TEMPLATE_URL,'_target')
+  window.open(REPORT_TEMPLATE_URL, '_target');
 };
+
+const goPublish = () => router.push('/designer/publish');
 
 const goEntrance = () => router.push('/');
 </script>
 
+<style scoped>
+.publish-entry-btn {
+  min-width: 92px;
+  white-space: nowrap;
+}
+</style>

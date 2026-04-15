@@ -21,6 +21,7 @@ const router = createRouter({
         { path: 'designer/project-models', name: 'project-model-list', component: () => import('@/views/Designer/ProjectModelListView.vue') },
         { path: 'designer/project-models/new', name: 'project-model-new', component: () => import('@/views/Designer/ProjectModelEditorView.vue') },
         { path: 'designer/project-models/:id/edit', name: 'project-model-edit', component: () => import('@/views/Designer/ProjectModelEditorView.vue') },
+        { path: 'designer/publish', name: 'designer-publish', component: () => import('@/views/Designer/PublishWorkbenchView.vue') },
         { path: 'designer/pipeline', name: 'pipeline', redirect: '/designer/rules/new' },
         { path: 'operator', name: 'operator-home', component: () => import('@/views/Operator/OperatorHomeView.vue') },
         { path: 'operator/execute', name: 'operator-execute', component: () => import('@/views/Operator/LakeExecuteView.vue') }
