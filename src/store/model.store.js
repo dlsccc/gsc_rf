@@ -14,6 +14,83 @@ const toBoolean = (value) => {
   return Boolean(value);
 };
 
+const VENDOR_UI_TO_API = {
+  华为: 'HW',
+  中兴: 'ZTE'
+};
+
+const RAT_UI_TO_API = {
+  '2G': 'GSM',
+  '3G': 'UMTS',
+  '4G': 'LTE',
+  '5G': 'NR'
+};
+
+const TIME_GRANULARITY_UI_TO_API = {
+  小时级: 'hourly',
+  天级: 'daily'
+};
+
+const MODEL_TYPE_UI_TO_API = {
+  Counter: 'counter',
+  KPI: 'kpi',
+  工参: 'ep'
+};
+
+const toUpperMap = (map) => {
+  const next = {};
+  Object.entries(map).forEach(([key, value]) => {
+    next[String(key).toUpperCase()] = value;
+  });
+  return next;
+};
+
+const toLowerMap = (map) => {
+  const next = {};
+  Object.entries(map).forEach(([key, value]) => {
+    next[String(key).toLowerCase()] = value;
+  });
+  return next;
+};
+
+const invertMap = (map) => {
+  const next = {};
+  Object.entries(map).forEach(([key, value]) => {
+    next[value] = key;
+  });
+  return next;
+};
+
+const VENDOR_API_TO_UI = invertMap(VENDOR_UI_TO_API);
+const VENDOR_API_TO_UI_UPPER = toUpperMap(VENDOR_API_TO_UI);
+const RAT_API_TO_UI = invertMap(RAT_UI_TO_API);
+const RAT_API_TO_UI_UPPER = toUpperMap(RAT_API_TO_UI);
+const TIME_GRANULARITY_API_TO_UI = invertMap(TIME_GRANULARITY_UI_TO_API);
+const TIME_GRANULARITY_API_TO_UI_LOWER = toLowerMap(TIME_GRANULARITY_API_TO_UI);
+const MODEL_TYPE_API_TO_UI = invertMap(MODEL_TYPE_UI_TO_API);
+const MODEL_TYPE_API_TO_UI_LOWER = toLowerMap(MODEL_TYPE_API_TO_UI);
+
+const toUiEnumValue = (value, map, normalize = 'none') => {
+  const text = toText(value);
+  if (!text) return '';
+  if (Object.prototype.hasOwnProperty.call(map, text)) {
+    return map[text];
+  }
+  if (normalize === 'upper') {
+    return map[text.toUpperCase()] || text;
+  }
+  if (normalize === 'lower') {
+    return map[text.toLowerCase()] || text;
+  }
+  return text;
+};
+
+const toApiEnumValue = (value, map) => {
+  const text = toText(value);
+  if (!text) return '';
+  return map[text] || text;
+};
+
 const BUSINESS_FIELD_TYPES = {
   TIME: 'time',
   SPACE: 'space',
@@ -120,11 +197,11 @@ const normalizeFields = (fields) => {
 };
 
 const normalizeTags = (model = {}) => ({
-  vendor: model.tags?.vendor || model.factory || '',
-  standard: model.tags?.standard || model.format || '',
-  timeGranularity: model.tags?.timeGranularity || model.timeGranularity || '',
+  vendor: toUiEnumValue(model.tags?.vendor || model.vendor || model.factory, VENDOR_API_TO_UI_UPPER, 'upper'),
+  standard: toUiEnumValue(model.tags?.standard || model.rat || model.format, RAT_API_TO_UI_UPPER, 'upper'),
+  timeGranularity: toUiEnumValue(model.tags?.timeGranularity || model.timeGranularity, TIME_GRANULARITY_API_TO_UI_LOWER, 'lower'),
   spaceGranularity: model.tags?.spaceGranularity || model.spaceGranularity || '',
-  type: model.tags?.type || model.businessModelType || '',
+  type: toUiEnumValue(model.tags?.type || model.businessModelType, MODEL_TYPE_API_TO_UI_LOWER, 'lower'),
   involveCalc: model.tags?.involveCalc !== undefined
     ? toBoolean(model.tags?.involveCalc)
     : toBoolean(model.involveCalc)
@@ -195,11 +272,11 @@ export const toModelSavePayload = ({ entity, modelType, projectCode = '' }) => {
     modelType,
     fieldList: toFieldListPayload(entity.fields, modelCode),
     referenceModelCode: toText(entity.refStandardModel),
-    factory: toText(entity.tags?.vendor),
-    format: toText(entity.tags?.standard),
-    timeGranularity: toText(entity.tags?.timeGranularity),
+    vendor: toApiEnumValue(entity.tags?.vendor, VENDOR_UI_TO_API),
+    rat: toApiEnumValue(entity.tags?.standard, RAT_UI_TO_API),
+    timeGranularity: toApiEnumValue(entity.tags?.timeGranularity, TIME_GRANULARITY_UI_TO_API),
     spaceGranularity: toText(entity.tags?.spaceGranularity),
-    businessModelType: toText(entity.tags?.type),
+    businessModelType: toApiEnumValue(entity.tags?.type, MODEL_TYPE_UI_TO_API),
     involveCalc,
     ...(projectCode ? { projectCode } : {})
   };

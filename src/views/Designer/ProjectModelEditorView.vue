@@ -180,10 +180,10 @@ import { useAppStore } from '@/store/app.store.js';
 import { downloadFile } from '@/utils/fileUtils.js';
 import { normalizeProjectModel, normalizeStandardModel, resolveModelCode, toModelSavePayload, unwrapApiData, unwrapApiList, useModelStore } from '@/store/model.store.js';
 
-const vendorOptions = ['华为', '中兴', '其他'];
-const standardOptions = ['4G', '5G'];
+const vendorOptions = ['华为', '中兴'];
+const standardOptions = ['2G', '3G', '4G', '5G'];
 const timeGranularityOptions = ['小时级', '天级'];
-const typeOptions = ['Counter', 'KPI', '工参', '配置', '其他'];
+const typeOptions = ['Counter', 'KPI', '工参'];
 const businessTypeOptions = [
   { value: 'time', label: '时间' },
   { value: 'space', label: '空间' },
