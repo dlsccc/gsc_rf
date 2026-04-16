@@ -59,7 +59,7 @@ const router = useRouter();
 const appStore = useAppStore();
 appStore.setRole('designer');
 
-const FLOW_IMAGE_PATH = '/images/publish/publish-flow.png';
+const FLOW_IMAGE_PATH = './images/publish/publish-flow.png';
 
 const MODE_CONFIG = {
   design: {
@@ -92,6 +92,8 @@ const goBack = () => router.push('/designer');
 <style scoped>
 .publish-workbench {
   padding: 24px;
+  max-width: 1280px;
+  margin: 0 auto;
 }
 
 .publish-header {
@@ -112,6 +114,7 @@ const goBack = () => router.push('/designer');
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .flow-image-area {
@@ -144,31 +147,42 @@ const goBack = () => router.push('/designer');
   margin-top: 8px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 13px;
-  color: #3b82f6;
+  color: var(--primary);
 }
 
 .mode-switch {
-  display: flex;
-  gap: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   margin-top: 12px;
   margin-bottom: 12px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fafafa;
 }
 
 .mode-btn {
-  min-width: 120px;
-  height: 40px;
-  border: 1px solid var(--border);
+  min-width: 96px;
+  height: 34px;
+  border: 1px solid transparent;
   border-radius: 8px;
-  background: #fff;
-  color: var(--text);
-  font-size: 20px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
 }
 
+.mode-btn:hover {
+  color: var(--primary);
+  background: var(--primary-bg);
+}
+
 .mode-btn.active {
-  background: #4f7d39;
-  border-color: #4f7d39;
+  background: linear-gradient(135deg, var(--primary) 0%, #4096ff 100%);
+  border-color: var(--primary);
   color: #fff;
 }
 
@@ -190,8 +204,8 @@ const goBack = () => router.push('/designer');
 
 @media (max-width: 900px) {
   .mode-btn {
-    min-width: 100px;
-    font-size: 16px;
+    min-width: 90px;
+    font-size: 13px;
   }
 
   .embed-container {
@@ -200,3 +214,4 @@ const goBack = () => router.push('/designer');
   }
 }
 </style>
+

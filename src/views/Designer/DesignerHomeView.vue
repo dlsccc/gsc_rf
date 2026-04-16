@@ -66,6 +66,16 @@ const goEntrance = () => router.push('/');
 <style scoped>
 .publish-entry-btn {
   min-width: 92px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
   white-space: nowrap;
 }
+
+.publish-entry-btn:hover {
+  transform: translateY(-1px);
+}
 </style>
+
