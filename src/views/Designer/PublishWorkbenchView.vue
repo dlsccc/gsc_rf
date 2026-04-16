@@ -9,14 +9,14 @@
       <div class="flow-image-area">
         <img
           v-if="!imageLoadError"
-          :src="currentMode.flowImage"
-          :alt="currentMode.label + '流程图'"
+          :src="FLOW_IMAGE_PATH"
+          alt="发布流程图"
           class="flow-image"
           @error="handleImageError"
         />
         <div v-else class="flow-image-placeholder">
-          <div>请放置 {{ currentMode.label }} 流程图</div>
-          <div class="flow-image-path">{{ currentMode.flowImage }}</div>
+          <div>请放置发布流程图</div>
+          <div class="flow-image-path">{{ FLOW_IMAGE_PATH }}</div>
         </div>
       </div>
 
@@ -59,15 +59,15 @@ const router = useRouter();
 const appStore = useAppStore();
 appStore.setRole('designer');
 
+const FLOW_IMAGE_PATH = '/images/publish/publish-flow.png';
+
 const MODE_CONFIG = {
   design: {
     label: '设计态',
-    flowImage: '/images/publish/design-mode-flow.png',
     embedUrl: 'https://2000-itsc-gde-design.sd.huawei.com/adc-studio-web/project-mgt/project/resource-designer.html?project_id=14#/'
   },
   runtime: {
     label: '运行态',
-    flowImage: '/images/publish/runtime-mode-flow.png',
     embedUrl: 'https://2000-itsc-gde-runtime.sd.huawei.com/portal-web/portal/appDetails.html?appshortcutId=1#GDE.AI.AppManager'
   }
 };
@@ -80,7 +80,6 @@ const currentMode = computed(() => MODE_CONFIG[activeMode.value]);
 const switchMode = (mode) => {
   if (!MODE_CONFIG[mode]) return;
   activeMode.value = mode;
-  imageLoadError.value = false;
 };
 
 const handleImageError = () => {
