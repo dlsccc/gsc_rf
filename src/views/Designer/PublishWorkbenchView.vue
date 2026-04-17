@@ -91,13 +91,13 @@ const goBack = () => router.push('/designer');
 
 <style scoped>
 .publish-workbench {
-  padding: 24px;
-  max-width: 1280px;
+  padding: 20px 24px 32px;
+  width: 100%;
+  max-width: 1680px;
   margin: 0 auto;
   height: calc(100vh - 64px);
   overflow-y: auto;
   overflow-x: hidden;
-  padding-bottom: 32px;
 }
 
 .publish-header {
@@ -114,10 +114,11 @@ const goBack = () => router.push('/designer');
 }
 
 .publish-panel {
+  width: 100%;
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 16px;
+  padding: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
@@ -192,21 +193,36 @@ const goBack = () => router.push('/designer');
 
 .embed-container {
   width: 100%;
-  height: calc(100vh - 360px);
-  min-height: 560px;
+  height: calc(100vh - 330px);
+  min-height: 620px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  overflow: hidden;
+  overflow: auto;
   background: #fff;
 }
 
 .embed-frame {
   width: 100%;
+  min-width: 1366px;
   height: 100%;
   border: none;
 }
 
+@media (max-width: 1400px) {
+  .embed-frame {
+    min-width: 1200px;
+  }
+}
+
 @media (max-width: 900px) {
+  .publish-workbench {
+    padding: 16px;
+  }
+
+  .publish-panel {
+    padding: 14px;
+  }
+
   .mode-btn {
     min-width: 90px;
     font-size: 13px;
@@ -214,7 +230,11 @@ const goBack = () => router.push('/designer');
 
   .embed-container {
     min-height: 500px;
-    height: calc(100vh - 400px);
+    height: calc(100vh - 360px);
+  }
+
+  .embed-frame {
+    min-width: 0;
   }
 }
 </style>
