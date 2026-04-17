@@ -159,10 +159,11 @@ const ruleStore = useRuleStore();
 const loadRules = async () => {
   ruleStore.setLoading(true);
   try {
-    const response = await rulesApi.list({ pageNum: 1, pageSize: 200 });
+    const projectCode = String(appStore.currentProjectCode || '').trim();
+    const response = await rulesApi.list({ pageNum: 1, pageSize: 200, ...(projectCode ? { projectCode } : {}) });
     const list = unwrapApiList(response);
     if (list.length > 0) {
-      ruleStore.setRules(list.map((item) => mapApiRuleToEntity(item, appStore.currentProject)));
+      ruleStore.setRules(list.map((item) => mapApiRuleToEntity(item, appStore.currentProject, projectCode)));
     }
   } catch {
     // 无后端时保留本地状态。

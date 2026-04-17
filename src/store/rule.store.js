@@ -124,6 +124,7 @@ const defaultRules = [
     targetModel: 'UM_4G_HW_小时级Counter',
     updateTime: '2024-03-04 15:30',
     projectId: 1,
+    projectCode: 'project11111111',
     inputTables: [{ ...RULE_INPUT_TABLES[0] }],
     ruleJson: {}
   }
@@ -134,11 +135,12 @@ export const normalizeRule = (rule = {}) => ({
   id: toText(rule.id || rule.ruleId || rule.ruleCode || createId()),
   ruleCode: toText(rule.ruleCode || rule.ruleId || rule.id),
   targetModelName: toText(rule.targetModelName || rule.targetModel),
+  projectCode: toText(rule.projectCode || rule.project_code),
   inputTables: normalizeRuleInputTables(rule),
   ruleJson: rule.ruleJson || {}
 });
 
-export const mapApiRuleToEntity = (item = {}, projectId) => {
+export const mapApiRuleToEntity = (item = {}, projectId, projectCode = '') => {
   const id = toText(item.ruleId || item.id || item.ruleCode || createId());
   const ruleJson = normalizeRuleJsonForApi(parseRuleJson(item.ruleJson));
 
@@ -179,6 +181,7 @@ export const mapApiRuleToEntity = (item = {}, projectId) => {
     targetModel,
     targetModelName,
     projectId: item.projectId || projectId,
+    projectCode: toText(item.projectCode || item.project_code || projectCode),
     inputTables,
     updateTime: toText(item.lastUpdatedDate || item.creationDate || item.updateTime || nowText()),
     ruleJson
@@ -189,6 +192,7 @@ export const toSaveRulePayload = (entity = {}, payload = {}) => {
   const persistedRuleId = toText(payload.ruleId);
   const normalizedRuleJson = normalizeRuleJsonForApi(payload.ruleJson || payload.dsl || entity.ruleJson || {});
   const createBy = toText(payload.createBy) || DEFAULT_CREATE_BY;
+  const projectCode = toText(payload.projectCode || entity.projectCode);
 
   const requestPayload = {
     ruleName: toText(entity.name),
@@ -203,6 +207,10 @@ export const toSaveRulePayload = (entity = {}, payload = {}) => {
     lastUpdatedBy: toText(payload.lastUpdatedBy)
   };
 
+  if (projectCode) {
+    requestPayload.projectCode = projectCode;
+  }
+
   if (persistedRuleId) {
     requestPayload.ruleId = persistedRuleId;
   }
@@ -216,6 +224,10 @@ export const useRuleStore = defineStore('rule', () => {
   const loading = ref(false);
 
   const filteredRules = computed(() => {
+    const currentProjectCode = toText(appStore.currentProjectCode);
+    if (currentProjectCode) {
+      return rules.value.filter((item) => toText(item.projectCode) === currentProjectCode);
+    }
     return rules.value.filter((item) => Number(item.projectId) === Number(appStore.currentProject));
   });
 
@@ -236,6 +248,7 @@ export const useRuleStore = defineStore('rule', () => {
       ...payload,
       id: payload.id || payload.ruleCode || payload.ruleId || createId(),
       ruleCode: payload.ruleCode || payload.ruleId || payload.id,
+      projectCode: toText(payload.projectCode || payload.project_code || appStore.currentProjectCode),
       updateTime: payload.updateTime || nowText()
     });
 

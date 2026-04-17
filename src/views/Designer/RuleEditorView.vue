@@ -920,10 +920,11 @@ const loadProjectModelDetail = async (modelCodeOrId) => {
 const loadRules = async () => {
   ruleStore.setLoading(true);
   try {
-    const response = await rulesApi.list({ pageNum: 1, pageSize: 200 });
+    const projectCode = resolveCurrentProjectCode();
+    const response = await rulesApi.list({ pageNum: 1, pageSize: 200, ...(projectCode ? { projectCode } : {}) });
     const list = unwrapApiList(response);
     if (list.length > 0) {
-      ruleStore.setRules(list.map((item) => mapApiRuleToEntity(item, appStore.currentProject)));
+      ruleStore.setRules(list.map((item) => mapApiRuleToEntity(item, appStore.currentProject, projectCode)));
     }
   } catch {
     // 无后端时保留本地状态。
@@ -1286,6 +1287,7 @@ const saveRuleEntity = async ({ status = 'draft', dsl = null } = {}) => {
   }
 
   const nextDsl = dsl || buildCurrentDsl(selectedModel);
+  const projectCode = resolveCurrentProjectCode();
   let saved = ruleStore.upsertRuleLocal({
     ...JSON.parse(JSON.stringify(form)),
     id: form.id,
@@ -1295,6 +1297,7 @@ const saveRuleEntity = async ({ status = 'draft', dsl = null } = {}) => {
     inputTables: resolveRuleInputTablesForSave(),
     uploadedFiles: pipelineStore.uploadedFiles,
     projectId: appStore.currentProject,
+    projectCode,
     ruleJson: nextDsl,
     dsl: nextDsl
   });
@@ -1309,6 +1312,7 @@ const saveRuleEntity = async ({ status = 'draft', dsl = null } = {}) => {
       inputTables: resolveRuleInputTablesForSave(),
       uploadedFiles: pipelineStore.uploadedFiles,
       projectId: appStore.currentProject,
+      projectCode,
       ruleJson: nextDsl,
       dsl: nextDsl
     }));

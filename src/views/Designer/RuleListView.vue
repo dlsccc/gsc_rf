@@ -62,7 +62,7 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue';
+import { onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { rulesApi } from '@/api/index.js';
 import { useRuleStore, mapApiRuleToEntity, unwrapApiList as unwrapRuleList } from '@/store/rule.store.js';
@@ -75,10 +75,11 @@ const ruleStore = useRuleStore();
 const loadRules = async () => {
   ruleStore.setLoading(true);
   try {
-    const response = await rulesApi.list({ pageNum: 1, pageSize: 200 });
+    const projectCode = String(appStore.currentProjectCode || '').trim();
+    const response = await rulesApi.list({ pageNum: 1, pageSize: 200, ...(projectCode ? { projectCode } : {}) });
     const list = unwrapRuleList(response);
     if (list.length > 0) {
-      ruleStore.setRules(list.map((item) => mapApiRuleToEntity(item, appStore.currentProject)));
+      ruleStore.setRules(list.map((item) => mapApiRuleToEntity(item, appStore.currentProject, projectCode)));
     }
   } catch {
     // keep local state when backend is unavailable
@@ -91,6 +92,13 @@ onMounted(async () => {
   appStore.setRole('designer');
   await loadRules();
 });
+
+watch(
+  () => appStore.currentProjectCode,
+  async () => {
+    await loadRules();
+  }
+);
 
 const remove = async (id) => {
   if (!window.confirm('\u786e\u5b9a\u8981\u5220\u9664\u8be5\u5165\u6e56\u89c4\u5219\u5417\uff1f\u6b64\u64cd\u4f5c\u4e0d\u53ef\u6062\u590d\u3002')) {

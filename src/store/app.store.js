@@ -5,7 +5,8 @@ import { ROLES, ROLE_LABEL } from '@/utils/roles.js';
 export const useAppStore = defineStore('app', () => {
   const currentRole = ref(null);
   const projectList = ref([
-    { id: 1, code: 'project11111111', name: '马来UM项目' }
+    { id: 1, code: 'project11111111', name: '马来UM项目' },
+    { id: 2, code: 'project_01', name: '毛塔Chinguitel' }
   ]);
   const currentProject = ref(1);
   const currentProjectCode = computed(() => {
@@ -43,5 +44,3 @@ export const useAppStore = defineStore('app', () => {
     setProject
   };
 });
-
-
