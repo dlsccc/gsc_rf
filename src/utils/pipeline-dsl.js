@@ -273,7 +273,7 @@ const toRuleInputsByRawSources = (sourceKeys = [], sourceAliasToId = {}) => {
 const buildFilterDsl = (config) => {
   if (!hasEffectiveFilter(config)) return undefined;
 
-  const columnRef = '$rule_input[0].key_columns[0]';
+  const columnRef = '$rule_output.output_column';
 
   if (config.mode === 'formula') {
     return [
@@ -308,7 +308,7 @@ const buildFilterDsl = (config) => {
   ];
 };
 
-const buildTransformStep = (step = {}, columnRef = '$rule_output.output_column', targetType = '') => {
+const buildTransformStep = (step = {}, columnRef = '$rule_input[0].key_columns[0]', targetType = '') => {
   const transformType = resolveTransformTypeForApi(step);
   const params = [
     makeParam('transform_type', 'enum', transformType),
@@ -380,7 +380,7 @@ const buildTransformDsl = (config, targetType = '') => {
           precision: rule.precision,
           timeFormatMode: rule.timeFormatMode,
           originType: rule.originType
-        }, '$rule_output.output_column', targetType);
+        }, '$rule_input[0].key_columns[0]', targetType);
 
         return {
           index: `sub_rule_${normalizeIndexPart(rule.type)}_${index + 1}`,
@@ -398,7 +398,7 @@ const buildTransformDsl = (config, targetType = '') => {
     };
   }
 
-  return buildTransformStep(config, '$rule_output.output_column', targetType);
+  return buildTransformStep(config, '$rule_input[0].key_columns[0]', targetType);
 };
 
 const toDataSourceDsl = (uploadedFiles = []) => {
