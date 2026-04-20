@@ -75,7 +75,7 @@
             <select v-model="lakeTaskDraft.ruleId" class="form-select">
               <option value="">请选择入湖规则...</option>
               <option v-for="rule in publishedLakeRules" :key="rule.id" :value="rule.id">
-                {{ rule.name }}（{{ rule.targetModel }}）
+                {{ rule.name }}
               </option>
             </select>
             <div style="margin-top: 8px; font-size: 12px; color: var(--text-secondary);">当前项目已发布规则 {{ publishedLakeRules.length }} 条</div>
@@ -148,34 +148,23 @@
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { rulesApi } from '@/api/index.js';
-import { $success, $warning } from '@/utils/message.js';
+import { $error, $success, $warning } from '@/utils/message.js';
 import { useAppStore } from '@/store/app.store.js';
 import { RULE_INPUT_TABLES, mapApiRuleToEntity, normalizeRuleInputTables, unwrapApiList, useRuleStore } from '@/store/rule.store.js';
+import { fileUtilUploadFile, normalizeUploadResult, resolveEdmId } from '@/utils/fileUtils.js';
 
 const router = useRouter();
 const appStore = useAppStore();
 const ruleStore = useRuleStore();
 
-const loadRules = async () => {
-  ruleStore.setLoading(true);
-  try {
-    const projectCode = String(appStore.currentProjectCode || '').trim();
-    const response = await rulesApi.list({ pageNum: 1, pageSize: 200, ...(projectCode ? { projectCode } : {}) });
-    const list = unwrapApiList(response);
-    if (list.length > 0) {
-      ruleStore.setRules(list.map((item) => mapApiRuleToEntity(item, appStore.currentProject, projectCode)));
-    }
-  } catch {
-    // 无后端时保留本地状态。
-  } finally {
-    ruleStore.setLoading(false);
-  }
-};
+const toText = (value) => String(value ?? '').trim();
 
 const taskFileInput = ref(null);
 const lakeTaskRuns = ref([]);
 const taskDragOverTable = ref('');
 const taskUploadTableId = ref('table_a');
+const taskUploadingTableId = ref('');
+const taskExecuting = ref(false);
 const lakeTaskDraft = reactive({
   id: null,
   name: '',
@@ -187,8 +176,41 @@ const lakeTaskModal = reactive({
   show: false
 });
 
+const extractRuleInputTablesFromRuleJson = (rule) => {
+  const ruleJson = rule?.ruleJson || {};
+  const tables = ruleJson?.globalSetting?.dataSources?.tables
+    || ruleJson?.global_setting?.data_sources?.tables
+    || [];
+
+  return (Array.isArray(tables) ? tables : [])
+    .map((table, index) => {
+      const sourceId = toText(table?.sourceId || table?.source_id || RULE_INPUT_TABLES[index]?.id || `table_${index + 1}`);
+      const sourceName = toText(table?.sourceName || table?.source_name || sourceId);
+      if (!sourceId) return null;
+      return {
+        id: sourceId,
+        label: sourceName || sourceId
+      };
+    })
+    .filter((item, index, arr) => item && item.id && arr.findIndex((val) => val.id === item.id) === index);
+};
+
+const loadRules = async () => {
+  ruleStore.setLoading(true);
+  try {
+    const projectCode = toText(appStore.currentProjectCode);
+    const response = await rulesApi.listPublishedByProject({ projectCode });
+    const list = unwrapApiList(response);
+    ruleStore.setRules(list.map((item) => mapApiRuleToEntity(item, appStore.currentProject, projectCode)));
+  } catch {
+    ruleStore.setRules([]);
+  } finally {
+    ruleStore.setLoading(false);
+  }
+};
+
 const publishedLakeRules = computed(() => {
-  return ruleStore.rules.filter((item) => Number(item.projectId) === Number(appStore.currentProject) && item.status === 'active');
+  return ruleStore.sortedRules;
 });
 
 const selectedLakeTaskRule = computed(() => {
@@ -196,7 +218,10 @@ const selectedLakeTaskRule = computed(() => {
 });
 
 const taskRequiredTables = computed(() => {
-  return selectedLakeTaskRule.value ? normalizeRuleInputTables(selectedLakeTaskRule.value) : [];
+  if (!selectedLakeTaskRule.value) return [];
+  const fromRuleJson = extractRuleInputTablesFromRuleJson(selectedLakeTaskRule.value);
+  if (fromRuleJson.length > 0) return fromRuleJson;
+  return normalizeRuleInputTables(selectedLakeTaskRule.value);
 });
 
 watch(
@@ -265,10 +290,12 @@ const createLakeTask = () => {
   lakeTaskDraft.files = [];
   taskDragOverTable.value = '';
   taskUploadTableId.value = 'table_a';
+  taskUploadingTableId.value = '';
 };
 
 const openLakeTaskModal = async () => {
   createLakeTask();
+  await loadRules();
   lakeTaskModal.show = true;
   await nextTick();
 };
@@ -280,6 +307,7 @@ const resetLakeTaskDraft = () => {
   lakeTaskDraft.files = [];
   taskDragOverTable.value = '';
   taskUploadTableId.value = 'table_a';
+  taskUploadingTableId.value = '';
   if (taskFileInput.value) taskFileInput.value.value = '';
 };
 
@@ -288,7 +316,15 @@ const closeLakeTaskModal = () => {
   resetLakeTaskDraft();
 };
 
-const addTaskFiles = (files, tableId) => {
+const ensureUploadMeta = (uploadData, file) => {
+  const list = normalizeUploadResult(uploadData);
+  if (list.length === 0) {
+    throw new Error(`文件 ${file?.name || ''} 上传后未返回 edmId`);
+  }
+  return list[0];
+};
+
+const addTaskFiles = async (files, tableId) => {
   if (!lakeTaskDraft.id) {
     $warning('请先创建入湖任务');
     return;
@@ -297,14 +333,17 @@ const addTaskFiles = (files, tableId) => {
     $warning('请先选择入湖规则');
     return;
   }
+  if (taskUploadingTableId.value) {
+    return;
+  }
 
   const requiredTables = taskRequiredTables.value;
   if (requiredTables.length === 0) {
-    $warning('当前规则未配置原始数据表，请检查规则定义');
+    $warning('当前规则未配置源数据表，请先检查规则配置');
     return;
   }
   if (!requiredTables.some((table) => table.id === tableId)) {
-    $warning('当前规则不需要该数据表，请重新选择');
+    $warning('当前规则不需要该源数据表，请重新选择');
     return;
   }
 
@@ -317,29 +356,49 @@ const addTaskFiles = (files, tableId) => {
   }
 
   const file = selectedFiles[0];
-  const nextFile = {
-    id: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
-    tableId,
-    tableLabel: tableMeta.label,
-    name: file.name,
-    byteSize: file.size,
-    size: formatTaskFileSize(file.size),
-    uploadTime: formatTaskTime(),
-    lastModified: file.lastModified
-  };
+  taskUploadingTableId.value = tableId;
 
-  const oldIndex = lakeTaskDraft.files.findIndex((item) => item.tableId === tableId);
-  if (oldIndex > -1) {
-    lakeTaskDraft.files.splice(oldIndex, 1, nextFile);
-  } else {
-    lakeTaskDraft.files.push(nextFile);
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const uploadData = await fileUtilUploadFile(formData);
+    const uploadMeta = ensureUploadMeta(uploadData, file);
+    const edmId = resolveEdmId(uploadMeta);
+
+    if (!edmId) {
+      throw new Error(`文件 ${file?.name || ''} 上传后未返回 edmId`);
+    }
+
+    const nextFile = {
+      id: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
+      tableId,
+      tableLabel: tableMeta.label,
+      name: file.name,
+      byteSize: file.size,
+      size: formatTaskFileSize(file.size),
+      uploadTime: formatTaskTime(),
+      lastModified: file.lastModified,
+      edmId,
+      fileCode: edmId
+    };
+
+    const oldIndex = lakeTaskDraft.files.findIndex((item) => item.tableId === tableId);
+    if (oldIndex > -1) {
+      lakeTaskDraft.files.splice(oldIndex, 1, nextFile);
+    } else {
+      lakeTaskDraft.files.push(nextFile);
+    }
+
+    lakeTaskDraft.files.sort((a, b) => {
+      const aIndex = requiredTables.findIndex((table) => table.id === a.tableId);
+      const bIndex = requiredTables.findIndex((table) => table.id === b.tableId);
+      return aIndex - bIndex;
+    });
+  } catch (error) {
+    $error(error?.message || '文件上传失败');
+  } finally {
+    taskUploadingTableId.value = '';
   }
-
-  lakeTaskDraft.files.sort((a, b) => {
-    const aIndex = requiredTables.findIndex((table) => table.id === a.tableId);
-    const bIndex = requiredTables.findIndex((table) => table.id === b.tableId);
-    return aIndex - bIndex;
-  });
 };
 
 const triggerTaskFileInput = (tableId) => {
@@ -351,21 +410,24 @@ const triggerTaskFileInput = (tableId) => {
     $warning('请先选择入湖规则');
     return;
   }
+  if (taskUploadingTableId.value) {
+    return;
+  }
   taskUploadTableId.value = tableId;
   if (taskFileInput.value) taskFileInput.value.click();
 };
 
-const handleTaskFileSelect = (event) => {
+const handleTaskFileSelect = async (event) => {
   if (event.target.files.length > 0) {
-    addTaskFiles(event.target.files, taskUploadTableId.value);
+    await addTaskFiles(event.target.files, taskUploadTableId.value);
   }
   event.target.value = '';
 };
 
-const handleTaskFileDrop = (event, tableId) => {
+const handleTaskFileDrop = async (event, tableId) => {
   taskDragOverTable.value = '';
   if (event.dataTransfer.files.length > 0) {
-    addTaskFiles(event.dataTransfer.files, tableId);
+    await addTaskFiles(event.dataTransfer.files, tableId);
   }
 };
 
@@ -377,21 +439,24 @@ const removeTaskFile = (tableId) => {
 };
 
 const canExecuteLakeTask = computed(() => {
-  if (!lakeTaskDraft.id || !String(lakeTaskDraft.name).trim() || !lakeTaskDraft.ruleId) {
+  if (!lakeTaskDraft.id || !toText(lakeTaskDraft.name) || !lakeTaskDraft.ruleId) {
     return false;
   }
   if (taskRequiredTables.value.length === 0) {
     return false;
   }
-  return taskRequiredTables.value.every((table) => !!getTaskFileByTable(table.id));
+  if (taskUploadingTableId.value || taskExecuting.value) {
+    return false;
+  }
+  return taskRequiredTables.value.every((table) => !!getTaskFileByTable(table.id)?.edmId);
 });
 
-const executeLakeTask = () => {
+const executeLakeTask = async () => {
   if (!lakeTaskDraft.id) {
     $warning('请先创建入湖任务');
     return;
   }
-  if (!String(lakeTaskDraft.name).trim()) {
+  if (!toText(lakeTaskDraft.name)) {
     $warning('请输入任务名称');
     return;
   }
@@ -408,35 +473,54 @@ const executeLakeTask = () => {
 
   const requiredTables = taskRequiredTables.value;
   if (requiredTables.length === 0) {
-    $warning('当前规则未配置原始数据表，请先完善规则定义');
+    $warning('当前规则未配置源数据表，请先检查规则配置');
     return;
   }
 
-  const missingTables = requiredTables.filter((table) => !getTaskFileByTable(table.id));
+  const missingTables = requiredTables.filter((table) => !getTaskFileByTable(table.id)?.edmId);
   if (missingTables.length > 0) {
-    $warning(`请上传 ${missingTables.map((table) => table.label).join('、')} 的原始数据`);
+    $warning(`请上传 ${missingTables.map((table) => table.label).join('、')} 的源数据`);
     return;
   }
 
-  lakeTaskRuns.value.unshift({
-    runId: Date.now(),
-    name: lakeTaskDraft.name.trim(),
-    ruleId: selectedRule.id,
-    ruleName: selectedRule.name,
-    fileCount: requiredTables.length,
-    executeTime: formatTaskTime()
+  const ruleCode = toText(selectedRule.ruleCode || selectedRule.id);
+  if (!ruleCode) {
+    $warning('规则标识缺失，无法执行任务');
+    return;
+  }
+
+  const fileList = requiredTables.map((table) => {
+    const file = getTaskFileByTable(table.id);
+    return {
+      fileName: toText(table.label || table.id),
+      edmId: toText(file?.edmId)
+    };
   });
 
-  const uploadSummary = requiredTables
-    .map((table) => {
-      const taskFile = getTaskFileByTable(table.id);
-      return `${table.label}: ${taskFile ? taskFile.name : '未上传'}`;
-    })
-    .join('；');
+  taskExecuting.value = true;
 
-  $success(`任务执行成功！\n任务：${lakeTaskDraft.name.trim()}\n规则：${selectedRule.name}\n原始数据：${uploadSummary}`);
-  lakeTaskModal.show = false;
-  resetLakeTaskDraft();
+  try {
+    const executeResponse = await rulesApi.execute({ ruleCode, fileList });
+    const executeData = executeResponse?.data || {};
+
+    lakeTaskRuns.value.unshift({
+      runId: toText(executeData?.immeTaskId) || Date.now(),
+      name: lakeTaskDraft.name.trim(),
+      ruleId: selectedRule.id,
+      ruleName: selectedRule.name,
+      fileCount: requiredTables.length,
+      executeTime: formatTaskTime()
+    });
+
+    $success('任务执行成功');
+    lakeTaskModal.show = false;
+    resetLakeTaskDraft();
+  } catch (error) {
+    const msg = toText(error?.response?.data?.msg || error?.data?.msg || error?.message);
+    $error(msg || '任务执行失败');
+  } finally {
+    taskExecuting.value = false;
+  }
 };
 
 onMounted(async () => {
