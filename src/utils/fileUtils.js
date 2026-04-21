@@ -145,11 +145,11 @@ export const extractFieldInfoList = (parsedList, edmId) => {
 /**
  * a标签下载文件
  * @param fileId 文件id
- * @param downloadToken 下载文件token
- * @param checkToken 文件校验token
+ * @param checkItem 文件校验项
+ * @param downloadCode 下载凭证
  * @param single 是否为单个文件下载
  */
-export function downloadFileByALink(fileId, downloadToken, checkToken, checkItem, downloadCode, fileName) {
+export function downloadFileByALink(fileId, checkItem, downloadCode, fileName) {
   if (!fileId) {
     return;
   }
@@ -158,7 +158,7 @@ export function downloadFileByALink(fileId, downloadToken, checkToken, checkItem
     // 非IE浏览器才有a.download
     alink.setAttribute('download', '');
     alink.style.display = 'none';
-    alink.href = apiSystemService.fileEdm3Download(fileId, downloadToken, checkToken, checkItem, downloadCode);
+    alink.href = apiSystemService.fileEdm3Download(fileId, checkItem, downloadCode);
     if(fileName){
       alink.download = fileName;
     }
@@ -186,10 +186,8 @@ export async function preDownloadToken(fileId, config) {
 export async function downloadFile(fileId){
   const res = await preDownloadToken(fileId);
   const {
-    downloadToken,
-    checkToken,
     checkItem,
     downloadCode
   } = res || {};
-  downloadFileByALink(fileId, downloadToken, checkToken, checkItem, downloadCode);
+  downloadFileByALink(fileId, checkItem, downloadCode);
 }

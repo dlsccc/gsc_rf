@@ -8,14 +8,8 @@ export const apiSystemService = {
   autoMapFields: (params, config) => post(`${baseUrl.lingluoService}/v1/dataSmart/autoMapFields`, params, config),
   generateProcessConfig: (params, config) => post(`${baseUrl.lingluoService}/v1/dataSmart/generateProcessConfig`, params, config),
   preDownload: (fileId, config) => get(`${baseUrl.itscSystemservice}/v1/file/edm3/preDownload?fileId=${fileId}`, null, config),
-  fileEdm3Download: (fileId, downloadToken, checkToken, checkItem, downloadCode) => {
+  fileEdm3Download: (fileId, checkItem, downloadCode) => {
     const query = new URLSearchParams();
-    if (downloadToken !== undefined && downloadToken !== null && String(downloadToken).trim()) {
-      query.append('downloadToken', String(downloadToken).trim());
-    }
-    if (checkToken !== undefined && checkToken !== null && String(checkToken).trim()) {
-      query.append('checkToken', String(checkToken).trim());
-    }
     if (checkItem !== undefined && checkItem !== null && String(checkItem).trim()) {
       query.append('checkItem', String(checkItem).trim());
     }
