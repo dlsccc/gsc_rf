@@ -8,8 +8,23 @@ export const apiSystemService = {
   autoMapFields: (params, config) => post(`${baseUrl.lingluoService}/v1/dataSmart/autoMapFields`, params, config),
   generateProcessConfig: (params, config) => post(`${baseUrl.lingluoService}/v1/dataSmart/generateProcessConfig`, params, config),
   preDownload: (fileId, config) => get(`${baseUrl.itscSystemservice}/v1/file/edm3/preDownload?fileId=${fileId}`, null, config),
-  fileEdm3Download: (fileId, downloadToken, checkToken) =>
-    `${baseUrl.itscSystemservice}/v1/file/edm3/download/${fileId}?downloadToken=${downloadToken}&checkToken=${checkToken}`,
+  fileEdm3Download: (fileId, downloadToken, checkToken, checkItem, downloadCode) => {
+    const query = new URLSearchParams();
+    if (downloadToken !== undefined && downloadToken !== null && String(downloadToken).trim()) {
+      query.append('downloadToken', String(downloadToken).trim());
+    }
+    if (checkToken !== undefined && checkToken !== null && String(checkToken).trim()) {
+      query.append('checkToken', String(checkToken).trim());
+    }
+    if (checkItem !== undefined && checkItem !== null && String(checkItem).trim()) {
+      query.append('checkItem', String(checkItem).trim());
+    }
+    if (downloadCode !== undefined && downloadCode !== null && String(downloadCode).trim()) {
+      query.append('downloadCode', String(downloadCode).trim());
+    }
+    const queryString = query.toString();
+    return `${baseUrl.itscSystemservice}/v1/file/edm3/download/${fileId}${queryString ? `?${queryString}` : ''}`;
+  },
 };
 
 
