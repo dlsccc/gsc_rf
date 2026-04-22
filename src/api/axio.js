@@ -13,7 +13,7 @@ if (config.url?.includes('/uap/')) {
   }else{
     config.headers['project-id'] =config.headers['project-id'] || userStore.state.curTenant.frmProjectId ||  userStore.state.zoneId || '';
   }
-  config.headers['user-info'] =  userStore.state.userInfo?.account || '';
+  config.headers['user-info'] =  userStore.userInfo?.account || '';
   return config;
 }
 
