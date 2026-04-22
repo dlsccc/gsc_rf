@@ -86,13 +86,16 @@
         </div>
         <div class="form-group">
           <label class="form-label">工程名 <span class="required-star">*</span></label>
-          <input v-model="projectForm.gdeProjectName" type="text" class="form-input" maxlength="64" placeholder="请输入工程名">
+          <input
+            v-model="projectForm.gdeProjectName"
+            type="text"
+            class="form-input"
+            maxlength="64"
+            placeholder="请输入工程名"
+            :disabled="projectModal.mode === 'edit'"
+          >
           <div class="field-tip">命名要求：以字母开头且只能输入字母、数字、下划线、中划线、点，长度3-64个字符，不能以[...]结尾</div>
         </div>
-        <label class="project-checkbox-row">
-          <input v-model="projectForm.needCreateGdeProject" type="checkbox">
-          <span>是否创建GDE工程</span>
-        </label>
       </div>
       <div class="modal-footer">
         <button class="btn btn-default" type="button" @click="closeProjectModal">取消</button>
@@ -124,8 +127,7 @@ const projectForm = reactive({
   id: '',
   projectName: '',
   projectCode: '',
-  gdeProjectName: '',
-  needCreateGdeProject: false
+  gdeProjectName: ''
 });
 
 const REPORT_TEMPLATE_URL = 'https://astr-lab.gts.huawei.com/dacs/rfreport#/';
@@ -138,7 +140,6 @@ const clearProjectForm = () => {
   projectForm.projectName = '';
   projectForm.projectCode = '';
   projectForm.gdeProjectName = '';
-  projectForm.needCreateGdeProject = false;
 };
 
 const loadProjectList = async () => {
@@ -183,7 +184,6 @@ const openEditProjectModal = (project) => {
   projectForm.projectName = project.projectName || project.name || '';
   projectForm.projectCode = project.projectCode || project.code || '';
   projectForm.gdeProjectName = project.gdeProjectName || '';
-  projectForm.needCreateGdeProject = !!project.needCreateGdeProject;
   projectModal.mode = 'edit';
   projectModal.show = true;
   projectMenuVisible.value = false;
@@ -234,8 +234,7 @@ const saveProject = async () => {
     ...(projectModal.mode === 'edit' ? { id: projectForm.id } : {}),
     projectName: String(projectForm.projectName || '').trim(),
     projectCode,
-    gdeProjectName: String(projectForm.gdeProjectName || '').trim(),
-    needCreateGdeProject: !!projectForm.needCreateGdeProject
+    gdeProjectName: String(projectForm.gdeProjectName || '').trim()
   };
 
   try {
@@ -407,13 +406,4 @@ const goEntrance = () => router.push('/');
   line-height: 1.5;
 }
 
-.project-checkbox-row {
-  margin-top: 6px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  color: var(--text);
-  cursor: pointer;
-}
 </style>
