@@ -6,6 +6,8 @@ const baseUrl = {
   pipeline: BASE_PREFIX,
   itscSystemservice: '/itsc/systemservice',
   lingluoService: '/itsc/lingluoservice',
+  uapZms: '/uap/zms',
+  framework: '/itsc/frameworkservice'
 };
 
 export default baseUrl;

@@ -8,6 +8,7 @@
       window.__toCdnUrl = path => {
         return '{wcm_staticUrl}' + path;
       };
+      document.write(`<script crossorigin src="<%- prePath %>static/public.yaml?version=<%- version %>"><\/script>`);
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/material-design-icons-iconfont@6.7.0/dist/material-design-icons.min.css" rel="stylesheet" />

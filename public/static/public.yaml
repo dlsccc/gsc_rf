@@ -1,0 +1,609 @@
+/*
+ * 最后更新时间：2024/01/25 15:25:00
+ * 作用：前端各环境配置文件，
+ * 备注:紧急情况可以直接替换WCM上的该文件，不需要改动代码通过流水线出包。
+ */
+
+
+const hostname = location.hostname;
+//V.08 总共16个环境，8个生产，8个测试环境(dev、dev2、devnew、sit、sitnew、uat、autotest和localhost)
+(function () {
+  // 公共项配置
+  const common = {
+    isAuthOnOff: false, // work ui项目授权开关
+    isNewAssetService: false, // 是否使用新资产服务
+    isAllExecute: [], // 全量执行，之前是['CommonPython', 'DataLinkTransfer'],不是批量执行的活动
+    networkSpeedSettings: {
+      // 网速指标配置
+      pollingTimeout: 60 * 1000, // 轮询间隔，毫秒值
+      level: [100 * 1024, 1 * 1024 * 1024, 5 * 1024 * 1024, 10 * 1024 * 1024], // 网速等级，4个等级，单位：bps，默认：1格是100Kbps~1Mbps, 2格是1Mbps~5Mbps, 3格是5Mbps~10Mbps, 4格是10Mpbs以上
+    },
+    trial: {
+      work: '',
+      system: '',
+      si: '',
+      workspace: '',
+      data: '',
+      meta: '',
+      di: '',
+      bi: '',
+      config: '',
+      api: '',
+      scop: '',
+      security: '',
+      assets: '',
+    },
+    // 控制试点抢单字段：目前只印度显示，只在印度展示
+    showTrialSnatchingOrders: [
+        '6666379658872881728',
+        '6651738531247030848',
+        '6720240084777566784',
+        '6659347801396347456',
+        '6637956552420622912',
+        '6792034944114885184',
+        '6798080575166087744',
+        '6786566153071362624',
+    ],
+    // 标准工序库工序类型，只能创建简单工序，不能创建复杂工序（: on为展示，可以选择工序类型；: off为不展示，默认创建简单工序）,所有环境都是off
+    showStandardProcessType: 'off',
+    // 菜单过滤的数据，只有菜单不是全环境部署才会配置在这里，菜单code的对应配置值是显示的环境列表
+    menuFilterConfigByEvn: {
+      // 平台，后面配置的值是展示对应menuCode菜单的环境列表
+      iTSCPlatform: {
+        // 安全管理一级菜单
+        'rs.menu.safe': [
+          'dev', 'sit', 'beta',  'icsl', 'auto', 'perf', 'feature', 'dfr', 'uat',
+          'cn1', 'soft', 'mx1', 'de1', 'dxb'
+        ],
+        // 帮助配置中心一级菜单
+        'rs.menu.helpconfig': ['dev', 'beta', 'dfr', 'perf', 'icsl', 'cn1','uat'],
+        // 专题复盘导入模板配置
+        'rs.menu.projectReviewTemplate': ['cn1', 'dev', 'beta', 'uat'],
+      },
+      // 项目，后面配置的值是展示对应menuCode菜单的环境列表
+      iTSCProject: {
+        // 安全工单管理
+        'rs.menu.accessPlatform': [
+          'dev', 'sit', 'beta', 'icsl', 'auto', 'perf', 'feature', 'dfr', 'uat',
+           'cn1', 'soft', 'mx1', 'de1', 'dxb'],
+      },
+    },
+    // 临时修改的中英文，正常不需要配置，为了优化性能中英文资源不再通过接口获取，如果生产环境临时修改就配置这个public.js重启服务来生效
+    tempI18n: [],
+    // 资产管理的活动分类限制数量
+    activityGroupMaxCount: 200,
+    // 工序活动限制数量
+    processActivityMaxCount: 500,
+    // 工序指导书限制数量
+    processGuideMaxCount: 500,
+    // 工序工单输入限制数量
+    processTaskInputMaxCount: 100,
+    // 活动作业指导书限制数量
+    activityGuideMaxCount: 150,
+    // 活动输入输出项限制数量
+    activityInputOutputMaxCount: 100,
+    // 质检活动检查项限制数量
+    activityCheckItemMaxCount: 200,
+    // 页面跳转活动URL限制数量
+    activityURLMaxCount: 200,
+    // 页面跳转活动URL参数限制数量
+    activityURLParamMaxCount: 200,
+  };
+
+  // 不同配置
+  const all = {
+    cn1: {
+      name: '中国GSC',
+      nameEn: 'China GSC',
+      env: 'cn1',
+      omProjectId: '6660148788361036352',
+      zoneId: '6941255640648110657',
+isProd: true,
+      countryCode: 'DongGuan', // 埋码必备参数
+      forbidTrace: false, // 只有线上环境，而且是不允许埋码的国家才会是true
+      servicePackageRatioList: '', // 是否展示服务包百分比和基线工时 show为展示 未配置为隐藏,郭宇，每个环境不同,目前来看线上只有印度要展示
+      // 项目库和标准工序库,测试环境、中国GSC配置为：['DataTransfer', 'Python'],其它环境配置为：['DataTransfer', 'Python', 'IsdpMobile']
+      activityTypeBlacklist: ['DataTransfer', 'Python', 'CommonPython'],
+      // 标准活动库，活动类型黑名单本地环境、测试环境、中国GSC配置为：['DataTransfer', 'Python', 'SurveyQC', 'QC'],
+      defaultActivityTypeBlacklist: ['DataTransfer', 'Python', 'SurveyQC', 'SurveyObjectQC', 'QC', 'CommonPython', 'SmartQC'],
+      showCapabilityDashboard: 'Y', // 是否展示个人中心的“能力看板”
+      showGetit: true, // 是否展示知识图谱
+      downloadByBrowser: true, // 我的工单、工单管理、导入导出页面让浏览器处理下载，而不是请求blob来下载
+      iHubEndTiemEditable: true, // ihub工单是否可编辑计划完成时间
+      muaId: '6501413329632887360',
+      netliveUrl: 'https://netlive.gts.huawei.com',
+    },
+    de1: {
+      name: '罗马尼亚GSC',
+      nameEn: 'Germany GSC',
+      env: 'de1',
+      omProjectId: '6667078850847048256',
+      zoneId: '6946657953107076673',
+      isProd: true,
+      countryCode: 'Germany',
+      forbidTrace: true,
+      isRomania: true,
+      servicePackageRatioList: '',
+      activityTypeBlacklist: ['DataTransfer', 'Python', 'IsdpMobile', 'CommonPython'],
+      defaultActivityTypeBlacklist: [
+        'DataTransfer',
+        'Python',
+        'SurveyQC',
+        'SurveyObjectQC',
+        'QC',
+        'IsdpMobile',
+        'CommonPython',
+        'SmartQC',
+      ],
+      showCapabilityDashboard: 'Y', // 是否展示个人中心的“能力看板”
+      showGetit: true, // 是否展示知识图谱
+      downloadByBrowser: true, // 我的工单、工单管理、导入导出页面让浏览器处理下载，而不是请求blob来下载
+      iHubEndTiemEditable: false, // ihub工单是否可编辑计划完成时间
+      muaId: '6501413329632887360',
+      teItscWorkshopIds: ['6993811107422327872'], // 指定的作业岛，添加TE时可以选择项目，在项目会生成teitsc角色
+      netliveUrl: 'https://netlive-de.gts.huawei.com',
+    },
+    mx1: {
+      name: '墨西哥GSC',
+      nameEn: 'Mexico GSC',
+      env: 'mx1',
+      omProjectId: '6661226818072347200',
+      zoneId: '6945248623262060609',
+      isProd: true,
+      countryCode: 'Mexico',
+      forbidTrace: false,
+      servicePackageRatioList: '',
+      activityTypeBlacklist: ['DataTransfer', 'Python', 'IsdpMobile', 'CommonPython'],
+      defaultActivityTypeBlacklist: [
+        'DataTransfer',
+        'Python',
+        'SurveyQC',
+        'SurveyObjectQC',
+        'QC',
+        'IsdpMobile',
+        'CommonPython',
+        'SmartQC',
+      ],
+      showCapabilityDashboard: 'Y', // 是否展示个人中心的“能力看板”
+      showGetit: true, // 是否展示知识图谱
+      downloadByBrowser: false, // 我的工单、工单管理、导入导出页面让浏览器处理下载，而不是请求blob来下载
+      iHubEndTiemEditable: false, // ihub工单是否可编辑计划完成时间
+      muaId: '6501413329632887360',
+      netliveUrl: 'https://netlive-mx.gts.huawei.com',
+    },
+    soft: {
+      name: '软件GSC',
+      nameEn: 'Soft GSC',
+      env: 'soft',
+      omProjectId: '6685007562879926848',
+      zoneId: '6948839256852889665',
+      isProd: true,
+      isSoft: true,
+      countryCode: 'DongGuan',
+      forbidTrace: false,
+      servicePackageRatioList: '',
+      activityTypeBlacklist: ['DataTransfer', 'Python', 'IsdpMobile', 'CommonPython'],
+      defaultActivityTypeBlacklist: [
+        'DataTransfer',
+        'Python',
+        'SurveyQC',
+        'SurveyObjectQC',
+        'QC',
+        'IsdpMobile',
+        'CommonPython',
+        'SmartQC',
+      ],
+      showGetit: true, // 是否展示知识图谱
+      downloadByBrowser: true, // 我的工单、工单管理、导入导出页面让浏览器处理下载，而不是请求blob来下载
+      iHubEndTiemEditable: false, // ihub工单是否可编辑计划完成时间
+      muaId: '6501413329632887360',
+      netliveUrl: 'https://netlive.gts.huawei.com',
+},
+    cn2: {
+      name: '中国RSC',
+      nameEn: 'China RSC',
+      env: 'cn2',
+      omProjectId: '6670595593099936320',
+      zoneId: '6952975622696211009',
+      isProd: true,
+      countryCode: 'DongGuan',
+      forbidTrace: false,
+      servicePackageRatioList: '',
+      activityTypeBlacklist: ['DataTransfer', 'Python', 'IsdpMobile', 'CommonPython'],
+      defaultActivityTypeBlacklist: [
+        'DataTransfer',
+        'Python',
+        'SurveyQC',
+        'SurveyObjectQC',
+        'QC',
+        'IsdpMobile',
+        'CommonPython',
+        'SmartQC',
+      ],
+      showGetit: true, // 是否展示知识图谱
+      downloadByBrowser: true, // 我的工单、工单管理、导入导出页面让浏览器处理下载，而不是请求blob来下载
+      iHubEndTiemEditable: false, // ihub工单是否可编辑计划完成时间
+      muaId: '6501413329632887360',
+      netliveUrl: 'https://netlive.gts.huawei.com',
+    },
+    dxb: {
+      name: '埃及GSC',
+      nameEn: 'Egypt GSC',
+      env: 'dxb',
+      omProjectId: '6738015805910417984',
+      zoneId: '6948834014216109633',
+      isProd: true,
+      showOrderGrabbing: true,
+      countryCode: 'Dubai',
+      forbidTrace: false,
+      servicePackageRatioList: '',
+      activityTypeBlacklist: ['DataTransfer', 'Python', 'IsdpMobile', 'CommonPython'],
+      defaultActivityTypeBlacklist: [
+        'DataTransfer',
+        'Python',
+        'SurveyQC',
+        'SurveyObjectQC',
+        'QC',
+        'IsdpMobile',
+        'CommonPython',
+        'SmartQC',
+      ],
+      showGetit: true, // 是否展示知识图谱
+      downloadByBrowser: true, // 我的工单、工单管理、导入导出页面让浏览器处理下载，而不是请求blob来下载
+      iHubEndTiemEditable: false, // ihub工单是否可编辑计划完成时间
+      muaId: '6501413329632887360',
+      netliveUrl: 'https://netlive-ae.gts.huawei.com',
+    },
+    jnb: {
+      name: '南非',
+      nameEn: 'SouthAfrica',
+      env: 'jnb',
+      omProjectId: '6814127177194406464',
+      zoneId: '6939826294611825217',
+      isProd: true,
+      countryCode: 'SouthAfrica',
+      forbidTrace: false,
+      servicePackageRatioList: '',
+      activityTypeBlacklist: ['DataTransfer', 'Python', 'IsdpMobile', 'CommonPython'],
+      defaultActivityTypeBlacklist: [
+        'DataTransfer',
+        'Python',
+        'SurveyQC',
+        'SurveyObjectQC',
+        'QC',
+        'IsdpMobile',
+        'CommonPython',
+        'SmartQC',
+      ],
+      showGetit: true, // 是否展示知识图谱
+      downloadByBrowser: true, // 我的工单、工单管理、导入导出页面让浏览器处理下载，而不是请求blob来下载
+      iHubEndTiemEditable: false, // ihub工单是否可编辑计划完成时间
+      muaId: '6501413329632887360',
+      netliveUrl: 'https://netlive-za.gts.huawei.com',
+    },
+    sg: {
+      name: '新加坡',
+      nameEn: 'Singapore',
+      env: 'sg',
+      omProjectId: '6944481515472878144',
+      zoneId: '6943804331070528577',
+      isProd: true,
+      countryCode: 'Singapore',
+      forbidTrace: false,
+      servicePackageRatioList: '',
+      activityTypeBlacklist: ['DataTransfer', 'Python', 'IsdpMobile', 'CommonPython'],
+      defaultActivityTypeBlacklist: [
+        'DataTransfer',
+        'Python',
+        'SurveyQC',
+        'SurveyObjectQC',
+        'QC',
+'IsdpMobile',
+        'CommonPython',
+        'SmartQC',
+      ],
+      showGetit: true, // 是否展示知识图谱
+      downloadByBrowser: true, // 我的工单、工单管理、导入导出页面让浏览器处理下载，而不是请求blob来下载
+      iHubEndTiemEditable: false, // ihub工单是否可编辑计划完成时间
+      muaId: '6501413329632887360',
+      netliveUrl: 'https://netlive-sg.gts.huawei.com',
+    },
+    // 测试环境
+    localhost: {
+      name: '前端本地',
+      nameEn: 'localhostEn',
+      env: 'localhost',
+      omProjectId: '6637956552420622912',
+      showOrderGrabbing: true,
+      isProd: false,
+      countryCode: 'DongGuan',
+      forbidTrace: false,
+      servicePackageRatioList: 'show',
+      activityTypeBlacklist: ['DataTransfer', 'Python', 'CommonPython'],
+      defaultActivityTypeBlacklist: ['DataTransfer', 'Python', 'SurveyQC', 'SurveyObjectQC', 'QC', 'CommonPython', 'SmartQC'],
+      showGetit: true, // 是否展示知识图谱
+      downloadByBrowser: true, // 我的工单、工单管理、导入导出页面让浏览器处理下载，而不是请求blob来下载
+      iHubEndTiemEditable: true, // ihub工单是否可编辑计划完成时间
+      muaId: '6501413329632887360',
+      netliveUrl: 'https://netlive-alpha.gts.huawei.com',
+    },
+    dev: {
+      name: '开发',
+      nameEn: 'devEn',
+      env: 'dev',
+      omProjectId: '6637956552420622912',
+      zoneId: '6922429276755084353',
+      isProd: false,
+      countryCode: 'DongGuan',
+      showOrderGrabbing: true,
+      forbidTrace: false,
+      servicePackageRatioList: 'show',
+      activityTypeBlacklist: ['DataTransfer', 'Python', 'CommonPython'],
+      defaultActivityTypeBlacklist: ['DataTransfer', 'Python', 'SurveyQC', 'SurveyObjectQC', 'QC', 'CommonPython', 'SmartQC'],
+      showGetit: true, // 是否展示知识图谱
+      downloadByBrowser: true, // 我的工单、工单管理、导入导出页面让浏览器处理下载，而不是请求blob来下载
+      muaId: '6501413329632887360',
+      easySaasFrmProjectId: '7075354873834785856', // 作业岛EasySaaS（SaaS产线视图）对应的框架id
+      netliveUrl: 'https://netlive-alpha.gts.huawei.com',
+    },
+    devnew: {
+      name: '开发',
+      nameEn: 'devNewEn',
+      env: 'devnew',
+      omProjectId: '6792034944114885184',
+      zoneId: '6940548812025078849',
+      isProd: false,
+      countryCode: 'DongGuan',
+      showOrderGrabbing: true,
+      forbidTrace: false,
+      servicePackageRatioList: 'show',
+      activityTypeBlacklist: ['DataTransfer', 'Python', 'CommonPython'],
+      defaultActivityTypeBlacklist: ['DataTransfer', 'Python', 'SurveyQC', 'SurveyObjectQC', 'QC', 'CommonPython', 'SmartQC'],
+      showGetit: true, // 是否展示知识图谱
+      downloadByBrowser: true, // 我的工单、工单管理、导入导出页面让浏览器处理下载，而不是请求blob来下载
+      iHubEndTiemEditable: true, // ihub工单是否可编辑计划完成时间
+      muaId: '6501413329632887360',
+      netliveUrl: 'https://netlive-alpha.gts.huawei.com',
+    },
+    uat: {
+      name: 'UAT测试',
+      nameEn: 'uatEn',
+      env: 'uat',
+      omProjectId: '6720240084777566784',
+      zoneId: '6934708470117610561', // 框架2.5专区id
+      showOrderGrabbing: true,
+      isProd: false,
+      countryCode: 'DongGuan',
+      forbidTrace: false,
+      servicePackageRatioList: 'show',
+      activityTypeBlacklist: ['DataTransfer', 'Python', 'CommonPython'],
+      defaultActivityTypeBlacklist: ['DataTransfer', 'Python', 'SurveyQC', 'SurveyObjectQC', 'QC', 'CommonPython', 'SmartQC'],
+      showGetit: true, // 是否展示知识图谱
+      downloadByBrowser: true, // 我的工单、工单管理、导入导出页面让浏览器处理下载，而不是请求blob来下载
+      iHubEndTiemEditable: false, // ihub工单是否可编辑计划完成时间
+      muaId: '6501413329632887360',
+      teItscWorkshopIds: ['6992815978077800512'], // 指定的作业岛，添加TE时可以选择项目，在项目会生成teitsc角色
+      netliveUrl: 'https://netlive-gamma.gts.huawei.com',
+    },
+    sit: {
+      name: 'SIT测试',
+      nameEn: 'sitEn',
+      env: 'sit',
+      omProjectId: '6651738531247030848',
+      zoneId: '6942679601533457473',
+      showOrderGrabbing: true,
+      isProd: false,
+      countryCode: 'DongGuan',
+      forbidTrace: false,
+      servicePackageRatioList: 'show',
+      activityTypeBlacklist: ['DataTransfer', 'Python', 'CommonPython'],
+      defaultActivityTypeBlacklist: ['DataTransfer', 'Python', 'SurveyQC', 'SurveyObjectQC', 'QC', 'CommonPython', 'SmartQC'],
+showGetit: true, // 是否展示知识图谱
+      downloadByBrowser: true, // 我的工单、工单管理、导入导出页面让浏览器处理下载，而不是请求blob来下载
+      iHubEndTiemEditable: true, // ihub工单是否可编辑计划完成时间
+      muaId: '6501413329632887360',
+      teItscWorkshopIds: ['7053616660527239232'], // 指定的作业岛，添加TE时可以选择项目，在项目会生成teitsc角色
+      netliveUrl: 'https://netlivecloud-beta.gts.huawei.com',
+    },
+    sitnew: {
+      name: 'SITNEW',
+      nameEn: 'sitNewEn',
+      env: 'sitnew',
+      omProjectId: '6798080575166087744', // 特殊管理角色挂靠的专区项目id,比如itsc的业务超管
+      zoneId: '6929717143487490625', // 框架2.5的专区id
+      showOrderGrabbing: true,
+      isProd: false,
+      countryCode: 'DongGuan',
+      forbidTrace: false,
+      servicePackageRatioList: 'show',
+      activityTypeBlacklist: ['DataTransfer', 'Python', 'CommonPython'],
+      defaultActivityTypeBlacklist: ['DataTransfer', 'Python', 'SurveyQC', 'SurveyObjectQC', 'QC', 'CommonPython', 'SmartQC'],
+      showGetit: true, // 是否展示知识图谱
+      downloadByBrowser: true, // 我的工单、工单管理、导入导出页面让浏览器处理下载，而不是请求blob来下载
+      iHubEndTiemEditable: true, // ihub工单是否可编辑计划完成时间
+      muaId: '6501413329632887360',
+      teItscWorkshopIds: ['6989154416448359488'], // 指定的作业岛，添加TE时可以选择项目，在项目会生成teitsc角色
+      netliveUrl: 'https://netlivecloud-beta.gts.huawei.com',
+    },
+    beta: {
+      name: 'beta',
+      nameEn: 'betaEn',
+      env: 'beta',
+      omProjectId: '6798080575166087744', // 特殊管理角色挂靠的专区项目id,比如itsc的业务超管
+      zoneId: '6929717143487490625', // 框架2.5的专区id
+      showOrderGrabbing: true,
+      isProd: false,
+      countryCode: 'DongGuan',
+      forbidTrace: false,
+      servicePackageRatioList: 'show',
+      activityTypeBlacklist: ['DataTransfer', 'Python', 'CommonPython'],
+      defaultActivityTypeBlacklist: ['DataTransfer', 'Python', 'SurveyQC', 'SurveyObjectQC', 'QC', 'CommonPython', 'SmartQC'],
+      showGetit: true, // 是否展示知识图谱
+      downloadByBrowser: true, // 我的工单、工单管理、导入导出页面让浏览器处理下载，而不是请求blob来下载
+      iHubEndTiemEditable: true, // ihub工单是否可编辑计划完成时间
+      muaId: '6501413329632887360',
+      teItscWorkshopIds: ['6989154416448359488'], // 指定的作业岛，添加TE时可以选择项目，在项目会生成teitsc角色
+      netliveUrl: 'https://netlivecloud-beta.gts.huawei.com',
+    },
+    auto: {
+      name: ' 自动化测试',
+      nameEn: 'autoEn',
+      env: 'auto',
+      omProjectId: '6786566153071362624',
+      zoneId: '6924604411197207617', // 框架2.5的专区id
+      showOrderGrabbing: true,
+      isProd: false,
+      countryCode: 'DongGuan',
+      forbidTrace: false,
+      servicePackageRatioList: 'show',
+      activityTypeBlacklist: ['DataTransfer', 'Python', 'CommonPython'],
+      defaultActivityTypeBlacklist: ['DataTransfer', 'Python', 'SurveyQC', 'SurveyObjectQC', 'QC', 'CommonPython', 'SmartQC'],
+      showGetit: true, // 是否展示知识图谱
+      downloadByBrowser: true, // 我的工单、工单管理、导入导出页面让浏览器处理下载，而不是请求blob来下载
+      iHubEndTiemEditable: true, // ihub工单是否可编辑计划完成时间
+      muaId: '6501413329632887360',
+      netliveUrl: 'https://netlivecloud-beta.gts.huawei.com',
+    },
+    perf: {
+      name: 'perf',
+      nameEn: 'perfEn',
+      env: 'perf',
+      omProjectId: '7134781349491187776',
+      zoneId: '7134715325651697729', // 框架2.5专区id
+      showOrderGrabbing: true,
+      isProd: false,
+      countryCode: 'DongGuan',
+      forbidTrace: false,
+      servicePackageRatioList: 'show',
+      activityTypeBlacklist: ['DataTransfer', 'Python', 'CommonPython'],
+      defaultActivityTypeBlacklist: ['DataTransfer', 'Python', 'SurveyQC', 'SurveyObjectQC', 'QC', 'CommonPython', 'SmartQC'],
+      showGetit: true, // 是否展示知识图谱
+      downloadByBrowser: true, // 我的工单、工单管理、导入导出页面让浏览器处理下载，而不是请求blob来下载
+      iHubEndTiemEditable: false, // ihub工单是否可编辑计划完成时间
+      muaId: '6501413329632887360',
+      teItscWorkshopIds: ['6992002517034974272'], // 指定的作业岛，添加TE时可以选择项目，在项目会生成teitsc角色
+      netliveUrl: 'https://netlivecloud-beta.gts.huawei.com',
+    },
+    feature: {
+      name: 'feature',
+      nameEn: 'featureEn',
+      env: 'feature',
+      omProjectId: '7166240834361473600',
+      zoneId: '7165595581476485697', // 框架2.5专区id
+      showOrderGrabbing: true,
+      isProd: false,
+      countryCode: 'DongGuan',
+      forbidTrace: false,
+      servicePackageRatioList: 'show',
+      activityTypeBlacklist: ['DataTransfer', 'Python', 'CommonPython'],
+      defaultActivityTypeBlacklist: ['DataTransfer', 'Python', 'SurveyQC', 'SurveyObjectQC', 'QC', 'CommonPython', 'SmartQC'],
+      showGetit: true, // 是否展示知识图谱
+downloadByBrowser: true, // 我的工单、工单管理、导入导出页面让浏览器处理下载，而不是请求blob来下载
+      iHubEndTiemEditable: false, // ihub工单是否可编辑计划完成时间
+      netliveUrl: 'https://netlivecloud-beta.gts.huawei.com',
+    },
+    fs80dev: {
+      name: 'fs80dev',
+      nameEn: 'fs80devEn',
+      env: 'dev',
+      omProjectId: '6786566153071362624',
+      zoneId: '6922429276755084353', // 框架2.5的专区id
+      showOrderGrabbing: true,
+      isProd: false,
+      countryCode: 'DongGuan',
+      forbidTrace: false,
+      servicePackageRatioList: 'show',
+      activityTypeBlacklist: ['DataTransfer', 'Python', 'CommonPython'],
+      defaultActivityTypeBlacklist: ['DataTransfer', 'Python', 'SurveyQC', 'SurveyObjectQC', 'QC', 'CommonPython', 'SmartQC'],
+      showGetit: true, // 是否展示知识图谱
+      downloadByBrowser: true, // 我的工单、工单管理、导入导出页面让浏览器处理下载，而不是请求blob来下载
+      iHubEndTiemEditable: true, // ihub工单是否可编辑计划完成时间
+      muaId: '6501413329632887360',
+      teItscWorkshopIds: ['7047486898255708224'], // 指定的作业岛，添加TE时可以选择项目，在项目会生成teitsc角色
+      netliveUrl: 'https://netlive-alpha.gts.huawei.com',
+    },
+    icsl: {
+      name: '送检环境',
+      nameEn: 'icsl',
+      env: 'icsl',
+      omProjectId: '6720240084777566784',
+      zoneId: '6951053421625612865', // 框架2.5专区id
+      showOrderGrabbing: true,
+      isProd: false,
+      countryCode: 'DongGuan',
+      forbidTrace: false,
+      servicePackageRatioList: 'show',
+      activityTypeBlacklist: ['DataTransfer', 'Python', 'CommonPython', 'SmartQC', 'AIDataTransfer'],
+      defaultActivityTypeBlacklist: ['DataTransfer', 'Python', 'SurveyQC', 'SurveyObjectQC', 'QC', 'CommonPython', 'SmartQC', 'AIDataTransfer'],
+      showGetit: true, // 是否展示知识图谱
+      downloadByBrowser: true, // 我的工单、工单管理、导入导出页面让浏览器处理下载，而不是请求blob来下载
+      iHubEndTiemEditable: false, // ihub工单是否可编辑计划完成时间
+      muaId: '6501413329632887360',
+      teItscWorkshopIds: ['6992002517034974272'], // 指定的作业岛，添加TE时可以选择项目，在项目会生成teitsc角色
+      netliveUrl: 'https://netlivecloud-beta.gts.huawei.com',
+    },
+    dfr: {
+      name: 'dfr灰度验证',
+      nameEn: 'dfr',
+      env: 'dfr',
+      omProjectId: '7216364362712293440',
+      zoneId: '7196791889977221185', // 框架2.5专区id
+      showOrderGrabbing: true,
+      isProd: false,
+      countryCode: 'DongGuan',
+      forbidTrace: false,
+      servicePackageRatioList: 'show',
+      activityTypeBlacklist: ['DataTransfer', 'Python', 'CommonPython', 'AIDataTransfer'],
+      defaultActivityTypeBlacklist: ['DataTransfer', 'Python', 'SurveyQC', 'SurveyObjectQC', 'QC', 'CommonPython', 'AIDataTransfer', 'SmartQC'],
+      showGetit: true, // 是否展示知识图谱
+      downloadByBrowser: true, // 我的工单、工单管理、导入导出页面让浏览器处理下载，而不是请求blob来下载
+      iHubEndTiemEditable: false, // ihub工单是否可编辑计划完成时间
+      muaId: '6501413329632887360',
+      teItscWorkshopIds: [], // 指定的作业岛，添加TE时可以选择项目，在项目会生成teitsc角色
+      netliveUrl: 'https://netlivecloud-beta.gts.huawei.com',
+    },
+  };
+  const map = {
+    'itsc-cn1-lb.sd.huawei.com': 'cn1',
+    'itsc-de1-lb.sd.huawei.com': 'de1',
+    'itsc-de.sd.huawei.cn': 'de1',
+    'itsc-de.sd.huawei.com': 'de1',
+    'itsc-mx1-lb.sd.huawei.com': 'mx1',
+    'itsc-mx1-lb.sd.huawei.cn': 'mx1',
+    'itsc-mx.sd.huawei.com': 'mx1',
+    'itsc-soft-lb.sd.huawei.com': 'soft',
+    'itsc-cn2-lb.sd.huawei.com': 'cn2',
+    'itsc-cn2.sd.huawei.cn': 'cn2',
+    'itsc-dxb-lb.sd.huawei.com': 'dxb',
+    'itsc-jnb-lb.sd.huawei.com': 'jnb',
+    'itsc-sg.sd.huawei.com': 'sg',
+    'itsc-sg.sd.huawei.cn': 'sg',
+    'itsc-fs80-dev.sd.huawei.com': 'fs80dev',
+    'itsc-sit.sd.huawei.com': 'sit',
+    'itsc-alpha.sd.huawei.com': 'devnew',
+    'itsc-beta.sd.huawei.com': 'beta',
+    'itsc-gamma.sd.huawei.com': 'uat',
+    'itsc-uat2.sd.huawei.com': 'uat',
+    'itsc-icsl.sd.huawei.com': 'icsl',
+    'itsc-autotest.sd.huawei.com': 'auto',
+    'itsc-perf.sd.huawei.com': 'perf',
+    'itsc-feature.sd.huawei.com': 'feature',
+    'itsc-dfr.sd.huawei.com': 'dfr',
+  };
+  window.DOMAIN_NAME_ENVIRONMENT_MAP = map;
+  if (localStorage.getItem('sd_lang') === 'null') {
+    localStorage.removeItem('sd_lang');
+  }
+  if (hostname && map[hostname]) {
+    const capabilityConfig = Object.assign({}, common, all[map[hostname]]);
+    // 补充一些必要的信息
+    capabilityConfig.allEnvDomainMap = map;
+    capabilityConfig.allEnvCommonInfo = {};
+    Object.keys(all).forEach(k=>{
+      capabilityConfig.allEnvCommonInfo[k] = {
+        isProd: all[k].isProd
+      }
+    })
+    sessionStorage.setItem('capabilityConfig', JSON.stringify(capabilityConfig));
+  }
+})();

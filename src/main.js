@@ -5,6 +5,7 @@ import router from '@/router/index.js';
 import { pinia } from '@/store/index.js';
 import i18n from '@/i18n/index.js';
 import directive from '@/directives/index.js';
+import { initAppData } from '@/utils/app-utils.js';
 
 import { itscLogin ,itscLogout } from '@hw-itsc/common/src/utils/login-util.js';
 import userStore from '@/store/userInfo.js';
@@ -15,8 +16,9 @@ import '@hw-seq/sweet-ui-base/dist/sweet-ui-base.css';
 import sweetBase from '@hw-seq/sweet-ui-base';
 sweetBase.setTheme('light');
 
-itscLogin().then(userInfo=>{
+itscLogin().then( async (userInfo)=>{
   userStore.userInfo = userInfo;
+  await initAppData(userInfo);
 
   const app = createApp(App);
   app.use(ElementPlus);

@@ -19,6 +19,6 @@ export const apiSystemService = {
     const queryString = query.toString();
     return `${baseUrl.itscSystemservice}/v1/file/edm3/download/${fileId}${queryString ? `?${queryString}` : ''}`;
   },
+  // 获取租户
+  tenantUserList:  (params, config)=>post(`${baseUrl.itscSystemservice}/v1/tenant/user/list`, params, config),
 };
-
-

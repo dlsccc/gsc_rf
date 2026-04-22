@@ -6,12 +6,14 @@ import { get, post, axios, initInterceptors } from '@hw-itsc/common/src/api/base
 import userStore from '@/store/userInfo.js';
 
 function requestFilter(config) {
-  config.headers['project-id'] = config.headers['project-id'] || '6922429276755084353';
-  if (config.url?.includes('/uap/')) {
+
+if (config.url?.includes('/uap/')) {
     // 专区接口传 -1
     config.headers['project-id'] = config.headers['project-id'] || -1;
+  }else{
+    config.headers['project-id'] =config.headers['project-id'] || userStore.state.curTenant.frmProjectId ||  userStore.state.zoneId || '';
   }
-  config.headers['user-info'] =  userStore.userInfo?.account || '';
+  config.headers['user-info'] =  userStore.state.userInfo?.account || '';
   return config;
 }
 
