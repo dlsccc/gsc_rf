@@ -38,8 +38,9 @@ import { useAppStore } from '@/store/app.store.js';
 const router = useRouter();
 const appStore = useAppStore();
 
-onMounted(() => {
+onMounted(async () => {
   appStore.setRole('operator');
+  await appStore.loadProjects();
 });
 
 const goEntrance = () => router.push('/');
@@ -50,5 +51,3 @@ const openReportGeneration = () => {
   window.open(REPORT_GENERATION_URL, '_blank', 'noopener,noreferrer');
 };
 </script>
-
-

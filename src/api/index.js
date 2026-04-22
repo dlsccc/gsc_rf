@@ -8,3 +8,5 @@ export { pipelineApi } from '@/api/modules/pipeline.api.js';
 export { apiPipelineService } from '@/api/modules/pipeline.api.js';
 export { apiSystemService } from '@/api/modules/systemservice.api.js';
 export { initApi } from '@/api/modules/init.api.js';
+export { projectsApi } from '@/api/modules/projects.api.js';
+export { apiProjectsService } from '@/api/modules/projects.api.js';
