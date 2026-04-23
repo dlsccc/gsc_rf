@@ -224,6 +224,10 @@ const toArrayValue = (value) => (Array.isArray(value) ? value : []);
 
 const isPlainObject = (value) => Object.prototype.toString.call(value) === '[object Object]';
 const toCamelKey = (key) => String(key ?? '').replace(/_([a-zA-Z0-9])/g, (_, char) => char.toUpperCase());
+const toSnakeKey = (key) => String(key ?? '')
+  .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+  .replace(/[-\s]+/g, '_')
+  .toLowerCase();
 
 const deepMapObjectKeys = (value, keyMapper) => {
   if (Array.isArray(value)) {
@@ -416,7 +420,16 @@ const toParamMap = (params = []) => {
   return toArrayValue(params).reduce((acc, item) => {
     const name = pickValue(item?.paramName, item?.param_name);
     if (!name) return acc;
-    acc[name] = item?.paramValue ?? item?.param_value;
+    const value = item?.paramValue ?? item?.param_value;
+    acc[name] = value;
+    const camel = toCamelKey(name);
+    const snake = toSnakeKey(name);
+    if (!Object.prototype.hasOwnProperty.call(acc, camel)) {
+      acc[camel] = value;
+    }
+    if (!Object.prototype.hasOwnProperty.call(acc, snake)) {
+      acc[snake] = value;
+    }
     return acc;
   }, {});
 };
@@ -485,11 +498,11 @@ const toTransformConfigFromParams = (rawType, source = {}) => {
     type: isTimeTransform ? 'format_time' : mappedType,
     delimiter: source.delimiter ?? '',
     fixedValue: source.value ?? '',
-    search: source.search_value ?? '',
-    replace: source.replace_value ?? '',
+    search: source.search_value ?? source.searchValue ?? '',
+    replace: source.replace_value ?? source.replaceValue ?? '',
     formula: source.formula ?? '',
-    inputFormat: source.input_format ?? '',
-    outputFormat: source.output_format ?? '',
+    inputFormat: source.input_format ?? source.inputFormat ?? '',
+    outputFormat: source.output_format ?? source.outputFormat ?? '',
     precision: source.precision ?? '',
     ...(isTimeTransform ? {
       timeFormatMode,
@@ -549,13 +562,13 @@ const parseConditionExpression = (conditionExpr) => {
 };
 
 const parseTransformParamsToConfig = (ruleParams = {}) => {
-  const transformType = pickValue(ruleParams.transform_type).toLowerCase();
+  const transformType = pickValue(ruleParams.transform_type, ruleParams.transformType).toLowerCase();
   if (!transformType) return null;
 
   if (transformType === 'chain') {
     return {
       chain: toArrayValue(ruleParams.steps).map((step) => ({
-        ...toTransformConfigFromParams(step?.transform_type, step || {})
+        ...toTransformConfigFromParams(step?.transform_type || step?.transformType, step || {})
       }))
     };
   }
