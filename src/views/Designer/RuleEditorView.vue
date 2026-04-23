@@ -223,6 +223,20 @@ const extractRuleIdFromSaveResponse = (saveResponse) => {
 const toArrayValue = (value) => (Array.isArray(value) ? value : []);
 
 const isPlainObject = (value) => Object.prototype.toString.call(value) === '[object Object]';
+const toCamelKey = (key) => String(key ?? '').replace(/_([a-zA-Z0-9])/g, (_, char) => char.toUpperCase());
+
+const deepMapObjectKeys = (value, keyMapper) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => deepMapObjectKeys(item, keyMapper));
+  }
+  if (!isPlainObject(value)) {
+    return value;
+  }
+  return Object.entries(value).reduce((acc, [key, next]) => {
+    acc[keyMapper(key)] = deepMapObjectKeys(next, keyMapper);
+    return acc;
+  }, {});
+};
 
 const normalizeSqlList = (value) => {
   if (Array.isArray(value)) {
@@ -387,8 +401,12 @@ const buildDebugEdmList = (dsl = {}) => {
 const buildDebugJoinConfig = (dsl = {}) => {
   const globalSetting = dsl?.globalSetting || dsl?.global_setting || {};
   const joinConfig = globalSetting?.joinConfig || globalSetting?.join_config;
-  if (Array.isArray(joinConfig)) return joinConfig;
-  if (joinConfig && typeof joinConfig === 'object') return [joinConfig];
+  if (Array.isArray(joinConfig)) {
+    return deepMapObjectKeys(joinConfig, toCamelKey);
+  }
+  if (joinConfig && typeof joinConfig === 'object') {
+    return deepMapObjectKeys([joinConfig], toCamelKey);
+  }
   return [];
 };
 
