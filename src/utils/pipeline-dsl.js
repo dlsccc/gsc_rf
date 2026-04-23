@@ -5,14 +5,6 @@ const makeParam = (name, type, value) => ({
 });
 
 const trimText = (value) => String(value ?? '').trim();
-const toBoolean = (value) => {
-  if (typeof value === 'boolean') return value;
-  const text = trimText(value).toLowerCase();
-  if (!text) return false;
-  if (['true', '1', 'y', 'yes'].includes(text)) return true;
-  if (['false', '0', 'n', 'no'].includes(text)) return false;
-  return Boolean(value);
-};
 
 const createUuid = () => {
   const randomUUID = globalThis?.crypto?.randomUUID;
@@ -449,9 +441,6 @@ const buildSourceAliasToIdMap = (sourceFiles = [], tablesDsl = []) => {
 
 const toTargetColumns = (selectedModel = {}) => {
   const fields = Array.isArray(selectedModel?.fields) ? selectedModel.fields : [];
-  const involveCalc = selectedModel?.tags?.involveCalc !== undefined
-    ? toBoolean(selectedModel.tags?.involveCalc)
-    : toBoolean(selectedModel?.involveCalc);
   return fields
     .map((field) => {
       const name = trimText(field?.name || field?.fieldName);
@@ -460,7 +449,7 @@ const toTargetColumns = (selectedModel = {}) => {
         name,
         type: trimText(field?.type || field?.fieldType),
         format: trimText(field?.format || field?.dataFormat),
-        involve_calc: involveCalc
+        field_business_type: trimText(field?.fieldBusinessType || field?.businessType)
       };
     })
     .filter(Boolean);
