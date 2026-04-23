@@ -308,24 +308,6 @@ const extractSqlListFromSaveResponse = (saveResponse) => {
   return [];
 };
 
-const collectRuleInputSourceTables = (dsl = {}) => {
-  const dataProcessing = dsl?.dataProcessing || dsl?.data_processing || {};
-  const rules = toArrayValue(dataProcessing?.rules);
-  const sourceTables = new Set();
-
-  rules.forEach((ruleItem) => {
-    const inputs = toArrayValue(ruleItem?.ruleInput || ruleItem?.rule_input);
-    inputs.forEach((inputItem) => {
-      const sourceTable = pickValue(inputItem?.sourceTable, inputItem?.source_table);
-      if (sourceTable) {
-        sourceTables.add(toText(sourceTable));
-      }
-    });
-  });
-
-  return sourceTables;
-};
-
 const normalizeDebugFieldInfoList = (list = []) => {
   return toArrayValue(list)
     .map((item) => {
@@ -341,9 +323,6 @@ const normalizeDebugFieldInfoList = (list = []) => {
 };
 
 const buildDebugEdmList = (dsl = {}) => {
-  const sourceTables = collectRuleInputSourceTables(dsl);
-  const includeAll = sourceTables.size === 0 || sourceTables.has('table_mapped');
-
   const globalSetting = dsl?.globalSetting || dsl?.global_setting || {};
   const dataSources = globalSetting?.dataSources || globalSetting?.data_sources || {};
   const dslTables = toArrayValue(dataSources?.tables);
@@ -369,13 +348,7 @@ const buildDebugEdmList = (dsl = {}) => {
     }))
     .filter((item) => item.edmId && item.tableName);
 
-  const sourceEntries = dslTableEntries.length > 0 ? dslTableEntries : fallbackEntries;
-  const tableEntries = sourceEntries.filter((item) => {
-    if (includeAll) return true;
-    return sourceTables.has(toText(item.source))
-      || sourceTables.has(toText(item.tableName))
-      || sourceTables.has(toText(item.legacySource));
-  });
+  const tableEntries = dslTableEntries.length > 0 ? dslTableEntries : fallbackEntries;
 
   const entryMap = tableEntries.reduce((acc, item) => {
     const key = `${item.edmId}::${item.tableName}`;
