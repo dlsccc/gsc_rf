@@ -138,8 +138,17 @@
                 class="level-1"
               >
                 <div class="header-cell">
-                  <div>
-                    <span>{{ field.name }}</span>
+                  <div class="header-title-row">
+                    <div class="data-grid-field-header">
+                      <span class="data-grid-field-name" :title="field.name">{{ field.name }}</span>
+                      <span
+                        v-if="getFieldDesc(field)"
+                        class="data-grid-field-desc"
+                        :title="getFieldDesc(field)"
+                      >
+                        {{ getFieldDesc(field) }}
+                      </span>
+                    </div>
                     <button
                       v-if="!showRawPreview && hasPendingSuggestion(field.name)"
                       class="suggestion-btn"
@@ -1552,6 +1561,7 @@ const removeDedupField = (field) => {
 };
 
 const trimText = (value) => String(value ?? "").trim();
+const getFieldDesc = (field) => trimText(field?.description || field?.fieldDesc || field?.desc);
 const toArray = (value) => {
   if (Array.isArray(value)) return value;
   if (value === null || value === undefined) return [];

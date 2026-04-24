@@ -84,7 +84,7 @@
         字段映射配置
       </div>
 
-      <div class="data-grid-container">
+      <div class="data-grid-container" ref="fieldMappingGridContainer">
         <table class="data-grid">
           <thead>
             <tr>
@@ -94,7 +94,16 @@
                 :colspan="isMultiMapped(field.name) ? getMappedSources(field.name).length : 1"
                 class="level-1"
               >
-                {{ field.name }}
+                <div class="data-grid-field-header">
+                  <span class="data-grid-field-name" :title="field.name">{{ field.name }}</span>
+                  <span
+                    v-if="getFieldDesc(field)"
+                    class="data-grid-field-desc"
+                    :title="getFieldDesc(field)"
+                  >
+                    {{ getFieldDesc(field) }}
+                  </span>
+                </div>
               </th>
             </tr>
 
@@ -194,7 +203,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
 const props = defineProps({
   store: { type: Object, required: true }
@@ -203,8 +212,18 @@ const props = defineProps({
 const activeDropdown = ref(null);
 const dropdownPosition = ref({ top: 0, left: 0, width: 0 });
 const activeJoinIndex = ref(0);
+const fieldMappingGridContainer = ref(null);
 
 const toText = (value) => String(value ?? '').trim();
+const getFieldDesc = (field) => toText(field?.description || field?.fieldDesc || field?.desc);
+
+const updateHeaderStickyOffset = () => {
+  if (!fieldMappingGridContainer.value) return;
+  const firstRow = fieldMappingGridContainer.value.querySelector('thead tr:first-child');
+  if (!firstRow) return;
+  const height = firstRow.getBoundingClientRect().height;
+  fieldMappingGridContainer.value.style.setProperty('--header-row-1-height', `${height}px`);
+};
 
 const sourceFiles = computed(() => (Array.isArray(props.store.uploadedFiles) ? props.store.uploadedFiles : []));
 
@@ -295,6 +314,15 @@ watch(
     syncLegacyJoinState();
   },
   { deep: true }
+);
+
+watch(
+  () => props.store.targetFields,
+  async () => {
+    await nextTick();
+    updateHeaderStickyOffset();
+  },
+  { immediate: true, deep: true }
 );
 
 const currentJoinLink = computed(() => {
@@ -568,7 +596,9 @@ const closeDropdownOnOutsideClick = (event) => {
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
+  await nextTick();
+  updateHeaderStickyOffset();
   document.addEventListener('click', closeDropdownOnOutsideClick);
 });
 
