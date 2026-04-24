@@ -1099,6 +1099,142 @@ const formatDateTime = (val) => {
   return `${y}-${m}-${d} ${t}`;
 };
 
+const normalizeTimeFormat = (format) => {
+  return String(format ?? '').trim().replace(/\s+/g, ' ');
+};
+
+const pad2 = (value) => {
+  if (value === null || value === undefined || String(value).trim() === '') return '';
+  return String(value).trim().padStart(2, '0');
+};
+
+const normalizeParsedTime = (parsed = {}) => {
+  const y = String(parsed.y ?? '').trim();
+  const m = pad2(parsed.m);
+  const d = pad2(parsed.d);
+  const h = pad2(parsed.h);
+  const min = pad2(parsed.min);
+  const s = pad2(parsed.s);
+  const t = h && min ? `${h}:${min}${s ? `:${s}` : ''}` : '';
+  return { y, m, d, h, min, s, t };
+};
+
+const resolveOriginFormatByConfig = (cfg = {}) => {
+  const explicit = normalizeTimeFormat(cfg.originType || cfg.origin_type);
+  if (explicit && explicit !== '-') return explicit;
+
+  const mode = String(cfg.timeFormatMode || '').trim().toLowerCase();
+  if (mode === 'date') return 'YYYY-MM-DD';
+  if (mode === 'datetime') return 'YYYY-MM-DD hh:mm:ss';
+  if (mode === 'year') return 'YYYY';
+  if (mode === 'month') return 'YYYY-MM';
+  if (mode === 'time') return 'hh:mm:ss';
+
+  if (cfg.type === TRANSFORM_TYPES.EXTRACT_YEAR) return 'YYYY';
+  if (cfg.type === TRANSFORM_TYPES.EXTRACT_MONTH) return 'YYYY-MM';
+  if (cfg.type === TRANSFORM_TYPES.EXTRACT_TIME || cfg.type === TRANSFORM_TYPES.FORMAT_TIME) return 'hh:mm:ss';
+  return 'YYYY-MM-DD';
+};
+
+const resolveTargetFormatByField = (field, cfg = {}) => {
+  const explicit = normalizeTimeFormat(cfg.targetType || cfg.target_type);
+  if (explicit && explicit !== '-') return explicit;
+
+  const targetField = targetModelFields.value.find((item) => String(item?.name || '').trim() === String(field || '').trim());
+  const modelFormat = normalizeTimeFormat(targetField?.format || targetField?.dataFormat);
+  if (modelFormat && modelFormat !== '-') return modelFormat;
+
+  if (cfg.type === TRANSFORM_TYPES.EXTRACT_YEAR) return 'YYYY';
+  if (cfg.type === TRANSFORM_TYPES.EXTRACT_MONTH) return 'YYYY-MM';
+  if (cfg.type === TRANSFORM_TYPES.EXTRACT_TIME || cfg.type === TRANSFORM_TYPES.FORMAT_TIME) return 'hh:mm:ss';
+  return 'YYYY-MM-DD';
+};
+
+const parseByFormat = (value, format = '') => {
+  const text = String(value ?? '').trim();
+  if (!text) return normalizeParsedTime();
+
+  const upper = normalizeTimeFormat(format).toUpperCase();
+
+  if (upper === 'YYYY') {
+    const match = text.match(/^(\d{4})$/);
+    if (match) return normalizeParsedTime({ y: match[1] });
+  }
+
+  if (upper === 'YYYY-MM' || upper === 'YYYY/MM') {
+    const match = text.match(/^(\d{4})[-/.](\d{1,2})$/);
+    if (match) return normalizeParsedTime({ y: match[1], m: match[2] });
+  }
+
+  if (upper === 'YYYY-MM-DD' || upper === 'YYYY/MM/DD') {
+    const match = text.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+    if (match) return normalizeParsedTime({ y: match[1], m: match[2], d: match[3] });
+  }
+
+  if (upper === 'YYYY-MM-DD HH:MM:SS' || upper === 'YYYY/MM/DD HH:MM:SS') {
+    const match = text.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/);
+    if (match) {
+      return normalizeParsedTime({
+        y: match[1],
+        m: match[2],
+        d: match[3],
+        h: match[4],
+        min: match[5],
+        s: match[6] || '00'
+      });
+    }
+  }
+
+  if (upper === 'HH:MM:SS') {
+    const match = text.match(/^(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/);
+    if (match) return normalizeParsedTime({ h: match[1], min: match[2], s: match[3] || '00' });
+  }
+
+  if (upper === 'HH:MM') {
+    const match = text.match(/^(\d{1,2}):(\d{1,2})$/);
+    if (match) return normalizeParsedTime({ h: match[1], min: match[2], s: '00' });
+  }
+
+  return normalizeParsedTime(parseDateTime(text));
+};
+
+const formatByFormat = (parsed, format = '') => {
+  const upper = normalizeTimeFormat(format).toUpperCase();
+  if (!upper) return '';
+
+  if (upper === 'YYYY') return parsed.y || '';
+  if (upper === 'YYYY-MM') return parsed.y && parsed.m ? `${parsed.y}-${parsed.m}` : '';
+  if (upper === 'YYYY/MM') return parsed.y && parsed.m ? `${parsed.y}/${parsed.m}` : '';
+  if (upper === 'YYYY-MM-DD') return parsed.y && parsed.m && parsed.d ? `${parsed.y}-${parsed.m}-${parsed.d}` : '';
+  if (upper === 'YYYY/MM/DD') return parsed.y && parsed.m && parsed.d ? `${parsed.y}/${parsed.m}/${parsed.d}` : '';
+  if (upper === 'YYYY-MM-DD HH:MM:SS') {
+    return parsed.y && parsed.m && parsed.d && parsed.h && parsed.min && parsed.s
+      ? `${parsed.y}-${parsed.m}-${parsed.d} ${parsed.h}:${parsed.min}:${parsed.s}`
+      : '';
+  }
+  if (upper === 'YYYY/MM/DD HH:MM:SS') {
+    return parsed.y && parsed.m && parsed.d && parsed.h && parsed.min && parsed.s
+      ? `${parsed.y}/${parsed.m}/${parsed.d} ${parsed.h}:${parsed.min}:${parsed.s}`
+      : '';
+  }
+  if (upper === 'HH:MM:SS') return parsed.h && parsed.min && parsed.s ? `${parsed.h}:${parsed.min}:${parsed.s}` : '';
+  if (upper === 'HH:MM') return parsed.h && parsed.min ? `${parsed.h}:${parsed.min}` : '';
+  return '';
+};
+
+const applyTimeTransformByConfig = (field, base, cfg = {}) => {
+  const originFormat = resolveOriginFormatByConfig(cfg);
+  const targetFormat = resolveTargetFormatByField(field, cfg);
+  const parsed = parseByFormat(base, originFormat);
+  const converted = formatByFormat(parsed, targetFormat);
+  if (converted !== '') return converted;
+
+  if (cfg.type === TRANSFORM_TYPES.EXTRACT_YEAR) return parsed.y || '';
+  if (cfg.type === TRANSFORM_TYPES.EXTRACT_MONTH) return parsed.y && parsed.m ? `${parsed.y}-${parsed.m}` : '';
+  if (cfg.type === TRANSFORM_TYPES.EXTRACT_TIME || cfg.type === TRANSFORM_TYPES.FORMAT_TIME) return parsed.h && parsed.min && parsed.s ? `${parsed.h}:${parsed.min}:${parsed.s}` : '';
+  return formatDateTime(base);
+};
+
 const getSourceValue = (row, name) => {
   if (!name) return '';
   if (row[name] !== undefined) return row[name];
@@ -1284,21 +1420,15 @@ const applyTransformByConfig = (row, field, base, cfg) => {
     case TRANSFORM_TYPES.TRIM:
       return String(base).trim();
     case TRANSFORM_TYPES.FORMAT_DATETIME:
-      return formatDateTime(base);
+      return applyTimeTransformByConfig(field, base, cfg);
     case TRANSFORM_TYPES.EXTRACT_YEAR:
-      return parseDateTime(base).y || '';
-    case TRANSFORM_TYPES.EXTRACT_MONTH: {
-      const parsed = parseDateTime(base);
-      return parsed.y && parsed.m ? `${parsed.y}-${parsed.m.padStart(2, '0')}` : '';
-    }
+      return applyTimeTransformByConfig(field, base, cfg);
+    case TRANSFORM_TYPES.EXTRACT_MONTH:
+      return applyTimeTransformByConfig(field, base, cfg);
     case TRANSFORM_TYPES.EXTRACT_TIME:
-      return parseDateTime(base).t || '';
-    case TRANSFORM_TYPES.FORMAT_TIME: {
-      const time = String(base).trim();
-      const match = time.match(/^(\d{1,2}):(\d{2})$/);
-      if (match) return `${match[1].padStart(2, '0')}:${match[2]}:00`;
-      return time;
-    }
+      return applyTimeTransformByConfig(field, base, cfg);
+    case TRANSFORM_TYPES.FORMAT_TIME:
+      return applyTimeTransformByConfig(field, base, cfg);
     case TRANSFORM_TYPES.CALC_WEEK: {
       const parsed = parseDateTime(base);
       if (!parsed.y || !parsed.m || !parsed.d) return '';
