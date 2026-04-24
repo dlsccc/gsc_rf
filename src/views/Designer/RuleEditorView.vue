@@ -607,6 +607,20 @@ const buildUploadedFilesFromTables = (tables = []) => {
     const source = rawSource || fallbackSource;
     const edmId = pickValue(table?.edmId, table?.edmID, table?.fileCode);
     const columns = toArrayValue(table?.columns);
+    const normalizedColumns = columns
+      .map((item) => {
+        const name = pickValue(item?.name);
+        if (!name) return null;
+        return {
+          columnId: pickValue(item?.columnId, item?.column_id),
+          column_id: pickValue(item?.columnId, item?.column_id),
+          name,
+          sampleValue: pickValue(item?.sampleValue, item?.sample_value),
+          sample_value: pickValue(item?.sampleValue, item?.sample_value),
+          format: pickValue(item?.format)
+        };
+      })
+      .filter(Boolean);
     const fieldInfoList = toArrayValue(table?.fieldInfoList || table?.field_info_list);
     const fieldsFromColumns = columns.map((item) => pickValue(item?.name)).filter(Boolean);
     const fields = fieldsFromColumns.length > 0
@@ -621,6 +635,9 @@ const buildUploadedFilesFromTables = (tables = []) => {
       size: 0,
       rows: [],
       fields,
+      sourceId: rawSource || '',
+      source_id: rawSource || '',
+      columns: normalizedColumns,
       fieldInfoList,
       parsed: false,
       source

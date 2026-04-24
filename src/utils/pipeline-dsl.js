@@ -100,6 +100,16 @@ const pickSampleValue = (rows = [], field) => {
   return sample?.[field] ?? '';
 };
 
+const normalizeExistingColumn = (item = {}) => {
+  const name = trimText(item?.name || item?.fieldName || item?.field_name);
+  return {
+    name,
+    column_id: trimText(item?.column_id || item?.columnId),
+    sample_value: item?.sample_value ?? item?.sampleValue ?? '',
+    format: trimText(item?.format)
+  };
+};
+
 const OPERATOR_MAP = {
   equals: 'equal',
   not_equals: 'not_equal',
@@ -395,18 +405,46 @@ const buildTransformDsl = (config, targetType = '') => {
 
 const toDataSourceDsl = (uploadedFiles = []) => {
   return toSourceFiles(uploadedFiles).map((file) => {
-    const columns = (file.fields || []).map((fieldName) => {
-      const sample = pickSampleValue(file.rows, fieldName);
+    const sourceId = trimText(file?.sourceId || file?.source_id) || createPrefixedId('data_smart_base_model');
+
+    const existingColumnsByName = new Map(
+      (Array.isArray(file?.columns) ? file.columns : [])
+        .map((item) => normalizeExistingColumn(item))
+        .filter((item) => item.name)
+        .map((item) => [item.name, item])
+    );
+
+    const fieldsFromFile = (Array.isArray(file?.fields) ? file.fields : []).map((item) => trimText(item)).filter(Boolean);
+    const fieldsFromColumns = Array.from(existingColumnsByName.keys());
+    const fieldNames = unique([...fieldsFromFile, ...fieldsFromColumns]).filter(Boolean);
+
+    const columns = fieldNames.map((fieldName) => {
+      const existing = existingColumnsByName.get(fieldName);
+      const sample = existing ? (existing.sample_value ?? '') : pickSampleValue(file.rows, fieldName);
+      const columnId = trimText(existing?.column_id) || createPrefixedId('data_smart_base_field');
       return {
-        column_id: createPrefixedId('data_smart_base_field'),
+        column_id: columnId,
         name: fieldName,
         sample_value: sample,
-        format: ''
+        format: trimText(existing?.format)
       };
     });
 
+    if (file && typeof file === 'object') {
+      file.sourceId = sourceId;
+      file.source_id = sourceId;
+      file.columns = columns.map((item) => ({
+        columnId: item.column_id,
+        column_id: item.column_id,
+        name: item.name,
+        sampleValue: item.sample_value,
+        sample_value: item.sample_value,
+        format: item.format
+      }));
+    }
+
     return {
-      source_id: createPrefixedId('data_smart_base_model'),
+      source_id: sourceId,
       edmId: resolveFileEdmId(file),
       source_name: file.name || file.source,
       source_type: 'file',
