@@ -146,6 +146,7 @@ const transformTypeMap = {
 const TIME_TRANSFORM_TYPES = new Set(['format_datetime', 'extract_year', 'extract_month', 'extract_time', 'format_time']);
 const TIME_MODE_TO_ORIGIN_TYPE = {
   date: 'YYYY-MM-DD',
+  datetime: 'YYYY-MM-DD hh:mm:ss',
   year: 'YYYY',
   month: 'YYYY-MM',
   time: 'hh:mm:ss',

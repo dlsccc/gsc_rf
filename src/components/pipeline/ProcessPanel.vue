@@ -415,8 +415,9 @@
                 <option :value="TRANSFORM_TYPES.FORMULA">自定义公式</option>
               </select>
               <div v-if="step.type === TRANSFORM_TYPES.FORMAT_TIME" style="margin-top: 8px;">
-                <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-                  <div style="display: inline-flex; align-items: center; gap: 6px;">
+                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">数据原始格式</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                  <div style="display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px;">
                     <button
                       type="button"
                       class="btn btn-sm"
@@ -427,7 +428,18 @@
                     </button>
                     <span style="font-size: 12px; color: var(--text-secondary);">示例：2026-03-28</span>
                   </div>
-                  <div style="display: inline-flex; align-items: center; gap: 6px;">
+                  <div style="display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px;">
+                    <button
+                      type="button"
+                      class="btn btn-sm"
+                      :class="step.timeFormatMode === TIME_FORMAT_MODE.DATETIME ? 'btn-primary' : 'btn-default'"
+                      @click="step.timeFormatMode = TIME_FORMAT_MODE.DATETIME"
+                    >
+                      YYYY-MM-DD hh:mm:ss
+                    </button>
+                    <span style="font-size: 12px; color: var(--text-secondary);">示例：2026-03-28 14:30:59</span>
+                  </div>
+                  <div style="display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px;">
                     <button
                       type="button"
                       class="btn btn-sm"
@@ -438,7 +450,7 @@
                     </button>
                     <span style="font-size: 12px; color: var(--text-secondary);">示例：2026</span>
                   </div>
-                  <div style="display: inline-flex; align-items: center; gap: 6px;">
+                  <div style="display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px;">
                     <button
                       type="button"
                       class="btn btn-sm"
@@ -449,7 +461,7 @@
                     </button>
                     <span style="font-size: 12px; color: var(--text-secondary);">示例：2026-03</span>
                   </div>
-                  <div style="display: inline-flex; align-items: center; gap: 6px;">
+                  <div style="display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px;">
                     <button
                       type="button"
                       class="btn btn-sm"
@@ -526,8 +538,9 @@
             </div>
             <div v-if="rule.type === TRANSFORM_TYPES.FORMAT_TIME" class="form-group">
               <label class="form-label" style="font-size: 12px;">格式类型</label>
-              <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-                <div style="display: inline-flex; align-items: center; gap: 6px;">
+              <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">数据原始格式</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                <div style="display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px;">
                   <button
                     type="button"
                     class="btn btn-sm"
@@ -538,7 +551,18 @@
                   </button>
                   <span style="font-size: 12px; color: var(--text-secondary);">示例：2026-03-28</span>
                 </div>
-                <div style="display: inline-flex; align-items: center; gap: 6px;">
+                <div style="display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px;">
+                  <button
+                    type="button"
+                    class="btn btn-sm"
+                    :class="rule.timeFormatMode === TIME_FORMAT_MODE.DATETIME ? 'btn-primary' : 'btn-default'"
+                    @click="rule.timeFormatMode = TIME_FORMAT_MODE.DATETIME"
+                  >
+                    YYYY-MM-DD hh:mm:ss
+                  </button>
+                  <span style="font-size: 12px; color: var(--text-secondary);">示例：2026-03-28 14:30:59</span>
+                </div>
+                <div style="display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px;">
                   <button
                     type="button"
                     class="btn btn-sm"
@@ -549,7 +573,7 @@
                   </button>
                   <span style="font-size: 12px; color: var(--text-secondary);">示例：2026</span>
                 </div>
-                <div style="display: inline-flex; align-items: center; gap: 6px;">
+                <div style="display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px;">
                   <button
                     type="button"
                     class="btn btn-sm"
@@ -560,7 +584,7 @@
                   </button>
                   <span style="font-size: 12px; color: var(--text-secondary);">示例：2026-03</span>
                 </div>
-                <div style="display: inline-flex; align-items: center; gap: 6px;">
+                <div style="display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px;">
                   <button
                     type="button"
                     class="btn btn-sm"
@@ -2076,16 +2100,30 @@ const clearSort = () => {
 
 const TIME_FORMAT_MODE = Object.freeze({
   DATE: 'date',
+  DATETIME: 'datetime',
   YEAR: 'year',
   MONTH: 'month',
   TIME: 'time'
 });
 
-const resolveTimeFormatModeByType = (type) => {
-  if (type === TRANSFORM_TYPES.FORMAT_DATETIME) return TIME_FORMAT_MODE.DATE;
+const resolveTimeFormatModeByType = (type, originType = '') => {
+  const normalizedOriginType = trimText(originType).toLowerCase();
+  if (type === TRANSFORM_TYPES.FORMAT_DATETIME) {
+    if (normalizedOriginType === 'yyyy-mm-dd hh:mm:ss') return TIME_FORMAT_MODE.DATETIME;
+    if (normalizedOriginType === 'yyyy') return TIME_FORMAT_MODE.YEAR;
+    if (normalizedOriginType === 'yyyy-mm') return TIME_FORMAT_MODE.MONTH;
+    if (normalizedOriginType === 'hh:mm:ss') return TIME_FORMAT_MODE.TIME;
+    return TIME_FORMAT_MODE.DATE;
+  }
   if (type === TRANSFORM_TYPES.EXTRACT_YEAR) return TIME_FORMAT_MODE.YEAR;
   if (type === TRANSFORM_TYPES.EXTRACT_MONTH) return TIME_FORMAT_MODE.MONTH;
   if (type === TRANSFORM_TYPES.FORMAT_TIME || type === TRANSFORM_TYPES.EXTRACT_TIME) return TIME_FORMAT_MODE.TIME;
+  return '';
+};
+
+const resolveOriginTypeByTimeFormatMode = (mode) => {
+  if (mode === TIME_FORMAT_MODE.DATETIME) return 'YYYY-MM-DD hh:mm:ss';
+  if (mode === TIME_FORMAT_MODE.DATE) return 'YYYY-MM-DD';
   return '';
 };
 
@@ -2098,7 +2136,7 @@ const resolveStoredTypeByTimeFormatMode = (mode) => {
 
 const toModalTransformItem = (item = {}) => {
   const next = { ...item };
-  const timeFormatMode = resolveTimeFormatModeByType(next.type);
+  const timeFormatMode = resolveTimeFormatModeByType(next.type, next.originType || next.origin_type);
   if (timeFormatMode) {
     next.type = TRANSFORM_TYPES.FORMAT_TIME;
     next.timeFormatMode = timeFormatMode;
@@ -2113,7 +2151,14 @@ const toModalTransformItem = (item = {}) => {
 const toStoredTransformItem = (item = {}) => {
   const next = { ...item };
   if (next.type === TRANSFORM_TYPES.FORMAT_TIME) {
-    next.type = resolveStoredTypeByTimeFormatMode(next.timeFormatMode);
+    const nextMode = next.timeFormatMode || TIME_FORMAT_MODE.DATE;
+    next.type = resolveStoredTypeByTimeFormatMode(nextMode);
+    const originType = resolveOriginTypeByTimeFormatMode(nextMode);
+    if (originType) {
+      next.originType = originType;
+    } else {
+      delete next.originType;
+    }
   }
   delete next.timeFormatMode;
   return next;
