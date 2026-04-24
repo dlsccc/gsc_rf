@@ -152,6 +152,8 @@ const autoMapping = ref(false);
 const sqlDebugRows = ref([]);
 const sqlDebugTimer = ref(null);
 const sqlDebugRequestSeq = ref(0);
+// 临时开关：后端 SQL 调试接口异常时可先关闭调用；恢复时改为 true 即可
+const ENABLE_SQL_DEBUG_API = false;
 
 const isEdit = computed(() => !!route.params.id);
 
@@ -1217,6 +1219,10 @@ const clearSqlDebugTimer = () => {
 
 const runSqlDebug = async () => {
   if (Number(pipelineStore.currentStep) !== 2) return;
+  if (!ENABLE_SQL_DEBUG_API) {
+    sqlDebugRows.value = [];
+    return;
+  }
 
   const selectedModel = resolveSelectedModel();
   if (!selectedModel) {
