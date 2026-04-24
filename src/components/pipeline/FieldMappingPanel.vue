@@ -115,7 +115,11 @@
                     :key="`source-${field.name}-${source.key}`"
                     style="background: #fff; padding: 8px 12px;"
                   >
-                    <div style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                    <div
+                      class="mapping-multi-trigger"
+                      style="display: flex; align-items: center; gap: 4px; font-size: 12px; cursor: pointer;"
+                      @click.stop="toggleDropdown(field.name, $event)"
+                    >
                       <span class="source-badge" :class="getSourceBadgeClass(source.sourceId)" style="font-size: 10px;">
                         {{ getSourceBadgeText(source.sourceId) }}
                       </span>
