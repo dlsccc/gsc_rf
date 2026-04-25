@@ -663,7 +663,7 @@ const parseMappingsAndConfigsFromRules = (rules = [], sourceAliasMap = {}) => {
   const mappings = {};
   const filters = {};
   const transforms = {};
-  const sortConfig = { field: '', order: 'asc' };
+  const sortItems = [];
 
   toArrayValue(rules).forEach((ruleItem) => {
     const ruleOutput = ruleItem?.ruleOutput || ruleItem?.rule_output || {};
@@ -763,10 +763,40 @@ const parseMappingsAndConfigsFromRules = (rules = [], sourceAliasMap = {}) => {
 
     const sortParams = toParamMap(ruleItem?.sort || []);
     if (Object.keys(sortParams).length > 0) {
-      sortConfig.field = outputField;
-      sortConfig.order = pickValue(sortParams.directions, 'asc').toLowerCase() === 'desc' ? 'desc' : 'asc';
+      const order = pickValue(sortParams.directions, 'asc').toLowerCase() === 'desc' ? 'desc' : 'asc';
+      const priority = Number(pickValue(sortParams.priority));
+      sortItems.push({
+        field: outputField,
+        order,
+        priority: Number.isFinite(priority) ? priority : sortItems.length + 1
+      });
     }
   });
+
+  const dedupedMap = new Map();
+  sortItems
+    .sort((a, b) => a.priority - b.priority)
+    .forEach((item, index) => {
+      if (dedupedMap.has(item.field)) return;
+      dedupedMap.set(item.field, {
+        ...item,
+        priority: Number.isFinite(item.priority) ? item.priority : index + 1
+      });
+    });
+
+  const dedupedSortItems = [...dedupedMap.values()]
+    .sort((a, b) => a.priority - b.priority)
+    .map((item, index) => ({
+      field: item.field,
+      order: item.order,
+      priority: index + 1
+    }));
+
+  const sortConfig = {
+    field: dedupedSortItems[0]?.field || '',
+    order: dedupedSortItems[0]?.order || 'asc',
+    items: dedupedSortItems
+  };
 
   return { mappings, filters, transforms, sortConfig };
 };
@@ -891,8 +921,13 @@ const applyRuleJsonToPipeline = (ruleJson = {}) => {
     pipelineStore.transforms[field] = { ...config };
   });
 
-  pipelineStore.sortConfig.field = parsed.sortConfig.field;
-  pipelineStore.sortConfig.order = parsed.sortConfig.order;
+  if (typeof pipelineStore.setSortItems === 'function') {
+    pipelineStore.setSortItems(parsed.sortConfig.items || []);
+  } else {
+    pipelineStore.sortConfig.items = parsed.sortConfig.items || [];
+    pipelineStore.sortConfig.field = parsed.sortConfig.field;
+    pipelineStore.sortConfig.order = parsed.sortConfig.order;
+  }
 
   const dedupConfig = parseDedupConfigFromDsl(sections.deduplicate);
   pipelineStore.dedupConfig.enabled = dedupConfig.enabled;

@@ -78,13 +78,29 @@ export const buildProcessedRows = ({ previewRows, filters, transforms, sortConfi
     return next;
   });
 
-  if (sortConfig?.field) {
+  const sortItems = Array.isArray(sortConfig?.items) && sortConfig.items.length > 0
+    ? [...sortConfig.items]
+    : (sortConfig?.field ? [{ field: sortConfig.field, order: sortConfig.order || SORT_ORDER.ASC, priority: 1 }] : []);
+
+  if (sortItems.length > 0) {
+    const normalizedSortItems = sortItems
+      .map((item, index) => ({
+        field: item?.field,
+        order: item?.order === SORT_ORDER.DESC ? SORT_ORDER.DESC : SORT_ORDER.ASC,
+        priority: Number.isFinite(Number(item?.priority)) ? Number(item.priority) : index + 1
+      }))
+      .filter((item) => item.field)
+      .sort((a, b) => a.priority - b.priority);
+
     rows.sort((a, b) => {
-      const av = a[sortConfig.field];
-      const bv = b[sortConfig.field];
-      if (av === bv) return 0;
-      const result = av > bv ? 1 : -1;
-      return sortConfig.order === SORT_ORDER.DESC ? -result : result;
+      for (const sortItem of normalizedSortItems) {
+        const av = a[sortItem.field];
+        const bv = b[sortItem.field];
+        if (av === bv) continue;
+        const result = av > bv ? 1 : -1;
+        return sortItem.order === SORT_ORDER.DESC ? -result : result;
+      }
+      return 0;
     });
   }
 

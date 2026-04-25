@@ -157,8 +157,8 @@
                     >
                       <span class="material-icons" style="font-size: 24px;">priority_high</span>
                     </button>
-                    <span v-if="!showRawPreview && sortConfig.field === field.name" class="sort-indicator">
-                      {{ sortConfig.order === 'asc' ? '↑' : '↓' }}
+                    <span v-if="!showRawPreview && isSortActive(field.name)" class="sort-indicator">
+                      {{ getSortPriority(field.name) }}{{ getSortOrder(field.name) === 'asc' ? '↑' : '↓' }}
                     </span>
                     <span v-if="!showRawPreview && hasEffectiveTransform(field.name)" class="transform-indicator">转换</span>
                   </div>
@@ -170,7 +170,7 @@
                       <button class="header-btn header-btn-main" :class="{ active: hasEffectiveTransform(field.name) }" @click.stop="openTransformModal(field.name)">
                         <span class="material-icons" style="font-size: 12px; vertical-align: middle;">transform</span>转换
                       </button>
-                      <button class="header-btn header-btn-main" :class="{ active: sortConfig.field === field.name }" @click.stop="openSortPopover(field.name, $event)">
+                      <button class="header-btn header-btn-main" :class="{ active: isSortActive(field.name) }" @click.stop="openSortPopover(field.name, $event)">
                         <span class="material-icons" style="font-size: 12px; vertical-align: middle;">sort</span>排序
                       </button>
                     </div>
@@ -366,7 +366,7 @@
       <button class="btn btn-default btn-sm" style="width: 100%; margin-bottom: 10px;" @click="applySort(columnPopover.field, 'desc')">
         <span class="material-icons" style="font-size: 16px; vertical-align: middle;">arrow_downward</span> 降序
       </button>
-      <button class="btn btn-danger btn-sm" style="width: 100%;" @click="clearSort">
+      <button class="btn btn-danger btn-sm" style="width: 100%;" @click="clearSort(columnPopover.field)">
         <span class="material-icons" style="font-size: 16px; vertical-align: middle;">clear</span> 清除排序
       </button>
     </div>
@@ -763,6 +763,90 @@ const filterConfigs = props.store.filters;
 const transforms = props.store.transforms;
 const sortConfig = props.store.sortConfig;
 const dedupConfig = props.store.dedupConfig;
+
+const normalizeSortOrder = (value) => {
+  return String(value || '').toLowerCase() === SORT_ORDER.DESC ? SORT_ORDER.DESC : SORT_ORDER.ASC;
+};
+
+const normalizeSortItems = (items = []) => {
+  const list = Array.isArray(items) ? items : [];
+  const dedupMap = new Map();
+  list.forEach((item, index) => {
+    const field = String(item?.field || '').trim();
+    if (!field) return;
+    const rawPriority = Number(item?.priority);
+    const priority = Number.isFinite(rawPriority) ? rawPriority : index + 1;
+    dedupMap.set(field, {
+      field,
+      order: normalizeSortOrder(item?.order),
+      priority
+    });
+  });
+
+  return [...dedupMap.values()]
+    .sort((a, b) => a.priority - b.priority)
+    .map((item, index) => ({
+      field: item.field,
+      order: item.order,
+      priority: index + 1
+    }));
+};
+
+const getSortItems = () => {
+  const list = Array.isArray(sortConfig?.items) && sortConfig.items.length > 0
+    ? sortConfig.items
+    : (sortConfig?.field ? [{ field: sortConfig.field, order: sortConfig.order || SORT_ORDER.ASC, priority: 1 }] : []);
+  return normalizeSortItems(list);
+};
+
+const setSortItems = (items = []) => {
+  const next = normalizeSortItems(items);
+  if (typeof props.store.setSortItems === 'function') {
+    props.store.setSortItems(next);
+    return;
+  }
+  if (Array.isArray(sortConfig.items)) {
+    sortConfig.items.splice(0, sortConfig.items.length, ...next);
+  } else {
+    sortConfig.items = next;
+  }
+  sortConfig.field = next[0]?.field || '';
+  sortConfig.order = next[0]?.order || SORT_ORDER.ASC;
+};
+
+const getSortItem = (fieldName) => {
+  const key = String(fieldName || '').trim();
+  if (!key) return null;
+  return getSortItems().find((item) => item.field === key) || null;
+};
+
+const isSortActive = (fieldName) => !!getSortItem(fieldName);
+const getSortPriority = (fieldName) => getSortItem(fieldName)?.priority || 0;
+const getSortOrder = (fieldName) => getSortItem(fieldName)?.order || SORT_ORDER.ASC;
+
+const applySortForField = (fieldName, order, historySuffix = '', withHistory = true) => {
+  const field = String(fieldName || '').trim();
+  if (!field) return;
+  const nextOrder = normalizeSortOrder(order);
+  const items = getSortItems();
+  const index = items.findIndex((item) => item.field === field);
+  if (index >= 0) {
+    items[index] = { ...items[index], order: nextOrder };
+  } else {
+    items.push({ field, order: nextOrder, priority: items.length + 1 });
+  }
+  setSortItems(items);
+  if (withHistory) {
+    addHistory('sort', '排序', `${field} P${getSortPriority(field)} ${nextOrder === SORT_ORDER.ASC ? '升序' : '降序'}${historySuffix}`, field);
+  }
+};
+
+const removeSortForField = (fieldName) => {
+  const field = String(fieldName || '').trim();
+  if (!field) return;
+  const items = getSortItems().filter((item) => item.field !== field);
+  setSortItems(items);
+};
 
 const FILTER_OPERATOR_LABELS = Object.freeze({
   equals: '等于',
@@ -1617,14 +1701,18 @@ const dedupedData = computed(() => {
 
 const localProcessedData = computed(() => {
   const data = dedupedData.value;
-  if (!sortConfig.field) return data;
+  const sortItems = getSortItems();
+  if (sortItems.length === 0) return data;
 
   const sorted = [...data];
   sorted.sort((a, b) => {
-    const aVal = getFieldValue(a, sortConfig.field);
-    const bVal = getFieldValue(b, sortConfig.field);
-    if (aVal === bVal) return 0;
-    return sortConfig.order === SORT_ORDER.ASC ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
+    for (const sortItem of sortItems) {
+      const aVal = getFieldValue(a, sortItem.field);
+      const bVal = getFieldValue(b, sortItem.field);
+      if (aVal === bVal) continue;
+      return sortItem.order === SORT_ORDER.ASC ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
+    }
+    return 0;
   });
   return sorted;
 });
@@ -1990,7 +2078,11 @@ const normalizeSortConfig = (rawSort) => {
   const sort = deepCamelize(rawSort);
   const order = trimText(sort.order || sort.direction || sort.directions).toLowerCase();
   if (!['asc', 'desc'].includes(order)) return null;
-  return { order };
+  const priorityRaw = Number(sort.priority);
+  return {
+    order,
+    ...(Number.isFinite(priorityRaw) ? { priority: priorityRaw } : {})
+  };
 };
 
 const normalizeSuggestionOperations = (rawOperations) => {
@@ -2009,7 +2101,7 @@ const hasFieldOperationConfigured = (fieldName) => {
   const hasFilter = !!(filter && ((filter.mode === "simple" && filter.operator) || (filter.mode === "formula" && filter.formula) || (filter.mode === "compound" && Array.isArray(filter.conditions) && filter.conditions.some((item) => item.operator))));
   const transform = transforms[fieldName];
   const hasTransform = !!(transform && ((Array.isArray(transform.chain) && transform.chain.length > 0) || (Array.isArray(transform.rules) && transform.rules.length > 0) || transform.type));
-  const hasSort = trimText(sortConfig.field) === trimText(fieldName);
+  const hasSort = isSortActive(fieldName);
   return hasFilter || hasTransform || hasSort;
 };
 
@@ -2060,9 +2152,7 @@ const applySuggestionForField = (fieldName, operations = {}, withHistory = true)
     applied = true;
   }
   if (operations.sort) {
-    sortConfig.field = fieldName;
-    sortConfig.order = operations.sort.order;
-    if (withHistory) addHistory('sort', '\u6392\u5e8f', `${fieldName} ${sortConfig.order === 'asc' ? '\u5347\u5e8f' : '\u964d\u5e8f'}(\u667a\u80fd\u63a8\u8350)`, fieldName);
+    applySortForField(fieldName, operations.sort.order, '(智能推荐)', withHistory);
     applied = true;
   }
   if (applied) notifyOperationApplied('smart_recommend', fieldName);
@@ -2230,19 +2320,22 @@ const removeFilterCondition = (field, index) => {
 };
 
 const applySort = (field, order) => {
-  sortConfig.field = field;
-  sortConfig.order = order;
-  addHistory('sort', '排序', `${field} ${order === 'asc' ? '升序' : '降序'}`, field);
+  applySortForField(field, order);
   columnPopover.show = false;
   notifyOperationApplied('sort', field);
 };
 
-const clearSort = () => {
-  sortConfig.field = '';
-  sortConfig.order = 'asc';
-  history.value = history.value.filter((item) => item.type !== 'sort');
+const clearSort = (field = '') => {
+  const targetField = trimText(field);
+  if (targetField) {
+    removeSortForField(targetField);
+    history.value = history.value.filter((item) => !(item.type === 'sort' && trimText(item.field) === targetField));
+  } else {
+    setSortItems([]);
+    history.value = history.value.filter((item) => item.type !== 'sort');
+  }
   columnPopover.show = false;
-  notifyOperationApplied('sort', '');
+  notifyOperationApplied('sort', targetField);
 };
 
 const TIME_FORMAT_MODE = Object.freeze({
@@ -2445,11 +2538,12 @@ const confirmTransform = () => {
 };
 
 const copyColumnConfig = (field) => {
+  const sortItem = getSortItem(field);
   copiedConfig.value = {
     field,
     filter: JSON.parse(JSON.stringify(filterConfigs[field] || null)),
     transform: JSON.parse(JSON.stringify(transforms[field] || null)),
-    sort: sortConfig.field === field ? { ...sortConfig } : null
+    sort: sortItem ? { order: sortItem.order, priority: sortItem.priority } : null
   };
   applyModal.sourceField = field;
 };
@@ -2523,9 +2617,9 @@ const applyColumnConfig = () => {
     }
 
     if (applyModal.applySort && copiedConfig.value.sort) {
-      sortConfig.field = target;
-      sortConfig.order = copiedConfig.value.sort.order || SORT_ORDER.ASC;
-      addHistory('sort', '排序', `${target} ${sortConfig.order === 'asc' ? '升序' : '降序'}`, target);
+      if (applyModal.override || !isSortActive(target)) {
+        applySortForField(target, copiedConfig.value.sort.order || SORT_ORDER.ASC);
+      }
     }
   });
 
@@ -2541,8 +2635,7 @@ const undoHistoryItem = (index) => {
   } else if (item.type === 'transform') {
     delete transforms[item.field];
   } else if (item.type === 'sort') {
-    sortConfig.field = '';
-    sortConfig.order = SORT_ORDER.ASC;
+    removeSortForField(item.field);
   } else if (item.type === 'dedup') {
     dedupConfig.enabled = false;
   }

@@ -15,7 +15,7 @@ export const usePipelineStore = defineStore('pipeline', () => {
 
   const filters = reactive({});
   const transforms = reactive({});
-  const sortConfig = reactive({ field: '', order: SORT_ORDER.ASC });
+  const sortConfig = reactive({ field: '', order: SORT_ORDER.ASC, items: [] });
   const dedupConfig = reactive({ enabled: true, fields: [], keep: DEDUP_KEEP.FIRST });
 
   const joinConfig = reactive({
@@ -275,14 +275,76 @@ export const usePipelineStore = defineStore('pipeline', () => {
     delete transforms[field];
   };
 
-  const setSort = (field, order) => {
-    sortConfig.field = field;
-    sortConfig.order = order;
+  const normalizeSortItems = (items = []) => {
+    const list = Array.isArray(items) ? items : [];
+    const filtered = list
+      .map((item) => ({
+        field: String(item?.field || '').trim(),
+        order: String(item?.order || SORT_ORDER.ASC).toLowerCase() === SORT_ORDER.DESC ? SORT_ORDER.DESC : SORT_ORDER.ASC,
+        priority: Number(item?.priority)
+      }))
+      .filter((item) => item.field);
+
+    const sorted = filtered
+      .sort((a, b) => {
+        const aPriority = Number.isFinite(a.priority) ? a.priority : Number.MAX_SAFE_INTEGER;
+        const bPriority = Number.isFinite(b.priority) ? b.priority : Number.MAX_SAFE_INTEGER;
+        if (aPriority !== bPriority) return aPriority - bPriority;
+        return a.field.localeCompare(b.field);
+      })
+      .map((item, index) => ({
+        field: item.field,
+        order: item.order,
+        priority: index + 1
+      }));
+
+    return sorted;
   };
 
-  const clearSort = () => {
-    sortConfig.field = '';
-    sortConfig.order = SORT_ORDER.ASC;
+  const syncLegacySortFields = () => {
+    const first = Array.isArray(sortConfig.items) && sortConfig.items.length > 0 ? sortConfig.items[0] : null;
+    sortConfig.field = first?.field || '';
+    sortConfig.order = first?.order || SORT_ORDER.ASC;
+  };
+
+  const setSortItems = (items = []) => {
+    const next = normalizeSortItems(items);
+    sortConfig.items.splice(0, sortConfig.items.length, ...next);
+    syncLegacySortFields();
+  };
+
+  const setSort = (field, order) => {
+    const nextField = String(field || '').trim();
+    if (!nextField) return;
+    const nextOrder = String(order || SORT_ORDER.ASC).toLowerCase() === SORT_ORDER.DESC ? SORT_ORDER.DESC : SORT_ORDER.ASC;
+    const existing = Array.isArray(sortConfig.items) ? [...sortConfig.items] : [];
+    const index = existing.findIndex((item) => String(item?.field || '').trim() === nextField);
+    if (index >= 0) {
+      existing[index] = {
+        ...existing[index],
+        field: nextField,
+        order: nextOrder
+      };
+    } else {
+      existing.push({
+        field: nextField,
+        order: nextOrder,
+        priority: existing.length + 1
+      });
+    }
+    setSortItems(existing);
+  };
+
+  const clearSort = (field = '') => {
+    const targetField = String(field || '').trim();
+    if (!targetField) {
+      sortConfig.items.splice(0, sortConfig.items.length);
+      syncLegacySortFields();
+      return;
+    }
+    const next = (Array.isArray(sortConfig.items) ? sortConfig.items : [])
+      .filter((item) => String(item?.field || '').trim() !== targetField);
+    setSortItems(next);
   };
 
   const setDedup = (config) => {
@@ -322,6 +384,7 @@ export const usePipelineStore = defineStore('pipeline', () => {
     mappings.value = {};
     Object.keys(filters).forEach((key) => delete filters[key]);
     Object.keys(transforms).forEach((key) => delete transforms[key]);
+    sortConfig.items.splice(0, sortConfig.items.length);
     sortConfig.field = '';
     sortConfig.order = SORT_ORDER.ASC;
     dedupConfig.enabled = true;
@@ -375,6 +438,7 @@ export const usePipelineStore = defineStore('pipeline', () => {
     setTransform,
     removeTransform,
     setSort,
+    setSortItems,
     clearSort,
     setDedup,
     getExecutePayload,

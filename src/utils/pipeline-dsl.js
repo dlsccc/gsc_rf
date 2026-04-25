@@ -660,6 +660,20 @@ const buildDataProcessingDsl = ({
     acc[name] = trimText(field?.format || field?.dataFormat);
     return acc;
   }, {});
+  const sortItems = Array.isArray(sortConfig?.items) && sortConfig.items.length > 0
+    ? sortConfig.items
+    : (sortConfig?.field
+      ? [{ field: sortConfig.field, order: sortConfig.order || 'asc', priority: 1 }]
+      : []);
+  const sortMap = sortItems.reduce((acc, item, index) => {
+    const field = trimText(item?.field);
+    if (!field) return acc;
+    acc[field] = {
+      order: trimText(item?.order).toLowerCase() === 'desc' ? 'desc' : 'asc',
+      priority: Number.isFinite(Number(item?.priority)) ? Number(item.priority) : index + 1
+    };
+    return acc;
+  }, {});
   const rules = [];
   let idx = 0;
 
@@ -674,10 +688,12 @@ const buildDataProcessingDsl = ({
     const targetType = targetFieldFormatMap[fieldName] || '';
     const transform = buildTransformDsl(transforms[fieldName], targetType);
 
-    const sortParams = sortConfig?.field && sortConfig.field === fieldName
+    const fieldSort = sortMap[fieldName];
+    const sortParams = fieldSort
       ? [
-        makeParam('directions', 'enum', sortConfig.order || 'asc'),
-        makeParam('nulls_position', 'enum', 'last')
+        makeParam('directions', 'enum', fieldSort.order || 'asc'),
+        makeParam('nulls_position', 'enum', 'last'),
+        makeParam('priority', 'int', fieldSort.priority)
       ]
       : null;
 
