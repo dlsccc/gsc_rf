@@ -196,14 +196,22 @@ const normalizeFields = (fields) => {
   return [normalizeField()];
 };
 
+const getTagValue = (model = {}, key = '', fallbackValue = '') => {
+  const tags = model?.tags;
+  if (tags && typeof tags === 'object' && Object.prototype.hasOwnProperty.call(tags, key)) {
+    return tags[key];
+  }
+  return fallbackValue;
+};
+
 const normalizeTags = (model = {}) => ({
-  vendor: toUiEnumValue(model.tags?.vendor || model.vendor || model.factory, VENDOR_API_TO_UI_UPPER, 'upper'),
-  standard: toUiEnumValue(model.tags?.standard || model.rat || model.format, RAT_API_TO_UI_UPPER, 'upper'),
-  timeGranularity: toUiEnumValue(model.tags?.timeGranularity || model.timeGranularity, TIME_GRANULARITY_API_TO_UI_LOWER, 'lower'),
-  spaceGranularity: model.tags?.spaceGranularity || model.spaceGranularity || '',
-  type: toUiEnumValue(model.tags?.type || model.businessModelType, MODEL_TYPE_API_TO_UI_LOWER, 'lower'),
-  involveCalc: model.tags?.involveCalc !== undefined
-    ? toBoolean(model.tags?.involveCalc)
+  vendor: toUiEnumValue(getTagValue(model, 'vendor', model.vendor || model.factory), VENDOR_API_TO_UI_UPPER, 'upper'),
+  standard: toUiEnumValue(getTagValue(model, 'standard', model.rat || model.format), RAT_API_TO_UI_UPPER, 'upper'),
+  timeGranularity: toUiEnumValue(getTagValue(model, 'timeGranularity', model.timeGranularity), TIME_GRANULARITY_API_TO_UI_LOWER, 'lower'),
+  spaceGranularity: toText(getTagValue(model, 'spaceGranularity', model.spaceGranularity)),
+  type: toUiEnumValue(getTagValue(model, 'type', model.businessModelType), MODEL_TYPE_API_TO_UI_LOWER, 'lower'),
+  involveCalc: getTagValue(model, 'involveCalc', undefined) !== undefined
+    ? toBoolean(getTagValue(model, 'involveCalc', undefined))
     : toBoolean(model.involveCalc)
 });
 
