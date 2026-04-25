@@ -422,7 +422,7 @@
                       type="button"
                       class="btn btn-sm"
                       :class="step.timeFormatMode === TIME_FORMAT_MODE.DATE ? 'btn-primary' : 'btn-default'"
-                      @click="step.timeFormatMode = TIME_FORMAT_MODE.DATE"
+                      @click="setTimeFormatMode(step, TIME_FORMAT_MODE.DATE)"
                     >
                       YYYY-MM-DD
                     </button>
@@ -433,7 +433,7 @@
                       type="button"
                       class="btn btn-sm"
                       :class="step.timeFormatMode === TIME_FORMAT_MODE.DATETIME ? 'btn-primary' : 'btn-default'"
-                      @click="step.timeFormatMode = TIME_FORMAT_MODE.DATETIME"
+                      @click="setTimeFormatMode(step, TIME_FORMAT_MODE.DATETIME)"
                     >
                       YYYY-MM-DD hh:mm:ss
                     </button>
@@ -444,7 +444,7 @@
                       type="button"
                       class="btn btn-sm"
                       :class="step.timeFormatMode === TIME_FORMAT_MODE.YEAR ? 'btn-primary' : 'btn-default'"
-                      @click="step.timeFormatMode = TIME_FORMAT_MODE.YEAR"
+                      @click="setTimeFormatMode(step, TIME_FORMAT_MODE.YEAR)"
                     >
                       YYYY
                     </button>
@@ -455,7 +455,7 @@
                       type="button"
                       class="btn btn-sm"
                       :class="step.timeFormatMode === TIME_FORMAT_MODE.MONTH ? 'btn-primary' : 'btn-default'"
-                      @click="step.timeFormatMode = TIME_FORMAT_MODE.MONTH"
+                      @click="setTimeFormatMode(step, TIME_FORMAT_MODE.MONTH)"
                     >
                       YYYY-MM
                     </button>
@@ -466,12 +466,21 @@
                       type="button"
                       class="btn btn-sm"
                       :class="step.timeFormatMode === TIME_FORMAT_MODE.TIME ? 'btn-primary' : 'btn-default'"
-                      @click="step.timeFormatMode = TIME_FORMAT_MODE.TIME"
+                      @click="setTimeFormatMode(step, TIME_FORMAT_MODE.TIME)"
                     >
                       hh:mm:ss
                     </button>
                     <span style="font-size: 12px; color: var(--text-secondary);">示例：14:30:59</span>
                   </div>
+                </div>
+                <div style="margin-top: 8px;">
+                  <input
+                    v-model="step.customOriginType"
+                    class="form-input"
+                    placeholder="其他原始格式请手动输入，例如 YYYY/MM/DD"
+                    style="font-size: 13px;"
+                    @input="onCustomOriginTypeInput(step)"
+                  />
                 </div>
               </div>
               <div v-if="step.type === 'concat'" style="margin-top: 8px;">
@@ -545,7 +554,7 @@
                     type="button"
                     class="btn btn-sm"
                     :class="rule.timeFormatMode === TIME_FORMAT_MODE.DATE ? 'btn-primary' : 'btn-default'"
-                    @click="rule.timeFormatMode = TIME_FORMAT_MODE.DATE"
+                    @click="setTimeFormatMode(rule, TIME_FORMAT_MODE.DATE)"
                   >
                     YYYY-MM-DD
                   </button>
@@ -556,7 +565,7 @@
                     type="button"
                     class="btn btn-sm"
                     :class="rule.timeFormatMode === TIME_FORMAT_MODE.DATETIME ? 'btn-primary' : 'btn-default'"
-                    @click="rule.timeFormatMode = TIME_FORMAT_MODE.DATETIME"
+                    @click="setTimeFormatMode(rule, TIME_FORMAT_MODE.DATETIME)"
                   >
                     YYYY-MM-DD hh:mm:ss
                   </button>
@@ -567,7 +576,7 @@
                     type="button"
                     class="btn btn-sm"
                     :class="rule.timeFormatMode === TIME_FORMAT_MODE.YEAR ? 'btn-primary' : 'btn-default'"
-                    @click="rule.timeFormatMode = TIME_FORMAT_MODE.YEAR"
+                    @click="setTimeFormatMode(rule, TIME_FORMAT_MODE.YEAR)"
                   >
                     YYYY
                   </button>
@@ -578,7 +587,7 @@
                     type="button"
                     class="btn btn-sm"
                     :class="rule.timeFormatMode === TIME_FORMAT_MODE.MONTH ? 'btn-primary' : 'btn-default'"
-                    @click="rule.timeFormatMode = TIME_FORMAT_MODE.MONTH"
+                    @click="setTimeFormatMode(rule, TIME_FORMAT_MODE.MONTH)"
                   >
                     YYYY-MM
                   </button>
@@ -589,12 +598,20 @@
                     type="button"
                     class="btn btn-sm"
                     :class="rule.timeFormatMode === TIME_FORMAT_MODE.TIME ? 'btn-primary' : 'btn-default'"
-                    @click="rule.timeFormatMode = TIME_FORMAT_MODE.TIME"
+                    @click="setTimeFormatMode(rule, TIME_FORMAT_MODE.TIME)"
                   >
                     hh:mm:ss
                   </button>
                   <span style="font-size: 12px; color: var(--text-secondary);">示例：14:30:59</span>
                 </div>
+              </div>
+              <div style="margin-top: 8px;">
+                <input
+                  v-model="rule.customOriginType"
+                  class="form-input"
+                  placeholder="其他原始格式请手动输入，例如 YYYY/MM/DD"
+                  @input="onCustomOriginTypeInput(rule)"
+                />
               </div>
             </div>
 
@@ -2240,9 +2257,11 @@ const resolveTimeFormatModeByType = (type, originType = '') => {
   const normalizedOriginType = trimText(originType).toLowerCase();
   if (type === TRANSFORM_TYPES.FORMAT_DATETIME) {
     if (normalizedOriginType === 'yyyy-mm-dd hh:mm:ss') return TIME_FORMAT_MODE.DATETIME;
+    if (normalizedOriginType === 'yyyy/mm/dd hh:mm:ss') return TIME_FORMAT_MODE.DATETIME;
     if (normalizedOriginType === 'yyyy') return TIME_FORMAT_MODE.YEAR;
     if (normalizedOriginType === 'yyyy-mm') return TIME_FORMAT_MODE.MONTH;
     if (normalizedOriginType === 'hh:mm:ss') return TIME_FORMAT_MODE.TIME;
+    if (normalizedOriginType) return '';
     return TIME_FORMAT_MODE.DATE;
   }
   if (type === TRANSFORM_TYPES.EXTRACT_YEAR) return TIME_FORMAT_MODE.YEAR;
@@ -2266,14 +2285,18 @@ const resolveStoredTypeByTimeFormatMode = (mode) => {
 
 const toModalTransformItem = (item = {}) => {
   const next = { ...item };
-  const timeFormatMode = resolveTimeFormatModeByType(next.type, next.originType || next.origin_type);
+  const rawOriginType = trimText(next.originType || next.origin_type);
+  const timeFormatMode = resolveTimeFormatModeByType(next.type, rawOriginType);
   if (timeFormatMode) {
     next.type = TRANSFORM_TYPES.FORMAT_TIME;
     next.timeFormatMode = timeFormatMode;
+    next.customOriginType = '';
   } else if (next.type === TRANSFORM_TYPES.FORMAT_TIME) {
-    next.timeFormatMode = next.timeFormatMode || TIME_FORMAT_MODE.DATE;
+    next.timeFormatMode = trimText(next.timeFormatMode || '');
+    next.customOriginType = rawOriginType;
   } else {
     next.timeFormatMode = '';
+    next.customOriginType = '';
   }
   return next;
 };
@@ -2281,25 +2304,50 @@ const toModalTransformItem = (item = {}) => {
 const toStoredTransformItem = (item = {}) => {
   const next = { ...item };
   if (next.type === TRANSFORM_TYPES.FORMAT_TIME) {
-    const nextMode = next.timeFormatMode || TIME_FORMAT_MODE.DATE;
-    next.type = resolveStoredTypeByTimeFormatMode(nextMode);
-    const originType = resolveOriginTypeByTimeFormatMode(nextMode);
-    if (originType) {
-      next.originType = originType;
+    const nextMode = trimText(next.timeFormatMode);
+    const customOriginType = trimText(next.customOriginType);
+    if (nextMode) {
+      next.type = resolveStoredTypeByTimeFormatMode(nextMode);
+      const originType = resolveOriginTypeByTimeFormatMode(nextMode);
+      if (originType) {
+        next.originType = originType;
+      } else {
+        delete next.originType;
+      }
     } else {
-      delete next.originType;
+      next.type = TRANSFORM_TYPES.FORMAT_DATETIME;
+      if (customOriginType) {
+        next.originType = customOriginType;
+      } else {
+        delete next.originType;
+      }
     }
   }
   delete next.timeFormatMode;
+  delete next.customOriginType;
   return next;
 };
 
 const onTransformTypeChange = (item) => {
   if (!item || typeof item !== 'object') return;
   if (item.type === TRANSFORM_TYPES.FORMAT_TIME) {
-    item.timeFormatMode = item.timeFormatMode || TIME_FORMAT_MODE.DATE;
+    item.timeFormatMode = trimText(item.timeFormatMode || '');
+    item.customOriginType = trimText(item.customOriginType || '');
     return;
   }
+  item.timeFormatMode = '';
+  item.customOriginType = '';
+};
+
+const setTimeFormatMode = (item, mode) => {
+  if (!item || typeof item !== 'object') return;
+  const current = trimText(item.timeFormatMode || '');
+  const nextMode = trimText(mode || '');
+  item.timeFormatMode = current === nextMode ? '' : nextMode;
+};
+
+const onCustomOriginTypeInput = (item) => {
+  if (!item || typeof item !== 'object') return;
   item.timeFormatMode = '';
 };
 
@@ -2313,7 +2361,8 @@ const addTransformRule = () => {
     search: '',
     replace: '',
     formula: '',
-    timeFormatMode: ''
+    timeFormatMode: '',
+    customOriginType: ''
   });
 };
 
@@ -2323,7 +2372,7 @@ const removeTransformRule = (index) => {
 
 const addChainStep = () => {
   if (!Array.isArray(transformModal.chain)) transformModal.chain = [];
-  transformModal.chain.push({ type: TRANSFORM_TYPES.SET_VALUE, delimiter: '', fixedValue: '', search: '', replace: '', formula: '', timeFormatMode: '' });
+  transformModal.chain.push({ type: TRANSFORM_TYPES.SET_VALUE, delimiter: '', fixedValue: '', search: '', replace: '', formula: '', timeFormatMode: '', customOriginType: '' });
 };
 
 const removeChainStep = (index) => {
@@ -2358,7 +2407,8 @@ const openTransformModal = (field) => {
         fixedValue: transforms[field].fixedValue || '',
         search: transforms[field].search || '',
         replace: transforms[field].replace || '',
-        formula: transforms[field].formula || ''
+        formula: transforms[field].formula || '',
+        originType: transforms[field].originType || transforms[field].origin_type || ''
       })
     ];
   } else {
