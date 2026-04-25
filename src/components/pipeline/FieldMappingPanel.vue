@@ -187,19 +187,31 @@
       </div>
 
       <div class="dropdown-group" v-for="group in sourceGroups" :key="group.source">
-        <div class="dropdown-group-title">
-          <span class="source-badge" :class="group.badgeClass">{{ group.badgeText }}</span>
-          {{ group.title }}
-        </div>
         <div
-          v-for="source in group.fields"
-          :key="source.key"
-          class="dropdown-item"
-          :class="{ selected: isSourceMappedToTarget(source.key, activeDropdown) }"
-          @click="toggleFieldMapping(activeDropdown, source)"
+          class="dropdown-group-title"
+          style="display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer;"
+          @click="toggleSourceGroup(group.source)"
         >
-          <span class="dropdown-checkbox" :class="{ checked: isSourceMappedToTarget(source.key, activeDropdown) }"></span>
-          {{ source.name }}
+          <span style="display: inline-flex; align-items: center; gap: 6px;">
+            <span class="material-icons" style="font-size: 16px; color: #666;">
+              {{ isSourceGroupExpanded(group.source) ? 'expand_more' : 'chevron_right' }}
+            </span>
+            <span class="source-badge" :class="group.badgeClass">{{ group.badgeText }}</span>
+            {{ group.title }}
+          </span>
+          <span style="font-size: 12px; color: #999;">{{ group.fields.length }}</span>
+        </div>
+        <div v-show="isSourceGroupExpanded(group.source)">
+          <div
+            v-for="source in group.fields"
+            :key="source.key"
+            class="dropdown-item"
+            :class="{ selected: isSourceMappedToTarget(source.key, activeDropdown) }"
+            @click="toggleFieldMapping(activeDropdown, source)"
+          >
+            <span class="dropdown-checkbox" :class="{ checked: isSourceMappedToTarget(source.key, activeDropdown) }"></span>
+            {{ source.name }}
+          </div>
         </div>
       </div>
     </div>
@@ -217,6 +229,7 @@ const activeDropdown = ref(null);
 const dropdownPosition = ref({ top: 0, left: 0, width: 0 });
 const activeJoinIndex = ref(0);
 const fieldMappingGridContainer = ref(null);
+const sourceGroupExpanded = ref({});
 
 const toText = (value) => String(value ?? '').trim();
 const getFieldDesc = (field) => toText(field?.description || field?.fieldDesc || field?.desc);
@@ -379,6 +392,35 @@ const sourceGroups = computed(() => {
     };
   });
 });
+
+watch(
+  sourceGroups,
+  (groups) => {
+    const next = {};
+    groups.forEach((group) => {
+      const key = toText(group?.source);
+      if (!key) return;
+      next[key] = sourceGroupExpanded.value[key] !== false;
+    });
+    sourceGroupExpanded.value = next;
+  },
+  { immediate: true, deep: true }
+);
+
+const isSourceGroupExpanded = (source) => {
+  const key = toText(source);
+  if (!key) return true;
+  return sourceGroupExpanded.value[key] !== false;
+};
+
+const toggleSourceGroup = (source) => {
+  const key = toText(source);
+  if (!key) return;
+  sourceGroupExpanded.value = {
+    ...sourceGroupExpanded.value,
+    [key]: !isSourceGroupExpanded(key)
+  };
+};
 
 const fileRowsBySource = computed(() => {
   return sourceFiles.value.reduce((acc, file) => {
