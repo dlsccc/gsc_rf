@@ -15,7 +15,7 @@
     </div>
 
     <div class="model-grid">
-      <div v-for="item in projectModels" :key="item.id" class="model-card">
+      <div v-for="item in pagedProjectModels" :key="item.id" class="model-card">
         <div class="model-card-header">
           <div class="model-name">
             <span class="material-icons" style="color: var(--primary);">account_tree</span>
@@ -54,6 +54,25 @@
       </div>
     </div>
 
+    <div v-if="projectModels.length > pageSize" style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 16px;">
+      <button class="btn btn-default btn-sm" :disabled="currentPage <= 1" @click="setPage(currentPage - 1)">
+        <span class="material-icons" style="font-size: 16px;">chevron_left</span>
+      </button>
+      <button
+        v-for="page in pageNumbers"
+        :key="String(page)"
+        class="btn btn-sm"
+        :class="Number(page) === currentPage ? 'btn-primary' : 'btn-default'"
+        :disabled="typeof page !== 'number'"
+        @click="typeof page === 'number' && setPage(page)"
+      >
+        {{ typeof page === 'number' ? page : '...' }}
+      </button>
+      <button class="btn btn-default btn-sm" :disabled="currentPage >= totalPages" @click="setPage(currentPage + 1)">
+        <span class="material-icons" style="font-size: 16px;">chevron_right</span>
+      </button>
+    </div>
+
     <div v-if="projectModels.length === 0" style="text-align: center; padding: 80px 20px; color: var(--text-secondary);">
       <span class="material-icons" style="font-size: 64px; opacity: 0.3;">account_tree</span>
       <p style="margin-top: 16px; font-size: 16px;">暂无数据模型</p>
@@ -63,7 +82,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { projectModelsApi, standardModelsApi } from '@/api/index.js';
 import { useAppStore } from '@/store/app.store.js';
@@ -72,10 +91,63 @@ import { normalizeProjectModel, normalizeStandardModel, resolveModelCode, unwrap
 const router = useRouter();
 const appStore = useAppStore();
 const modelStore = useModelStore();
+const pageSize = 15;
+const currentPage = ref(1);
 
 const projectModels = computed(() => {
   return modelStore.projectModels.filter((item) => Number(item.projectId) === Number(appStore.currentProject));
 });
+
+const totalPages = computed(() => {
+  return Math.max(1, Math.ceil(projectModels.value.length / pageSize));
+});
+
+const pagedProjectModels = computed(() => {
+  const start = (currentPage.value - 1) * pageSize;
+  return projectModels.value.slice(start, start + pageSize);
+});
+
+const pageNumbers = computed(() => {
+  const total = totalPages.value;
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, index) => index + 1);
+  }
+
+  const current = currentPage.value;
+  const pages = [1];
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+
+  if (start > 2) {
+    pages.push('ellipsis-prev');
+  }
+
+  for (let page = start; page <= end; page += 1) {
+    pages.push(page);
+  }
+
+  if (end < total - 1) {
+    pages.push('ellipsis-next');
+  }
+
+  pages.push(total);
+  return pages;
+});
+
+const setPage = (page) => {
+  const next = Number(page);
+  if (!Number.isFinite(next)) return;
+  currentPage.value = Math.min(Math.max(next, 1), totalPages.value);
+};
+
+watch(
+  () => projectModels.value.length,
+  () => {
+    if (currentPage.value > totalPages.value) {
+      currentPage.value = totalPages.value;
+    }
+  }
+);
 
 const resolveCurrentProjectCode = () => {
   return String(appStore.currentProjectCode || appStore.currentProject || '').trim();
@@ -87,6 +159,7 @@ const loadProjectModels = async () => {
     const response = await projectModelsApi.list({ modelType: 'business', ...(projectCode ? { projectCode } : {}) });
     const list = unwrapApiList(response);
     modelStore.setProjectModels(list.map((item) => normalizeProjectModel(item, appStore.currentProject, projectCode)));
+    currentPage.value = 1;
   } catch {
     modelStore.setProjectModels([]);
   }

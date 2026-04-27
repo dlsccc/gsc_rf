@@ -17,7 +17,7 @@
     </div>
 
     <div class="model-grid">
-      <div v-for="item in modelStore.standardModels" :key="item.id" class="model-card">
+      <div v-for="item in pagedStandardModels" :key="item.id" class="model-card">
         <div class="model-card-header">
           <div class="model-name">
             <span class="material-icons">table_chart</span>
@@ -55,6 +55,25 @@
       </div>
     </div>
 
+    <div v-if="modelStore.standardModels.length > pageSize" style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 16px;">
+      <button class="btn btn-default btn-sm" :disabled="currentPage <= 1" @click="setPage(currentPage - 1)">
+        <span class="material-icons" style="font-size: 16px;">chevron_left</span>
+      </button>
+      <button
+        v-for="page in pageNumbers"
+        :key="String(page)"
+        class="btn btn-sm"
+        :class="Number(page) === currentPage ? 'btn-primary' : 'btn-default'"
+        :disabled="typeof page !== 'number'"
+        @click="typeof page === 'number' && setPage(page)"
+      >
+        {{ typeof page === 'number' ? page : '...' }}
+      </button>
+      <button class="btn btn-default btn-sm" :disabled="currentPage >= totalPages" @click="setPage(currentPage + 1)">
+        <span class="material-icons" style="font-size: 16px;">chevron_right</span>
+      </button>
+    </div>
+
     <div v-if="modelStore.standardModels.length === 0" style="text-align: center; padding: 80px 20px; color: var(--text-secondary);">
       <span class="material-icons" style="font-size: 64px; opacity: 0.3;">inbox</span>
       <p style="margin-top: 16px; font-size: 16px;">暂无标准数据模型</p>
@@ -64,7 +83,7 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { standardModelsApi } from '@/api/index.js';
 import { useAppStore } from '@/store/app.store.js';
@@ -73,6 +92,59 @@ import { normalizeStandardModel, resolveModelCode, unwrapApiList, useModelStore 
 const router = useRouter();
 const appStore = useAppStore();
 const modelStore = useModelStore();
+const pageSize = 15;
+const currentPage = ref(1);
+
+const totalPages = computed(() => {
+  return Math.max(1, Math.ceil(modelStore.standardModels.length / pageSize));
+});
+
+const pagedStandardModels = computed(() => {
+  const start = (currentPage.value - 1) * pageSize;
+  return modelStore.standardModels.slice(start, start + pageSize);
+});
+
+const pageNumbers = computed(() => {
+  const total = totalPages.value;
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, index) => index + 1);
+  }
+
+  const current = currentPage.value;
+  const pages = [1];
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+
+  if (start > 2) {
+    pages.push('ellipsis-prev');
+  }
+
+  for (let page = start; page <= end; page += 1) {
+    pages.push(page);
+  }
+
+  if (end < total - 1) {
+    pages.push('ellipsis-next');
+  }
+
+  pages.push(total);
+  return pages;
+});
+
+const setPage = (page) => {
+  const next = Number(page);
+  if (!Number.isFinite(next)) return;
+  currentPage.value = Math.min(Math.max(next, 1), totalPages.value);
+};
+
+watch(
+  () => modelStore.standardModels.length,
+  () => {
+    if (currentPage.value > totalPages.value) {
+      currentPage.value = totalPages.value;
+    }
+  }
+);
 
 const loadStandardModels = async () => {
   try {
@@ -80,6 +152,7 @@ const loadStandardModels = async () => {
     const list = unwrapApiList(response);
     if (list.length > 0) {
       modelStore.setStandardModels(list.map((item) => normalizeStandardModel(item)));
+      currentPage.value = 1;
     }
   } catch {
     // 无后端时保留本地状态。
