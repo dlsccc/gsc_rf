@@ -26,7 +26,7 @@
             <p style="margin-top: 10px;">暂无执行记录</p>
             <p style="margin-top: 6px; font-size: 13px;">点击右上角“创建入湖任务”开始执行</p>
           </div>
-          <div v-for="run in lakeTaskRuns.slice(0, 10)" :key="run.runId" class="model-card" style="margin-bottom: 12px;">
+          <div v-for="run in pagedLakeTaskRuns" :key="run.runId" class="model-card" style="margin-bottom: 12px;">
             <div class="model-card-header">
               <div class="model-name">
                 <span class="material-icons" style="color: var(--success);">task_alt</span>
@@ -48,6 +48,24 @@
                 {{ run.executeTime }}
               </div>
             </div>
+          </div>
+          <div v-if="lakeTaskRuns.length > recordPageSize" style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 16px;">
+            <button class="btn btn-default btn-sm" :disabled="currentRecordPage <= 1" @click="setRecordPage(currentRecordPage - 1)">
+              <span class="material-icons" style="font-size: 16px;">chevron_left</span>
+            </button>
+            <button
+              v-for="page in recordPageNumbers"
+              :key="String(page)"
+              class="btn btn-sm"
+              :class="Number(page) === currentRecordPage ? 'btn-primary' : 'btn-default'"
+              :disabled="typeof page !== 'number'"
+              @click="typeof page === 'number' && setRecordPage(page)"
+            >
+              {{ typeof page === 'number' ? page : '...' }}
+            </button>
+            <button class="btn btn-default btn-sm" :disabled="currentRecordPage >= totalRecordPages" @click="setRecordPage(currentRecordPage + 1)">
+              <span class="material-icons" style="font-size: 16px;">chevron_right</span>
+            </button>
           </div>
         </div>
       </div>
@@ -183,8 +201,20 @@ const getTaskStatusClass = (status) => {
   return 'draft';
 };
 
+const extractFlowTimestamp = (flowId) => {
+  const text = toText(flowId);
+  const match = text.match(/itsc@(\d+)/i);
+  if (match) {
+    return Number(match[1]) || 0;
+  }
+  const fallback = text.match(/(\d{6,})/);
+  return fallback ? (Number(fallback[1]) || 0) : 0;
+};
+
 const taskFileInput = ref(null);
 const lakeTaskRuns = ref([]);
+const recordPageSize = 10;
+const currentRecordPage = ref(1);
 const taskDragOverTable = ref('');
 const taskUploadTableId = ref('table_a');
 const taskUploadingTableId = ref('');
@@ -236,6 +266,7 @@ const loadRules = async () => {
 const mapExecuteRecord = (item, index) => {
   const runId = toText(item?.immeTaskId || item?.flowId || item?.batchNo || item?.id || `${Date.now()}_${index}`);
   const executeTime = toText(item?.executeTime || item?.creationDate || item?.creation_time || item?.lastUpdatedDate || item?.last_updated_date || '');
+  const flowId = toText(item?.flowId || item?.flow_id);
   const status = normalizeTaskStatus(item?.taskStatus);
 
   return {
@@ -244,7 +275,9 @@ const mapExecuteRecord = (item, index) => {
     ruleName: toText(item?.ruleName || item?.ruleCode || '-'),
     fileCount: '-',
     executeTime: executeTime || '-',
-    taskStatus: status
+    taskStatus: status,
+    flowId,
+    flowTimestamp: extractFlowTimestamp(flowId)
   };
 };
 
@@ -253,9 +286,13 @@ const loadExecuteRecords = async () => {
     const projectCode = toText(appStore.currentProjectCode);
     const response = await rulesApi.queryExecuteRecords({ projectCode });
     const list = unwrapApiList(response);
-    lakeTaskRuns.value = list.map((item, index) => mapExecuteRecord(item, index));
+    const mappedList = list.map((item, index) => mapExecuteRecord(item, index));
+    mappedList.sort((a, b) => b.flowTimestamp - a.flowTimestamp);
+    lakeTaskRuns.value = mappedList;
+    currentRecordPage.value = 1;
   } catch {
     lakeTaskRuns.value = [];
+    currentRecordPage.value = 1;
   }
 };
 
@@ -273,6 +310,49 @@ const taskRequiredTables = computed(() => {
   if (fromRuleJson.length > 0) return fromRuleJson;
   return normalizeRuleInputTables(selectedLakeTaskRule.value);
 });
+
+const totalRecordPages = computed(() => {
+  return Math.max(1, Math.ceil(lakeTaskRuns.value.length / recordPageSize));
+});
+
+const pagedLakeTaskRuns = computed(() => {
+  const start = (currentRecordPage.value - 1) * recordPageSize;
+  return lakeTaskRuns.value.slice(start, start + recordPageSize);
+});
+
+const recordPageNumbers = computed(() => {
+  const total = totalRecordPages.value;
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, index) => index + 1);
+  }
+
+  const current = currentRecordPage.value;
+  const pages = [1];
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+
+  if (start > 2) {
+    pages.push('ellipsis-prev');
+  }
+
+  for (let page = start; page <= end; page += 1) {
+    pages.push(page);
+  }
+
+  if (end < total - 1) {
+    pages.push('ellipsis-next');
+  }
+
+  pages.push(total);
+  return pages;
+});
+
+const setRecordPage = (page) => {
+  const next = Number(page);
+  if (!Number.isFinite(next)) return;
+  const safePage = Math.min(Math.max(next, 1), totalRecordPages.value);
+  currentRecordPage.value = safePage;
+};
 
 watch(
   () => lakeTaskDraft.ruleId,
