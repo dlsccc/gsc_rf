@@ -32,7 +32,7 @@
                 <span class="material-icons" style="color: var(--success);">task_alt</span>
                 {{ run.name }}
               </div>
-              <span class="model-status active">执行成功</span>
+              <span class="model-status" :class="getTaskStatusClass(run.taskStatus)">{{ getTaskStatusLabel(run.taskStatus) }}</span>
             </div>
             <div class="model-meta">
               <div class="model-meta-item">
@@ -159,6 +159,30 @@ const ruleStore = useRuleStore();
 
 const toText = (value) => String(value ?? '').trim();
 
+const TASK_STATUS_LABEL_MAP = {
+  init: '初始化',
+  running: '执行中',
+  killing: '终止中',
+  failed: '失败',
+  finished: '完成',
+  killed: '已终止'
+};
+
+const normalizeTaskStatus = (status) => toText(status).toLowerCase();
+
+const getTaskStatusLabel = (status) => {
+  const normalized = normalizeTaskStatus(status);
+  return TASK_STATUS_LABEL_MAP[normalized] || TASK_STATUS_LABEL_MAP.init;
+};
+
+const getTaskStatusClass = (status) => {
+  const normalized = normalizeTaskStatus(status);
+  if (normalized === 'finished') {
+    return 'active';
+  }
+  return 'draft';
+};
+
 const taskFileInput = ref(null);
 const lakeTaskRuns = ref([]);
 const taskDragOverTable = ref('');
@@ -209,6 +233,32 @@ const loadRules = async () => {
   }
 };
 
+const mapExecuteRecord = (item, index) => {
+  const runId = toText(item?.immeTaskId || item?.flowId || item?.batchNo || item?.id || `${Date.now()}_${index}`);
+  const executeTime = toText(item?.executeTime || item?.creationDate || item?.creation_time || item?.lastUpdatedDate || item?.last_updated_date || '');
+  const status = normalizeTaskStatus(item?.taskStatus);
+
+  return {
+    runId,
+    name: toText(item?.batchNo || item?.ruleName || `执行任务${index + 1}`),
+    ruleName: toText(item?.ruleName || item?.ruleCode || '-'),
+    fileCount: '-',
+    executeTime: executeTime || '-',
+    taskStatus: status
+  };
+};
+
+const loadExecuteRecords = async () => {
+  try {
+    const projectCode = toText(appStore.currentProjectCode);
+    const response = await rulesApi.queryExecuteRecords({ projectCode });
+    const list = unwrapApiList(response);
+    lakeTaskRuns.value = list.map((item, index) => mapExecuteRecord(item, index));
+  } catch {
+    lakeTaskRuns.value = [];
+  }
+};
+
 const publishedLakeRules = computed(() => {
   return ruleStore.sortedRules;
 });
@@ -237,7 +287,7 @@ watch(
 watch(
   () => appStore.currentProject,
   async () => {
-    await loadRules();
+    await Promise.all([loadRules(), loadExecuteRecords()]);
     if (!publishedLakeRules.value.some((item) => String(item.id) === String(lakeTaskDraft.ruleId))) {
       lakeTaskDraft.ruleId = '';
     }
@@ -500,17 +550,8 @@ const executeLakeTask = async () => {
   taskExecuting.value = true;
 
   try {
-    const executeResponse = await rulesApi.execute({ ruleCode, fileList });
-    const executeData = executeResponse?.data || {};
-
-    lakeTaskRuns.value.unshift({
-      runId: toText(executeData?.immeTaskId) || Date.now(),
-      name: lakeTaskDraft.name.trim(),
-      ruleId: selectedRule.id,
-      ruleName: selectedRule.name,
-      fileCount: requiredTables.length,
-      executeTime: formatTaskTime()
-    });
+    await rulesApi.execute({ ruleCode, fileList });
+    await loadExecuteRecords();
 
     $success('任务执行成功');
     lakeTaskModal.show = false;
@@ -525,6 +566,6 @@ const executeLakeTask = async () => {
 
 onMounted(async () => {
   appStore.setRole('operator');
-  await loadRules();
+  await Promise.all([loadRules(), loadExecuteRecords()]);
 });
 </script>

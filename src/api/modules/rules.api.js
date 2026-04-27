@@ -8,6 +8,7 @@ export const apiRulesService = {
   remove: (params, config) => post(`${baseUrl.projectDesign}/v1/projectDesign/datalake/delete`, params, config),
   publish: (params, config) => post(`${baseUrl.projectDesign}/v1/projectDesign/datalake/ruleRelease`, params, config),
   execute: (params, config) => post(`${baseUrl.projectDesign}/v1/projectDesign/datalake/ruleExecute`, params, config),
+  queryExecuteRecords: (params, config) => post(`${baseUrl.projectDesign}/v1/projectDesign/datalake/qryRuleExecuteRecord`, params, config),
   debugSql: (params, config) => post(`${baseUrl.lingluoService}/v1/dataSmart/debug`, params, config)
 };
 
