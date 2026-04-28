@@ -68,7 +68,7 @@ const MODE_CONFIG = {
   },
   runtime: {
     label: '运行态',
-    embedUrl: 'https://2000-itsc-gde-runtime.sd.huawei.com/portal-web/portal/appDetails.html?appshortcutId=1#GDE.AI.AppManager'
+    embedUrl: 'https://2000-itsc-gde-runtime.sd.huawei.com/portal-web/portal/homepage.html#GDE.AI.AppManager'
   }
 };
 
