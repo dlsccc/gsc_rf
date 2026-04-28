@@ -514,6 +514,10 @@ const toTransformConfigFromParams = (rawType, source = {}) => {
 };
 
 const CONDITION_COLUMN_REF = '$rule_input[0].key_columns[0]';
+const TRANSFORM_ACTION_MODES = {
+  KEEP_SOURCE: 'keep_source',
+  TRANSFORM: 'transform'
+};
 
 const stripQuotedText = (value) => {
   const text = toText(value);
@@ -527,27 +531,36 @@ const stripQuotedText = (value) => {
   return text;
 };
 
+const parseRuleInputRef = (value = '') => {
+  const match = toText(value).match(/^\$rule_input\[(\d+)\]\.key_columns\[0\]$/);
+  if (!match) return null;
+  return Number(match[1]);
+};
+
 const parseConditionExpression = (conditionExpr) => {
   const expr = toText(conditionExpr);
   if (!expr) return null;
 
-  const containsMatch = expr.match(/^\s*contains\(\$rule_input\[0\]\.key_columns\[0\],\s*(.+)\)\s*$/i);
+  const containsMatch = expr.match(/^\s*contains\(\$rule_input\[(\d+)\]\.key_columns\[0\],\s*(.+)\)\s*$/i);
   if (containsMatch) {
     return {
       operator: 'contains',
-      value: stripQuotedText(containsMatch[1])
+      value: stripQuotedText(containsMatch[2]),
+      inputIndex: Number(containsMatch[1]) || 0
     };
   }
 
-  if (expr === `${CONDITION_COLUMN_REF} == null || ${CONDITION_COLUMN_REF} == ""`) {
-    return { operator: 'is_empty', value: '' };
+  const emptyMatch = expr.match(/^\s*\$rule_input\[(\d+)\]\.key_columns\[0\]\s*==\s*null\s*\|\|\s*\$rule_input\[\d+\]\.key_columns\[0\]\s*==\s*""\s*$/);
+  if (emptyMatch) {
+    return { operator: 'is_empty', value: '', inputIndex: Number(emptyMatch[1]) || 0 };
   }
 
-  if (expr === `${CONDITION_COLUMN_REF} != null && ${CONDITION_COLUMN_REF} != ""`) {
-    return { operator: 'is_not_empty', value: '' };
+  const notEmptyMatch = expr.match(/^\s*\$rule_input\[(\d+)\]\.key_columns\[0\]\s*!=\s*null\s*&&\s*\$rule_input\[\d+\]\.key_columns\[0\]\s*!=\s*""\s*$/);
+  if (notEmptyMatch) {
+    return { operator: 'is_not_empty', value: '', inputIndex: Number(notEmptyMatch[1]) || 0 };
   }
 
-  const compareMatch = expr.match(/^\s*\$rule_input\[0\]\.key_columns\[0\]\s*(==|!=|>|<)\s*(.+)\s*$/);
+  const compareMatch = expr.match(/^\s*\$rule_input\[(\d+)\]\.key_columns\[0\]\s*(==|!=|>|<)\s*(.+)\s*$/);
   if (!compareMatch) return null;
 
   const operatorMap = {
@@ -558,8 +571,9 @@ const parseConditionExpression = (conditionExpr) => {
   };
 
   return {
-    operator: operatorMap[compareMatch[1]] || '',
-    value: stripQuotedText(compareMatch[2])
+    operator: operatorMap[compareMatch[2]] || '',
+    value: stripQuotedText(compareMatch[3]),
+    inputIndex: Number(compareMatch[1]) || 0
   };
 };
 
@@ -576,6 +590,26 @@ const parseTransformParamsToConfig = (ruleParams = {}) => {
   }
 
   return toTransformConfigFromParams(transformType, ruleParams);
+};
+
+const resolveSourceKeyByRuleInputIndex = (inputs = [], inputIndex = 0, sourceAliasMap = {}) => {
+  const targetInput = toArrayValue(inputs)[Number(inputIndex) || 0] || {};
+  const sourceRaw = pickValue(targetInput?.sourceTable, targetInput?.source_table);
+  const source = pickValue(sourceAliasMap?.[toText(sourceRaw)], sourceRaw);
+  const column = toText(toArrayValue(targetInput?.keyColumns || targetInput?.key_columns)[0]);
+  if (!source || !column) return '';
+  return `${source}.${column}`;
+};
+
+const isKeepSourceTransform = (ruleParams = {}) => {
+  const transformType = pickValue(ruleParams.transform_type, ruleParams.transformType).toLowerCase();
+  if (transformType !== 'formula') return false;
+
+  const columnRef = pickValue(ruleParams.column);
+  const formula = pickValue(ruleParams.formula);
+  if (!columnRef || !formula) return false;
+
+  return parseRuleInputRef(columnRef) !== null && columnRef === formula;
 };
 
 const readRuleJsonSections = (ruleJson = {}) => {
@@ -729,7 +763,7 @@ const parseMappingsAndConfigsFromRules = (rules = [], sourceAliasMap = {}) => {
 
     if (ability === 'if_branch') {
       const conditionExpr = toText(ruleParams.condition);
-      const parsedCondition = parseConditionExpression(conditionExpr) || { operator: '', value: '' };
+      const parsedCondition = parseConditionExpression(conditionExpr) || { operator: '', value: '', inputIndex: 0 };
 
       const thenList = toArrayValue(ruleItem?.then);
       const thenRuleObj = (thenList[0] && typeof thenList[0] === 'object') ? thenList[0]?.rule : {};
@@ -737,20 +771,31 @@ const parseMappingsAndConfigsFromRules = (rules = [], sourceAliasMap = {}) => {
       const thenParams = toParamMap(thenRuleObj?.params || []);
 
       if (thenAbility === 'transform') {
+        const actionInputIndex = parseRuleInputRef(pickValue(thenParams.column));
+        const conditionSourceKey = resolveSourceKeyByRuleInputIndex(inputs, parsedCondition.inputIndex, sourceAliasMap);
+        const actionSourceKey = resolveSourceKeyByRuleInputIndex(
+          inputs,
+          actionInputIndex !== null ? actionInputIndex : parsedCondition.inputIndex,
+          sourceAliasMap
+        );
+        const keepSource = isKeepSourceTransform(thenParams);
         const transformConfig = parseTransformParamsToConfig(thenParams);
-        if (transformConfig && transformConfig.type) {
+        if ((transformConfig && transformConfig.type) || keepSource) {
           const nextRule = {
+            conditionSourceKey,
+            actionSourceKey,
+            actionMode: keepSource ? TRANSFORM_ACTION_MODES.KEEP_SOURCE : TRANSFORM_ACTION_MODES.TRANSFORM,
             operator: parsedCondition.operator,
             value: parsedCondition.value,
-            type: transformConfig.type,
-            delimiter: transformConfig.delimiter ?? '',
-            fixedValue: transformConfig.fixedValue ?? '',
-            search: transformConfig.search ?? '',
-            replace: transformConfig.replace ?? '',
-            formula: transformConfig.formula ?? '',
-            precision: transformConfig.precision ?? '',
-            timeFormatMode: transformConfig.timeFormatMode ?? '',
-            originType: transformConfig.originType ?? ''
+            type: transformConfig?.type || '',
+            delimiter: transformConfig?.delimiter ?? '',
+            fixedValue: transformConfig?.fixedValue ?? '',
+            search: transformConfig?.search ?? '',
+            replace: transformConfig?.replace ?? '',
+            formula: keepSource ? '' : (transformConfig?.formula ?? ''),
+            precision: transformConfig?.precision ?? '',
+            timeFormatMode: transformConfig?.timeFormatMode ?? '',
+            originType: transformConfig?.originType ?? ''
           };
 
           if (!transforms[outputField] || !Array.isArray(transforms[outputField].rules)) {

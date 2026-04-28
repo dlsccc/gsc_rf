@@ -248,6 +248,64 @@ const buildConditionExpression = (rule = {}, columnRef = '$rule_input[0].key_col
   return '';
 };
 
+const TRANSFORM_ACTION_MODES = {
+  KEEP_SOURCE: 'keep_source',
+  TRANSFORM: 'transform'
+};
+
+const parseRuleInputRef = (value = '') => {
+  const match = trimText(value).match(/^\$rule_input\[(\d+)\]\.key_columns\[0\]$/);
+  if (!match) return null;
+  return Number(match[1]);
+};
+
+const toRuleInputBySourceKey = (sourceKey = '', sourceAliasToId = {}) => {
+  const parsed = parseSourceKey(sourceKey);
+  if (!parsed.column) return null;
+
+  const rawSourceTable = trimText(parsed.sourceTable);
+  const resolvedSourceTable = trimText(
+    sourceAliasToId?.[rawSourceTable]
+    || sourceAliasToId?.[rawSourceTable.toLowerCase?.()]
+    || rawSourceTable
+    || 'raw'
+  );
+
+  if (!resolvedSourceTable) return null;
+  return makeRuleInput(resolvedSourceTable, [parsed.column]);
+};
+
+const buildConditionalRuleInputs = (rule = {}, sourceAliasToId = {}, fallbackSourceKeys = []) => {
+  const preferredSourceKeys = [
+    trimText(rule.conditionSourceKey || rule.condition_source_key),
+    trimText(rule.actionSourceKey || rule.action_source_key)
+  ].filter(Boolean);
+  const sourceKeys = preferredSourceKeys.length > 0 ? preferredSourceKeys : (Array.isArray(fallbackSourceKeys) ? fallbackSourceKeys : []);
+
+  return sourceKeys.reduce((acc, sourceKey) => {
+    const ruleInput = toRuleInputBySourceKey(sourceKey, sourceAliasToId);
+    if (!ruleInput) return acc;
+    const signature = `${ruleInput.source_table}::${(ruleInput.key_columns || []).join(',')}`;
+    if (acc.some((item) => `${item.source_table}::${(item.key_columns || []).join(',')}` === signature)) {
+      return acc;
+    }
+    acc.push(ruleInput);
+    return acc;
+  }, []);
+};
+
+const resolveRuleInputIndex = (ruleInputs = [], sourceKey = '', sourceAliasToId = {}) => {
+  const ruleInput = toRuleInputBySourceKey(sourceKey, sourceAliasToId);
+  if (!ruleInput) return 0;
+  const sourceTable = trimText(ruleInput.source_table);
+  const column = trimText((ruleInput.key_columns || [])[0]);
+  const index = ruleInputs.findIndex((item) => {
+    return trimText(item?.source_table) === sourceTable
+      && trimText((item?.key_columns || [])[0]) === column;
+  });
+  return index >= 0 ? index : 0;
+};
+
 const toRuleInputsByRawSources = (sourceKeys = [], sourceAliasToId = {}) => {
   const grouped = new Map();
 
@@ -312,6 +370,17 @@ const buildFilterDsl = (config) => {
 };
 
 const buildTransformStep = (step = {}, columnRef = '$rule_input[0].key_columns[0]', targetType = '') => {
+  if (trimText(step.actionMode || step.action_mode) === TRANSFORM_ACTION_MODES.KEEP_SOURCE) {
+    return {
+      ability_name: 'transform',
+      params: [
+        makeParam('transform_type', 'enum', 'formula'),
+        makeParam('column', 'string', columnRef),
+        makeParam('formula', 'string', columnRef)
+      ]
+    };
+  }
+
   const transformType = resolveTransformTypeForApi(step);
   const params = [
     makeParam('transform_type', 'enum', transformType),
@@ -338,7 +407,7 @@ const buildTransformStep = (step = {}, columnRef = '$rule_input[0].key_columns[0
   };
 };
 
-const buildTransformDsl = (config, targetType = '') => {
+const buildTransformDsl = (config, targetType = '', sourceAliasToId = {}, fallbackSourceKeys = []) => {
   if (!hasEffectiveTransform(config)) return undefined;
 
   if (Array.isArray(config.chain) && config.chain.length > 0) {
@@ -370,10 +439,17 @@ const buildTransformDsl = (config, targetType = '') => {
     const branches = config.rules
       .filter((rule) => !!rule?.operator)
       .map((rule, index) => {
-        const condition = buildConditionExpression(rule);
+        const ruleInputs = buildConditionalRuleInputs(rule, sourceAliasToId, fallbackSourceKeys);
+        const safeRuleInputs = ruleInputs.length > 0 ? ruleInputs : toRuleInputsByRawSources(fallbackSourceKeys, sourceAliasToId);
+        const conditionSourceKey = trimText(rule.conditionSourceKey || rule.condition_source_key || rule.actionSourceKey || rule.action_source_key || fallbackSourceKeys[0]);
+        const actionSourceKey = trimText(rule.actionSourceKey || rule.action_source_key || rule.conditionSourceKey || rule.condition_source_key || fallbackSourceKeys[0]);
+        const conditionColumnRef = `$rule_input[${resolveRuleInputIndex(safeRuleInputs, conditionSourceKey, sourceAliasToId)}].key_columns[0]`;
+        const actionColumnRef = `$rule_input[${resolveRuleInputIndex(safeRuleInputs, actionSourceKey, sourceAliasToId)}].key_columns[0]`;
+        const condition = buildConditionExpression(rule, conditionColumnRef);
         if (!condition) return null;
 
         const subRule = buildTransformStep({
+          actionMode: rule.actionMode || rule.action_mode,
           type: rule.type,
           delimiter: rule.delimiter,
           fixedValue: rule.fixedValue,
@@ -383,12 +459,13 @@ const buildTransformDsl = (config, targetType = '') => {
           precision: rule.precision,
           timeFormatMode: rule.timeFormatMode,
           originType: rule.originType
-        }, '$rule_input[0].key_columns[0]', targetType);
+        }, actionColumnRef, targetType);
 
         return {
           index: `sub_rule_${normalizeIndexPart(rule.type)}_${index + 1}`,
           condition,
-          rule: subRule
+          rule: subRule,
+          ruleInput: safeRuleInputs
         };
       })
       .filter(Boolean);
@@ -686,7 +763,7 @@ const buildDataProcessingDsl = ({
 
     const filter = buildFilterDsl(filters[fieldName]);
     const targetType = targetFieldFormatMap[fieldName] || '';
-    const transform = buildTransformDsl(transforms[fieldName], targetType);
+    const transform = buildTransformDsl(transforms[fieldName], targetType, sourceAliasToId, sourceKeys);
 
     const fieldSort = sortMap[fieldName];
     const sortParams = fieldSort
@@ -701,7 +778,7 @@ const buildDataProcessingDsl = ({
       transform.branches.forEach((branch, branchIndex) => {
         const branchItem = {
           index: `rule_conditional_${normalizeIndexPart(fieldName)}_${branchIndex + 1}`,
-          rule_input: baseRuleInput,
+          rule_input: Array.isArray(branch.ruleInput) && branch.ruleInput.length > 0 ? branch.ruleInput : baseRuleInput,
           rule_output: baseRuleOutput,
           rule: {
             ability_name: 'if_branch',

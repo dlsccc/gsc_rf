@@ -519,6 +519,20 @@
             style="border: 1px solid var(--border); padding: 14px; border-radius: 8px; margin-bottom: 10px; background: #fafafa;"
           >
             <div class="form-group">
+              <label class="form-label" style="font-size: 12px;">条件字段</label>
+              <select v-model="rule.conditionSourceKey" class="form-select">
+                <option value="">默认当前值</option>
+                <option
+                  v-for="source in transformModalSourceOptions"
+                  :key="`condition-${source.key}`"
+                  :value="source.key"
+                >
+                  {{ source.sourceId }}.{{ source.name }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
               <label class="form-label" style="font-size: 12px;">条件</label>
               <select v-model="rule.operator" class="form-select">
                 <option value="">请选择</option>
@@ -534,6 +548,28 @@
             </div>
 
             <div class="form-group">
+              <label class="form-label" style="font-size: 12px;">结果字段</label>
+              <select v-model="rule.actionSourceKey" class="form-select">
+                <option value="">默认当前值</option>
+                <option
+                  v-for="source in transformModalSourceOptions"
+                  :key="`action-${source.key}`"
+                  :value="source.key"
+                >
+                  {{ source.sourceId }}.{{ source.name }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" style="font-size: 12px;">结果处理</label>
+              <select v-model="rule.actionMode" class="form-select">
+                <option :value="TRANSFORM_ACTION_MODES.KEEP_SOURCE">保持原值</option>
+                <option :value="TRANSFORM_ACTION_MODES.TRANSFORM">按转换规则处理</option>
+              </select>
+            </div>
+
+            <div v-if="rule.actionMode !== TRANSFORM_ACTION_MODES.KEEP_SOURCE" class="form-group">
               <label class="form-label" style="font-size: 12px;">转换类型</label>
               <select v-model="rule.type" class="form-select" @change="onTransformTypeChange(rule)">
                 <option :value="TRANSFORM_TYPES.FORMAT_TIME">格式化时间</option>
@@ -545,7 +581,7 @@
                 <option :value="TRANSFORM_TYPES.FORMULA">自定义公式</option>
               </select>
             </div>
-            <div v-if="rule.type === TRANSFORM_TYPES.FORMAT_TIME" class="form-group">
+            <div v-if="rule.actionMode !== TRANSFORM_ACTION_MODES.KEEP_SOURCE && rule.type === TRANSFORM_TYPES.FORMAT_TIME" class="form-group">
               <label class="form-label" style="font-size: 12px;">格式类型</label>
               <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">数据原始格式</div>
               <div style="display: flex; flex-wrap: wrap; gap: 10px;">
@@ -615,23 +651,23 @@
               </div>
             </div>
 
-            <div v-if="rule.type === 'concat'" class="form-group">
+            <div v-if="rule.actionMode !== TRANSFORM_ACTION_MODES.KEEP_SOURCE && rule.type === 'concat'" class="form-group">
               <label class="form-label" style="font-size: 12px;">拼接分隔符</label>
               <input v-model="rule.delimiter" class="form-input" placeholder="例如：_ 或 留空" />
             </div>
 
-            <div v-if="rule.type === 'set_value'" class="form-group">
+            <div v-if="rule.actionMode !== TRANSFORM_ACTION_MODES.KEEP_SOURCE && rule.type === 'set_value'" class="form-group">
               <label class="form-label" style="font-size: 12px;">固定值</label>
               <input v-model="rule.fixedValue" class="form-input" placeholder="例如：100" />
             </div>
 
-            <div v-if="rule.type === 'replace'" class="form-group">
+            <div v-if="rule.actionMode !== TRANSFORM_ACTION_MODES.KEEP_SOURCE && rule.type === 'replace'" class="form-group">
               <label class="form-label" style="font-size: 12px;">替换内容</label>
               <input v-model="rule.search" class="form-input" placeholder="查找内容" style="margin-bottom: 8px;" />
               <input v-model="rule.replace" class="form-input" placeholder="替换为" />
             </div>
 
-            <div v-if="rule.type === 'formula'" class="form-group">
+            <div v-if="rule.actionMode !== TRANSFORM_ACTION_MODES.KEEP_SOURCE && rule.type === 'formula'" class="form-group">
               <label class="form-label" style="font-size: 12px;">公式</label>
               <input v-model="rule.formula" class="form-input" placeholder="例如：=value*2" />
             </div>
@@ -887,6 +923,11 @@ const getFilterOperatorLabel = (operator) => FILTER_OPERATOR_LABELS[operator] ||
 const getFilterLogicLabel = (logic) => FILTER_LOGIC_LABELS[logic] || logic || '';
 const getTransformTypeLabel = (type) => TRANSFORM_TYPE_LABELS[type] || type || '';
 
+const TRANSFORM_ACTION_MODES = Object.freeze({
+  KEEP_SOURCE: 'keep_source',
+  TRANSFORM: 'transform'
+});
+
 const history = ref([]);
 const activeHistoryIndex = ref(-1);
 
@@ -941,6 +982,13 @@ const allSourceFields = computed(() => {
   return (props.store.sourceFields || []).map((field) => ({
     ...field,
     sourceId: field.source
+  }));
+});
+
+const transformModalSourceOptions = computed(() => {
+  return getMappedSources(transformModal.field).map((item) => ({
+    ...item,
+    sourceId: item.sourceId || inferSourceIdFromKey(item.key)
   }));
 });
 
@@ -1354,6 +1402,12 @@ const getSourceValue = (row, name) => {
   return '';
 };
 
+const getSourceValueByKey = (row, key) => {
+  const sourceKey = trimText(key);
+  if (!sourceKey) return '';
+  return row?.[sourceKey] ?? '';
+};
+
 const getBaseValue = (field, row) => {
   const keys = props.store.mappings[field] || [];
   if (keys.length === 0) return '';
@@ -1491,7 +1545,9 @@ const evalFormula = (formula, ctx) => {
 };
 
 const passesTransformRule = (row, fieldName, rule) => {
-  const value = getBaseValue(fieldName, row);
+  const value = trimText(rule?.conditionSourceKey)
+    ? getSourceValueByKey(row, rule.conditionSourceKey)
+    : getBaseValue(fieldName, row);
   switch (rule.operator) {
     case 'equals':
       return String(value) === String(rule.value);
@@ -1512,7 +1568,19 @@ const passesTransformRule = (row, fieldName, rule) => {
   }
 };
 
+const resolveRuleActionBaseValue = (row, base, rule = {}) => {
+  const sourceKey = trimText(rule?.actionSourceKey);
+  if (sourceKey) {
+    return getSourceValueByKey(row, sourceKey);
+  }
+  return base;
+};
+
 const applyTransformByConfig = (row, field, base, cfg) => {
+  if (cfg?.actionMode === TRANSFORM_ACTION_MODES.KEEP_SOURCE) {
+    return base;
+  }
+
   switch (cfg.type) {
     case TRANSFORM_TYPES.UPPERCASE:
       return String(base).toUpperCase();
@@ -1595,7 +1663,8 @@ const getFieldValue = (row, field) => {
     for (const rule of t.rules) {
       if (!rule.operator) continue;
       if (passesTransformRule(row, field, rule)) {
-        return applyTransformByConfig(row, field, base, rule);
+        const ruleBase = resolveRuleActionBaseValue(row, base, rule);
+        return applyTransformByConfig(row, field, ruleBase, rule);
       }
     }
     return base;
@@ -2378,6 +2447,9 @@ const resolveStoredTypeByTimeFormatMode = (mode) => {
 
 const toModalTransformItem = (item = {}) => {
   const next = { ...item };
+  next.conditionSourceKey = trimText(next.conditionSourceKey || next.condition_source_key);
+  next.actionSourceKey = trimText(next.actionSourceKey || next.action_source_key);
+  next.actionMode = trimText(next.actionMode || next.action_mode) || TRANSFORM_ACTION_MODES.TRANSFORM;
   const rawOriginType = trimText(next.originType || next.origin_type);
   const timeFormatMode = resolveTimeFormatModeByType(next.type, rawOriginType);
   if (timeFormatMode) {
@@ -2396,6 +2468,9 @@ const toModalTransformItem = (item = {}) => {
 
 const toStoredTransformItem = (item = {}) => {
   const next = { ...item };
+  next.conditionSourceKey = trimText(next.conditionSourceKey);
+  next.actionSourceKey = trimText(next.actionSourceKey);
+  next.actionMode = trimText(next.actionMode) || TRANSFORM_ACTION_MODES.TRANSFORM;
   if (next.type === TRANSFORM_TYPES.FORMAT_TIME) {
     const nextMode = trimText(next.timeFormatMode);
     const customOriginType = trimText(next.customOriginType);
@@ -2446,6 +2521,9 @@ const onCustomOriginTypeInput = (item) => {
 
 const addTransformRule = () => {
   transformModal.rules.push({
+    conditionSourceKey: '',
+    actionSourceKey: '',
+    actionMode: TRANSFORM_ACTION_MODES.TRANSFORM,
     operator: '',
     value: '',
     type: TRANSFORM_TYPES.SET_VALUE,

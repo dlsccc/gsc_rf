@@ -48,9 +48,52 @@ const passFilter = (value, filter) => {
   }
 };
 
+const getSourceValueByKey = (row, sourceKey) => {
+  const key = toText(sourceKey);
+  if (!key) return '';
+  return row?.[key] ?? '';
+};
+
+const passesTransformRule = (row, field, rule) => {
+  const value = toText(rule?.conditionSourceKey)
+    ? getSourceValueByKey(row, rule.conditionSourceKey)
+    : row?.[field];
+
+  switch (rule?.operator) {
+    case 'equals':
+      return String(value) === String(rule?.value ?? '');
+    case 'not_equals':
+      return String(value) !== String(rule?.value ?? '');
+    case 'contains':
+      return String(value).includes(String(rule?.value ?? ''));
+    case 'is_empty':
+      return value === null || value === undefined || String(value).trim() === '';
+    case 'is_not_empty':
+      return !(value === null || value === undefined || String(value).trim() === '');
+    case 'greater_than':
+      return Number(value) > Number(rule?.value ?? '');
+    case 'less_than':
+      return Number(value) < Number(rule?.value ?? '');
+    default:
+      return false;
+  }
+};
+
+const applyTransformConfig = (row, field, transform) => {
+  const base = toText(transform?.actionSourceKey)
+    ? getSourceValueByKey(row, transform.actionSourceKey)
+    : row?.[field];
+
+  if (transform?.actionMode === 'keep_source') {
+    return base;
+  }
+
+  return applySingleTransform(base, transform);
+};
+
 export const buildPreviewRows = ({ sourceRows, mappings, targetFields }) => {
   return sourceRows.map((sourceRow) => {
-    const row = {};
+    const row = { ...sourceRow };
     targetFields.forEach((target) => {
       const sourceKeys = mappings[target.name] || [];
       if (sourceKeys.length === 0) {
@@ -73,6 +116,25 @@ export const buildProcessedRows = ({ previewRows, filters, transforms, sortConfi
   rows = rows.map((row) => {
     const next = { ...row };
     Object.entries(transforms).forEach(([field, transform]) => {
+      if (Array.isArray(transform?.chain) && transform.chain.length > 0) {
+        let result = next[field];
+        transform.chain.forEach((step) => {
+          result = applySingleTransform(result, step);
+        });
+        next[field] = result;
+        return;
+      }
+
+      if (Array.isArray(transform?.rules) && transform.rules.length > 0) {
+        for (const rule of transform.rules) {
+          if (passesTransformRule(next, field, rule)) {
+            next[field] = applyTransformConfig(next, field, rule);
+            return;
+          }
+        }
+        return;
+      }
+
       next[field] = applySingleTransform(next[field], transform);
     });
     return next;
