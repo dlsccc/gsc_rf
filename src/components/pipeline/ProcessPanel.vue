@@ -1932,6 +1932,12 @@ const PROCESS_DSL_DEFINITIONS = Object.freeze({
       { type: 'concat', params: [{ name: 'delimiter', type: 'string', required: false }], required: [] },
       { type: 'replace', params: [{ name: 'search', type: 'string', required: true }, { name: 'replace', type: 'string', required: true }], required: ['search', 'replace'] }
     ],
+    conditionalRule: {
+      supported: true,
+      conditionSourceField: 'fieldKey from sourceFields',
+      actionSourceField: 'fieldKey from sourceFields',
+      actionModes: ['keep_source', 'transform']
+    },
     disallow: ['formula']
   },
   sort: { orders: ['asc', 'desc'] }
@@ -2108,6 +2114,9 @@ const normalizeTransformItem = (rawItem) => {
   const type = normalizeTransformType(merged.type || merged.transformType || merged.transform || merged.abilityName);
   if (!type) return null;
   const normalized = { type };
+  if (merged.conditionSourceKey !== undefined) normalized.conditionSourceKey = trimText(merged.conditionSourceKey);
+  if (merged.actionSourceKey !== undefined) normalized.actionSourceKey = trimText(merged.actionSourceKey);
+  if (merged.actionMode !== undefined) normalized.actionMode = trimText(merged.actionMode);
   if (merged.delimiter !== undefined) normalized.delimiter = trimText(merged.delimiter);
   if (merged.fixedValue !== undefined || merged.value !== undefined) normalized.fixedValue = trimText(merged.fixedValue ?? merged.value);
   if (merged.search !== undefined || merged.searchValue !== undefined) normalized.search = trimText(merged.search ?? merged.searchValue);
