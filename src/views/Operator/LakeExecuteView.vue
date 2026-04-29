@@ -114,18 +114,14 @@
                   <span class="tag tag-primary">需上传 1 份</span>
                 </div>
 
-                <div
-                  class="upload-area"
-                  :class="{ dragover: taskDragOverTable === table.id }"
-                  @dragover.prevent="taskDragOverTable = table.id"
-                  @dragleave.prevent="taskDragOverTable = ''"
-                  @drop.prevent="handleTaskFileDrop($event, table.id)"
-                  @click="triggerTaskFileInput(table.id)"
-                >
-                  <div class="upload-icon"><span class="material-icons" style="font-size: 48px;">cloud_upload</span></div>
-                  <div class="upload-text">点击或拖拽文件上传到 {{ table.label }}</div>
-                  <div class="upload-hint">支持 Excel (.xlsx, .xls)、CSV (.csv)</div>
-                </div>
+                <FileUploadPanel
+                  :project-id="projectId"
+                  class="w-p-100 common-upload-component"
+                  :isShowList="false"
+                  :isSingLine="false"
+                  @delete="deleteTaskUploadCallback"
+                  @upload="(edmId, fileDetail) => handleTaskUploadSuccess(edmId, fileDetail, table.id)"
+                />
 
                 <div v-if="getTaskFileByTable(table.id)" class="file-card" style="margin-top: 10px;">
                   <div class="file-card-icon table-a">
@@ -145,8 +141,6 @@
                 </div>
               </div>
             </div>
-
-            <input type="file" ref="taskFileInput" style="display: none;" @change="handleTaskFileSelect" />
           </div>
         </div>
         <div class="modal-footer">
@@ -165,11 +159,13 @@
 <script setup>
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import FileUploadPanel from '@hw-itsc/common/src/components/upload-file/upload.vue';
 import { rulesApi } from '@/api/index.js';
 import { $error, $success, $warning } from '@/utils/message.js';
 import { useAppStore } from '@/store/app.store.js';
 import { RULE_INPUT_TABLES, mapApiRuleToEntity, normalizeRuleInputTables, unwrapApiList, useRuleStore } from '@/store/rule.store.js';
-import { fileUtilUploadFile, normalizeUploadResult, resolveEdmId } from '@/utils/fileUtils.js';
+import userStore from '@/store/userInfo.js';
+import { resolveEdmId } from '@/utils/fileUtils.js';
 
 const router = useRouter();
 const appStore = useAppStore();
@@ -178,12 +174,12 @@ const ruleStore = useRuleStore();
 const toText = (value) => String(value ?? '').trim();
 
 const TASK_STATUS_LABEL_MAP = {
-  init: '初始化',
-  running: '执行中',
-  killing: '终止中',
-  failed: '失败',
-  finished: '完成',
-  killed: '已终止'
+  init: '鍒濆鍖?,
+  running: '鎵ц涓?,
+  killing: '缁堟涓?,
+  failed: '澶辫触',
+  finished: '瀹屾垚',
+  killed: '宸茬粓姝?
 };
 
 const normalizeTaskStatus = (status) => toText(status).toLowerCase();
@@ -211,12 +207,9 @@ const extractFlowTimestamp = (flowId) => {
   return fallback ? (Number(fallback[1]) || 0) : 0;
 };
 
-const taskFileInput = ref(null);
 const lakeTaskRuns = ref([]);
 const recordPageSize = 10;
 const currentRecordPage = ref(1);
-const taskDragOverTable = ref('');
-const taskUploadTableId = ref('table_a');
 const taskUploadingTableId = ref('');
 const taskExecuting = ref(false);
 const lakeTaskDraft = reactive({
@@ -228,6 +221,10 @@ const lakeTaskDraft = reactive({
 
 const lakeTaskModal = reactive({
   show: false
+});
+
+const projectId = computed(() => {
+  return userStore.state.curTenant?.frmProjectId || userStore.state.zoneId || '';
 });
 
 const extractRuleInputTablesFromRuleJson = (rule) => {
@@ -271,7 +268,7 @@ const mapExecuteRecord = (item, index) => {
 
   return {
     runId,
-    name: toText(item?.batchNo || item?.ruleName || `执行任务${index + 1}`),
+    name: toText(item?.batchNo || item?.ruleName || `鎵ц浠诲姟${index + 1}`),
     ruleName: toText(item?.ruleName || item?.ruleCode || '-'),
     fileCount: '-',
     executeTime: executeTime || '-',
@@ -358,9 +355,7 @@ watch(
   () => lakeTaskDraft.ruleId,
   () => {
     lakeTaskDraft.files = [];
-    taskDragOverTable.value = '';
-    taskUploadTableId.value = taskRequiredTables.value[0] ? taskRequiredTables.value[0].id : 'table_a';
-    if (taskFileInput.value) taskFileInput.value.value = '';
+    taskUploadingTableId.value = '';
   }
 );
 
@@ -409,7 +404,7 @@ const getTaskFileByTable = (tableId) => {
 
 const createLakeTask = () => {
   lakeTaskDraft.id = Date.now();
-  lakeTaskDraft.name = `入湖任务_${new Date().toLocaleString('zh-CN', {
+  lakeTaskDraft.name = `鍏ユ箹浠诲姟_${new Date().toLocaleString('zh-CN', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -418,8 +413,6 @@ const createLakeTask = () => {
   }).replace(/\//g, '-').replace(/\s/g, '_').replace(/:/g, '')}`;
   lakeTaskDraft.ruleId = '';
   lakeTaskDraft.files = [];
-  taskDragOverTable.value = '';
-  taskUploadTableId.value = 'table_a';
   taskUploadingTableId.value = '';
 };
 
@@ -435,10 +428,7 @@ const resetLakeTaskDraft = () => {
   lakeTaskDraft.name = '';
   lakeTaskDraft.ruleId = '';
   lakeTaskDraft.files = [];
-  taskDragOverTable.value = '';
-  taskUploadTableId.value = 'table_a';
   taskUploadingTableId.value = '';
-  if (taskFileInput.value) taskFileInput.value.value = '';
 };
 
 const closeLakeTaskModal = () => {
@@ -446,15 +436,7 @@ const closeLakeTaskModal = () => {
   resetLakeTaskDraft();
 };
 
-const ensureUploadMeta = (uploadData, file) => {
-  const list = normalizeUploadResult(uploadData);
-  if (list.length === 0) {
-    throw new Error(`文件 ${file?.name || ''} 上传后未返回 edmId`);
-  }
-  return list[0];
-};
-
-const addTaskFiles = async (files, tableId) => {
+const handleTaskUploadSuccess = async (uploadId, fileDetail, tableId) => {
   if (!lakeTaskDraft.id) {
     $warning('请先创建入湖任务');
     return;
@@ -463,51 +445,36 @@ const addTaskFiles = async (files, tableId) => {
     $warning('请先选择入湖规则');
     return;
   }
-  if (taskUploadingTableId.value) {
-    return;
-  }
 
   const requiredTables = taskRequiredTables.value;
   if (requiredTables.length === 0) {
-    $warning('当前规则未配置源数据表，请先检查规则配置');
+    $warning('褰撳墠瑙勫垯鏈厤缃簮鏁版嵁琛紝璇峰厛妫€鏌ヨ鍒欓厤缃?);
     return;
   }
   if (!requiredTables.some((table) => table.id === tableId)) {
-    $warning('当前规则不需要该源数据表，请重新选择');
+    $warning('褰撳墠瑙勫垯涓嶉渶瑕佽婧愭暟鎹〃锛岃閲嶆柊閫夋嫨');
     return;
   }
 
-  const selectedFiles = Array.from(files || []);
-  if (selectedFiles.length === 0) return;
-
   const tableMeta = getTaskTableMeta(tableId);
-  if (selectedFiles.length > 1) {
-    $warning(`${tableMeta.label} 每次仅支持上传 1 个文件，本次将使用第一个文件`);
-  }
-
-  const file = selectedFiles[0];
   taskUploadingTableId.value = tableId;
 
   try {
-    const formData = new FormData();
-    formData.append('file', file);
-    const uploadData = await fileUtilUploadFile(formData);
-    const uploadMeta = ensureUploadMeta(uploadData, file);
-    const edmId = resolveEdmId(uploadMeta);
+    const edmId = resolveEdmId(fileDetail) || resolveEdmId(uploadId);
 
     if (!edmId) {
-      throw new Error(`文件 ${file?.name || ''} 上传后未返回 edmId`);
+      throw new Error('上传成功但未返回 fileId');
     }
 
     const nextFile = {
-      id: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
+      id: `${tableId}_${edmId}`,
       tableId,
       tableLabel: tableMeta.label,
-      name: file.name,
-      byteSize: file.size,
-      size: formatTaskFileSize(file.size),
+      name: toText(fileDetail?.fileName || fileDetail?.name || edmId),
+      byteSize: Number(fileDetail?.fileSize ?? fileDetail?.size ?? 0),
+      size: formatTaskFileSize(Number(fileDetail?.fileSize ?? fileDetail?.size ?? 0)),
       uploadTime: formatTaskTime(),
-      lastModified: file.lastModified,
+      lastModified: Number(fileDetail?.lastModified ?? Date.now()),
       edmId,
       fileCode: edmId
     };
@@ -525,39 +492,9 @@ const addTaskFiles = async (files, tableId) => {
       return aIndex - bIndex;
     });
   } catch (error) {
-    $error(error?.message || '文件上传失败');
+    $error(error?.message || '鏂囦欢涓婁紶澶辫触');
   } finally {
     taskUploadingTableId.value = '';
-  }
-};
-
-const triggerTaskFileInput = (tableId) => {
-  if (!lakeTaskDraft.id) {
-    $warning('请先创建入湖任务');
-    return;
-  }
-  if (!lakeTaskDraft.ruleId) {
-    $warning('请先选择入湖规则');
-    return;
-  }
-  if (taskUploadingTableId.value) {
-    return;
-  }
-  taskUploadTableId.value = tableId;
-  if (taskFileInput.value) taskFileInput.value.click();
-};
-
-const handleTaskFileSelect = async (event) => {
-  if (event.target.files.length > 0) {
-    await addTaskFiles(event.target.files, taskUploadTableId.value);
-  }
-  event.target.value = '';
-};
-
-const handleTaskFileDrop = async (event, tableId) => {
-  taskDragOverTable.value = '';
-  if (event.dataTransfer.files.length > 0) {
-    await addTaskFiles(event.dataTransfer.files, tableId);
   }
 };
 
@@ -567,6 +504,8 @@ const removeTaskFile = (tableId) => {
     lakeTaskDraft.files.splice(index, 1);
   }
 };
+
+const deleteTaskUploadCallback = () => '';
 
 const canExecuteLakeTask = computed(() => {
   if (!lakeTaskDraft.id || !toText(lakeTaskDraft.name) || !lakeTaskDraft.ruleId) {
@@ -583,39 +522,39 @@ const canExecuteLakeTask = computed(() => {
 
 const executeLakeTask = async () => {
   if (!lakeTaskDraft.id) {
-    $warning('请先创建入湖任务');
+    $warning('璇峰厛鍒涘缓鍏ユ箹浠诲姟');
     return;
   }
   if (!toText(lakeTaskDraft.name)) {
-    $warning('请输入任务名称');
+    $warning('璇疯緭鍏ヤ换鍔″悕绉?);
     return;
   }
   if (!lakeTaskDraft.ruleId) {
-    $warning('请选择入湖规则');
+    $warning('璇烽€夋嫨鍏ユ箹瑙勫垯');
     return;
   }
 
   const selectedRule = selectedLakeTaskRule.value;
   if (!selectedRule) {
-    $warning('请选择已发布的入湖规则');
+    $warning('璇烽€夋嫨宸插彂甯冪殑鍏ユ箹瑙勫垯');
     return;
   }
 
   const requiredTables = taskRequiredTables.value;
   if (requiredTables.length === 0) {
-    $warning('当前规则未配置源数据表，请先检查规则配置');
+    $warning('褰撳墠瑙勫垯鏈厤缃簮鏁版嵁琛紝璇峰厛妫€鏌ヨ鍒欓厤缃?);
     return;
   }
 
   const missingTables = requiredTables.filter((table) => !getTaskFileByTable(table.id)?.edmId);
   if (missingTables.length > 0) {
-    $warning(`请上传 ${missingTables.map((table) => table.label).join('、')} 的源数据`);
+    $warning(`璇蜂笂浼?${missingTables.map((table) => table.label).join('銆?)} 鐨勬簮鏁版嵁`);
     return;
   }
 
   const ruleCode = toText(selectedRule.ruleCode || selectedRule.id);
   if (!ruleCode) {
-    $warning('规则标识缺失，无法执行任务');
+    $warning('瑙勫垯鏍囪瘑缂哄け锛屾棤娉曟墽琛屼换鍔?);
     return;
   }
 
@@ -633,12 +572,12 @@ const executeLakeTask = async () => {
     await rulesApi.execute({ ruleCode, fileList });
     await loadExecuteRecords();
 
-    $success('任务执行成功');
+    $success('浠诲姟鎵ц鎴愬姛');
     lakeTaskModal.show = false;
     resetLakeTaskDraft();
   } catch (error) {
     const msg = toText(error?.response?.data?.msg || error?.data?.msg || error?.message);
-    $error(msg || '任务执行失败');
+    $error(msg || '浠诲姟鎵ц澶辫触');
   } finally {
     taskExecuting.value = false;
   }
@@ -649,3 +588,6 @@ onMounted(async () => {
   await Promise.all([loadRules(), loadExecuteRecords()]);
 });
 </script>
+
+
+

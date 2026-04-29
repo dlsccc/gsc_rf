@@ -72,7 +72,7 @@ const toSourceFiles = (uploadedFiles = []) => {
 };
 
 const resolveFileEdmId = (file = {}) => {
-  return trimText(file?.edmId || file?.edmID || file?.fileCode || file?.id || '');
+  return trimText(file?.edmId || file?.edmID || file?.fileId || file?.fileCode || file?.id || '');
 };
 
 const normalizeFieldInfoItem = (item = {}) => {

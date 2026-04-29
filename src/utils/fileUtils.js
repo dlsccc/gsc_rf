@@ -36,7 +36,7 @@ export const resolveEdmId = (item = {}) => {
   if (['string', 'number'].includes(typeof item)) {
     return toText(item);
   }
-  return toText(item.edmId || item.edmID || item.fileCode || item.id || item.code);
+  return toText(item.edmId || item.edmID || item.fileId || item.fileCode || item.id || item.code);
 };
 
 export const normalizeObjectRows = (rows = []) => {
