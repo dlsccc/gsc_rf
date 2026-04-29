@@ -15,3 +15,15 @@ import { loginState } from '@hw-itsc/common/src/utils/login-util.js';
 
 
 </script>
+<style lang="less">
+.common-upload-component{
+  .upload-button-box{
+    .upload-button{
+      width:100%;
+      .upload-text{
+          margin-top: 6px;
+      }
+    }
+  }
+}
+</style>

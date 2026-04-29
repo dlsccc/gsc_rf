@@ -52,7 +52,14 @@
                 </div>
               </div>
 
-              <FileUploadPanel :store="pipelineStore" />
+              <FileUploadPanel 
+                  :project-id="projectId"
+                  class="w-p-100 common-upload-component"
+                  :isShowList="true"
+                  :isSingLine="false"
+                  @delete="deleteCallback"
+                  @upload="(edmId,fileDetail) => uploadSuccess(edmId,fileDetail)"
+               />
             </div>
           </div>
 
@@ -132,10 +139,11 @@ import { buildPipelineDsl } from '@/utils/pipeline-dsl.js';
 import { $error, $success, $warning } from '@/utils/message.js';
 import { extractFieldInfoList, extractFieldsFromRows, findParsedDataSet, normalizeObjectRows, parseEdmFile, resolveEdmId } from '@/utils/fileUtils.js';
 import { useAppStore } from '@/store/app.store.js';
+import userStore from '@/store/userInfo.js';
 import { normalizeProjectModel, resolveModelCode, toBusinessTypeLabel, unwrapApiData, unwrapApiList, useModelStore } from '@/store/model.store.js';
 import { RULE_INPUT_TABLES, mapApiRuleToEntity, toSaveRulePayload, useRuleStore } from '@/store/rule.store.js';
 import { usePipelineStore } from '@/store/pipeline.store.js';
-import FileUploadPanel from '@/components/pipeline/FileUploadPanel.vue';
+import FileUploadPanel from '@hw-itsc/common/src/components/upload-file/upload.vue';
 import FieldMappingPanel from '@/components/pipeline/FieldMappingPanel.vue';
 import ProcessPanel from '@/components/pipeline/ProcessPanel.vue';
 import WriteConfigPanel from '@/components/pipeline/WriteConfigPanel.vue';
@@ -152,6 +160,8 @@ const autoMapping = ref(false);
 const sqlDebugRows = ref([]);
 const sqlDebugTimer = ref(null);
 const sqlDebugRequestSeq = ref(0);
+
+const projectId = ref(userStore.state.curTenant.frmProjectId)
 // 临时开关：后端 SQL 调试接口异常时可先关闭调用；恢复时改为 true 即可
 const ENABLE_SQL_DEBUG_API = false;
 
@@ -180,6 +190,10 @@ const targetModelPreviewFields = computed(() => {
   }));
 });
 
+const uploadSuccess = (edmId,fileDetail) => {
+  console.log(edmId,fileDetail)
+}
+const deleteCallback = () => '';
 
 const resolveCurrentProjectCode = () => {
   return String(appStore.currentProjectCode || appStore.currentProject || '').trim();
