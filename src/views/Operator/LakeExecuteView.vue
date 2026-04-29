@@ -174,12 +174,12 @@ const ruleStore = useRuleStore();
 const toText = (value) => String(value ?? '').trim();
 
 const TASK_STATUS_LABEL_MAP = {
-  init: '鍒濆鍖?,
-  running: '鎵ц涓?,
-  killing: '缁堟涓?,
-  failed: '澶辫触',
-  finished: '瀹屾垚',
-  killed: '宸茬粓姝?
+  init: '初始化',
+  running: '执行中',
+  killing: '终止中',
+  failed: '失败',
+  finished: '完成',
+  killed: '已终止'
 };
 
 const normalizeTaskStatus = (status) => toText(status).toLowerCase();
@@ -268,7 +268,7 @@ const mapExecuteRecord = (item, index) => {
 
   return {
     runId,
-    name: toText(item?.batchNo || item?.ruleName || `鎵ц浠诲姟${index + 1}`),
+    name: toText(item?.batchNo || item?.ruleName || `执行任务${index + 1}`),
     ruleName: toText(item?.ruleName || item?.ruleCode || '-'),
     fileCount: '-',
     executeTime: executeTime || '-',
@@ -404,7 +404,7 @@ const getTaskFileByTable = (tableId) => {
 
 const createLakeTask = () => {
   lakeTaskDraft.id = Date.now();
-  lakeTaskDraft.name = `鍏ユ箹浠诲姟_${new Date().toLocaleString('zh-CN', {
+  lakeTaskDraft.name = `入湖任务_${new Date().toLocaleString('zh-CN', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -448,11 +448,11 @@ const handleTaskUploadSuccess = async (uploadId, fileDetail, tableId) => {
 
   const requiredTables = taskRequiredTables.value;
   if (requiredTables.length === 0) {
-    $warning('褰撳墠瑙勫垯鏈厤缃簮鏁版嵁琛紝璇峰厛妫€鏌ヨ鍒欓厤缃?);
+    $warning('当前规则未配置源数据表，请先检查规则配置');
     return;
   }
   if (!requiredTables.some((table) => table.id === tableId)) {
-    $warning('褰撳墠瑙勫垯涓嶉渶瑕佽婧愭暟鎹〃锛岃閲嶆柊閫夋嫨');
+    $warning('当前规则不需要该源数据表，请重新选择');
     return;
   }
 
@@ -492,7 +492,7 @@ const handleTaskUploadSuccess = async (uploadId, fileDetail, tableId) => {
       return aIndex - bIndex;
     });
   } catch (error) {
-    $error(error?.message || '鏂囦欢涓婁紶澶辫触');
+    $error(error?.message || '文件上传失败');
   } finally {
     taskUploadingTableId.value = '';
   }
@@ -522,39 +522,39 @@ const canExecuteLakeTask = computed(() => {
 
 const executeLakeTask = async () => {
   if (!lakeTaskDraft.id) {
-    $warning('璇峰厛鍒涘缓鍏ユ箹浠诲姟');
+    $warning('请先创建入湖任务');
     return;
   }
   if (!toText(lakeTaskDraft.name)) {
-    $warning('璇疯緭鍏ヤ换鍔″悕绉?);
+    $warning('请输入任务名称');
     return;
   }
   if (!lakeTaskDraft.ruleId) {
-    $warning('璇烽€夋嫨鍏ユ箹瑙勫垯');
+    $warning('请选择入湖规则');
     return;
   }
 
   const selectedRule = selectedLakeTaskRule.value;
   if (!selectedRule) {
-    $warning('璇烽€夋嫨宸插彂甯冪殑鍏ユ箹瑙勫垯');
+    $warning('请选择已发布的入湖规则');
     return;
   }
 
   const requiredTables = taskRequiredTables.value;
   if (requiredTables.length === 0) {
-    $warning('褰撳墠瑙勫垯鏈厤缃簮鏁版嵁琛紝璇峰厛妫€鏌ヨ鍒欓厤缃?);
+    $warning('当前规则未配置源数据表，请先检查规则配置');
     return;
   }
 
   const missingTables = requiredTables.filter((table) => !getTaskFileByTable(table.id)?.edmId);
   if (missingTables.length > 0) {
-    $warning(`璇蜂笂浼?${missingTables.map((table) => table.label).join('銆?)} 鐨勬簮鏁版嵁`);
+    $warning(`请上传 ${missingTables.map((table) => table.label).join('、')} 的源数据`);
     return;
   }
 
   const ruleCode = toText(selectedRule.ruleCode || selectedRule.id);
   if (!ruleCode) {
-    $warning('瑙勫垯鏍囪瘑缂哄け锛屾棤娉曟墽琛屼换鍔?);
+    $warning('规则标识缺失，无法执行任务');
     return;
   }
 
@@ -572,12 +572,12 @@ const executeLakeTask = async () => {
     await rulesApi.execute({ ruleCode, fileList });
     await loadExecuteRecords();
 
-    $success('浠诲姟鎵ц鎴愬姛');
+    $success('任务执行成功');
     lakeTaskModal.show = false;
     resetLakeTaskDraft();
   } catch (error) {
     const msg = toText(error?.response?.data?.msg || error?.data?.msg || error?.message);
-    $error(msg || '浠诲姟鎵ц澶辫触');
+    $error(msg || '任务执行失败');
   } finally {
     taskExecuting.value = false;
   }
@@ -588,6 +588,3 @@ onMounted(async () => {
   await Promise.all([loadRules(), loadExecuteRecords()]);
 });
 </script>
-
-
-
