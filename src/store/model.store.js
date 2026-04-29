@@ -243,11 +243,15 @@ export const normalizeProjectModel = (model = {}, projectIdFallback = null, proj
   const numericProjectId = Number(model.projectId);
   const projectId = Number.isFinite(numericProjectId) ? numericProjectId : (projectIdFallback ?? model.projectId);
   const projectCode = toText(model.projectCode || projectCodeFallback || model.projectId || projectId);
+  const isRelease = model.isRelease !== undefined
+    ? toBoolean(model.isRelease)
+    : toText(base.status).toLowerCase() === 'active';
 
   return {
     ...base,
     projectId,
     projectCode,
+    isRelease,
     refStandardModel: toText(base.refStandardModel || model.referenceModelCode),
     tags: normalizeTags(model)
   };
@@ -286,6 +290,7 @@ export const toModelSavePayload = ({ entity, modelType, projectCode = '' }) => {
     spaceGranularity: toText(entity.tags?.spaceGranularity),
     businessModelType: toApiEnumValue(entity.tags?.type, MODEL_TYPE_UI_TO_API),
     involveCalc,
+    ...(modelType === 'business' ? { isRelease: toBoolean(entity.isRelease) } : {}),
     ...(projectCode ? { projectCode } : {})
   };
 };

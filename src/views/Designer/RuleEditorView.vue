@@ -168,7 +168,7 @@ const form = reactive({
 });
 
 const publishedProjectModels = computed(() => {
-  return modelStore.projectModels.filter((item) => Number(item.projectId) === Number(appStore.currentProject) && item.status === 'active');
+  return modelStore.projectModels.filter((item) => Number(item.projectId) === Number(appStore.currentProject) && item.isRelease === true);
 });
 
 const targetModelPreviewFields = computed(() => {

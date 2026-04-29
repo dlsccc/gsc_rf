@@ -21,7 +21,7 @@
             <span class="material-icons" style="color: var(--primary);">account_tree</span>
             <span class="model-name-text" :title="item.name">{{ item.name }}</span>
           </div>
-          <span class="model-status" :class="item.status">{{ item.status === 'active' ? '已发布' : '草稿' }}</span>
+          <span class="model-status" :class="item.isRelease ? 'active' : 'draft'">{{ item.isRelease ? '已发布' : '未发布' }}</span>
         </div>
 
         <div class="model-desc" :title="item.description || '暂无描述'">{{ item.description || '暂无描述' }}</div>

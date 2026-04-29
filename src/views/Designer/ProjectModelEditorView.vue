@@ -270,6 +270,7 @@ const emptyModel = () => ({
   name: '',
   description: '',
   status: 'draft',
+  isRelease: false,
   refStandardModel: '',
   tags: { vendor: '', standard: '', timeGranularity: '', spaceGranularity: '', type: '', involveCalc: false },
   projectId: null,
@@ -368,6 +369,7 @@ const fillForm = (data) => {
   if (!form.tags) {
     form.tags = { vendor: '', standard: '', timeGranularity: '', spaceGranularity: '', type: '', involveCalc: false };
   }
+  form.isRelease = form.isRelease === true || String(form.isRelease).toLowerCase() === 'true';
   form.tags.involveCalc = form.tags.involveCalc === true || String(form.tags.involveCalc).toLowerCase() === 'true';
   form.tags.spaceGranularity = String(form.tags.spaceGranularity || '').trim();
   if (!Array.isArray(form.fields) || form.fields.length === 0) {
@@ -501,17 +503,19 @@ const buildLocalEntity = (status, projectCode) => {
     ...(isEdit.value ? { code: form.code || form.modelCode || form.id } : {}),
     id: form.id || form.code || form.modelCode || createId(),
     status,
+    isRelease: form.isRelease,
     projectId: appStore.currentProject,
     projectCode,
     updateTime: nowText()
   }, appStore.currentProject, projectCode));
 };
 
-const syncEntityWithModelCode = (entity, modelCode, status, projectCode) => {
+const syncEntityWithModelCode = (entity, modelCode, status, projectCode, isRelease = entity?.isRelease) => {
   if (!isValidModelCode(modelCode)) {
     return modelStore.upsertProjectModelLocal(normalizeProjectModel({
       ...entity,
       status,
+      isRelease,
       projectCode,
       updateTime: nowText()
     }, appStore.currentProject, projectCode));
@@ -523,6 +527,7 @@ const syncEntityWithModelCode = (entity, modelCode, status, projectCode) => {
     code: modelCode,
     modelCode,
     status,
+    isRelease,
     projectCode,
     updateTime: nowText()
   }, appStore.currentProject, projectCode);
@@ -589,6 +594,7 @@ const persistModel = async (status) => {
   form.id = entity.id || form.id;
   form.code = entity.code || form.code;
   form.modelCode = entity.modelCode || form.modelCode;
+  form.isRelease = entity.isRelease === true;
 
   return {
     entity,
@@ -689,10 +695,11 @@ const publishProjectModel = async () => {
     return;
   }
 
-  const activeEntity = syncEntityWithModelCode(result.entity, modelCode, 'active', result.projectCode);
+  const activeEntity = syncEntityWithModelCode(result.entity, modelCode, 'active', result.projectCode, true);
   form.id = activeEntity.id || form.id;
   form.code = activeEntity.code || form.code;
   form.modelCode = activeEntity.modelCode || form.modelCode;
+  form.isRelease = true;
 
   router.push('/designer/project-models');
 };
