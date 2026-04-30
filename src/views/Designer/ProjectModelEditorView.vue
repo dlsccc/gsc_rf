@@ -91,7 +91,15 @@
           <thead>
             <tr>
               <th style="width: 50px;">#</th>
-              <th style="width: 180px;">字段名称 *</th>
+              <th style="width: 180px;">
+                字段名称 *
+                <span
+                  title="只能是数字、字母和下划线，以字母开头，最大长度64"
+                  style="display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; margin-left: 4px; border-radius: 50%; background: #fff7e6; color: #d46b08; font-size: 12px; font-weight: 700; cursor: help;"
+                >
+                  !
+                </span>
+              </th>
               <th style="width: 140px;">字段类型 *</th>
               <th style="width: 140px;">数据格式</th>
               <th style="width: 120px;">业务类型</th>
@@ -111,9 +119,6 @@
                   placeholder="字段名称"
                   :style="getFieldNameError(field) ? { borderColor: 'var(--danger)', boxShadow: '0 0 0 1px var(--danger)' } : null"
                 />
-                <div style="margin-top: 4px; font-size: 12px; color: var(--text-secondary); line-height: 1.4;">
-                  只能是数字、字母和下划线，以字母开头，最大长度64
-                </div>
                 <div v-if="getFieldNameError(field)" style="margin-top: 4px; font-size: 12px; color: var(--danger); line-height: 1.4;">
                   {{ getFieldNameError(field) }}
                 </div>

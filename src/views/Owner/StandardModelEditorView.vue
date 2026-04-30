@@ -28,7 +28,15 @@
           <thead>
             <tr>
               <th style="width: 50px;">#</th>
-              <th style="width: 180px;">字段名称 *</th>
+              <th style="width: 180px;">
+                {{ '\u5b57\u6bb5\u540d\u79f0 *' }}
+                <span
+                  :title="'\u53ea\u80fd\u662f\u6570\u5b57\u3001\u5b57\u6bcd\u548c\u4e0b\u5212\u7ebf\uff0c\u4ee5\u5b57\u6bcd\u5f00\u5934\uff0c\u6700\u5927\u957f\u5ea664'"
+                  style="display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; margin-left: 4px; border-radius: 50%; background: #fff7e6; color: #d46b08; font-size: 12px; font-weight: 700; cursor: help;"
+                >
+                  !
+                </span>
+              </th>
               <th style="width: 140px;">字段类型 *</th>
               <th style="width: 140px;">数据格式</th>
               <th style="width: 120px;">业务类型</th>
@@ -48,9 +56,6 @@
                   placeholder="字段名称"
                   :style="getFieldNameError(field) ? { borderColor: 'var(--danger)', boxShadow: '0 0 0 1px var(--danger)' } : null"
                 />
-                <div style="margin-top: 4px; font-size: 12px; color: var(--text-secondary); line-height: 1.4;">
-                  只能是数字、字母和下划线，以字母开头，最大长度64
-                </div>
                 <div v-if="getFieldNameError(field)" style="margin-top: 4px; font-size: 12px; color: var(--danger); line-height: 1.4;">
                   {{ getFieldNameError(field) }}
                 </div>
@@ -288,7 +293,7 @@ const getFieldNameError = (field) => {
   const name = toText(field?.name);
   if (!name) return '';
   if (!FIELD_NAME_PATTERN.test(name)) {
-    return '命名不合规';
+    return '\u547d\u540d\u4e0d\u5408\u89c4';
   }
   return '';
 };
@@ -312,7 +317,7 @@ const validate = () => {
 
   const invalidNameField = form.fields.find((field) => !!getFieldNameError(field));
   if (invalidNameField) {
-    $warning('字段名称命名不合规，请按提示修改');
+    $warning('\u5b57\u6bb5\u540d\u79f0\u547d\u540d\u4e0d\u5408\u89c4\uff0c\u8bf7\u6309\u63d0\u793a\u4fee\u6539');
     return false;
   }
 
