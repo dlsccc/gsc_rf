@@ -103,7 +103,21 @@
           <tbody>
             <tr v-for="(field, index) in form.fields" :key="index">
               <td class="field-index">{{ index + 1 }}</td>
-              <td><input v-model="field.name" class="field-input" type="text" placeholder="字段名称" /></td>
+              <td>
+                <input
+                  v-model="field.name"
+                  class="field-input"
+                  type="text"
+                  placeholder="字段名称"
+                  :style="getFieldNameError(field) ? { borderColor: 'var(--danger)', boxShadow: '0 0 0 1px var(--danger)' } : null"
+                />
+                <div style="margin-top: 4px; font-size: 12px; color: var(--text-secondary); line-height: 1.4;">
+                  只能是数字、字母和下划线，以字母开头，最大长度64
+                </div>
+                <div v-if="getFieldNameError(field)" style="margin-top: 4px; font-size: 12px; color: var(--danger); line-height: 1.4;">
+                  {{ getFieldNameError(field) }}
+                </div>
+              </td>
               <td>
                 <select v-model="field.type" class="field-select" @change="onFieldTypeChange(field)">
                   <option value="">请选择</option>
@@ -263,6 +277,7 @@ const normalizeFieldRows = (fields = []) => {
 };
 
 const emptyField = () => ({ name: '', type: '', format: '', businessType: 'metric', description: '', example: '' });
+const FIELD_NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_]{0,63}$/;
 const emptyModel = () => ({
   id: '',
   code: '',
@@ -455,6 +470,15 @@ const moveFieldDown = (index) => {
   form.fields[index + 1] = temp;
 };
 
+const getFieldNameError = (field) => {
+  const name = toText(field?.name);
+  if (!name) return '';
+  if (!FIELD_NAME_PATTERN.test(name)) {
+    return '命名不合规';
+  }
+  return '';
+};
+
 const validateBase = () => {
   if (!form.name?.trim()) {
     $warning('请输入模型名称');
@@ -466,6 +490,12 @@ const validateBase = () => {
   }
   if (!Array.isArray(form.fields) || form.fields.length === 0 || !form.fields.some((item) => item.name?.trim())) {
     $warning('请至少配置一个字段');
+    return false;
+  }
+
+  const invalidNameField = form.fields.find((field) => !!getFieldNameError(field));
+  if (invalidNameField) {
+    $warning('字段名称命名不合规，请按提示修改');
     return false;
   }
   return true;
