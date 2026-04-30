@@ -1129,7 +1129,8 @@ const buildAutoMapPayload = () => {
     .map((field) => ({
       fieldName: toText(field?.name),
       fieldType: toText(field?.type),
-      fieldDesc: toText(field?.description)
+      fieldDesc: toText(field?.description),
+      fieldBusinessType: toText(field?.businessType || field?.fieldBusinessType)
     }))
     .filter((field) => field.fieldName);
 
