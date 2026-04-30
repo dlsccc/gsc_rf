@@ -2465,7 +2465,8 @@ const toModalTransformItem = (item = {}) => {
     next.type = TRANSFORM_TYPES.FORMAT_TIME;
     next.timeFormatMode = timeFormatMode;
     next.customOriginType = '';
-  } else if (next.type === TRANSFORM_TYPES.FORMAT_TIME) {
+  } else if (next.type === TRANSFORM_TYPES.FORMAT_TIME || next.type === TRANSFORM_TYPES.FORMAT_DATETIME) {
+    next.type = TRANSFORM_TYPES.FORMAT_TIME;
     next.timeFormatMode = trimText(next.timeFormatMode || '');
     next.customOriginType = rawOriginType;
   } else {
