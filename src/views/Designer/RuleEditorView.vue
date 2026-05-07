@@ -556,17 +556,18 @@ const parseConditionExpression = (conditionExpr) => {
     return { operator: 'is_empty', value: '', inputIndex: Number(emptyMatch[1]) || 0 };
   }
 
-  const notEmptyMatch = expr.match(/^\s*\$rule_input\[(\d+)\]\.key_columns\[0\]\s*!=\s*null\s*&&\s*\$rule_input\[\d+\]\.key_columns\[0\]\s*!=\s*""\s*$/);
+  const notEmptyMatch = expr.match(/^\s*\$rule_input\[(\d+)\]\.key_columns\[0\]\s*(?:!=|<>)\s*null\s*&&\s*\$rule_input\[\d+\]\.key_columns\[0\]\s*(?:!=|<>)\s*""\s*$/);
   if (notEmptyMatch) {
     return { operator: 'is_not_empty', value: '', inputIndex: Number(notEmptyMatch[1]) || 0 };
   }
 
-  const compareMatch = expr.match(/^\s*\$rule_input\[(\d+)\]\.key_columns\[0\]\s*(==|!=|>|<)\s*(.+)\s*$/);
+  const compareMatch = expr.match(/^\s*\$rule_input\[(\d+)\]\.key_columns\[0\]\s*(==|!=|<>|>|<)\s*(.+)\s*$/);
   if (!compareMatch) return null;
 
   const operatorMap = {
     '==': 'equals',
     '!=': 'not_equals',
+    '<>': 'not_equals',
     '>': 'greater_than',
     '<': 'less_than'
   };

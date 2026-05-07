@@ -239,12 +239,12 @@ const buildConditionExpression = (rule = {}, columnRef = '$rule_input[0].key_col
   const valueText = formatConditionValue(rule?.value ?? '');
 
   if (operator === 'equals') return `${columnRef} == ${valueText}`;
-  if (operator === 'not_equals') return `${columnRef} != ${valueText}`;
+  if (operator === 'not_equals') return `${columnRef} <> ${valueText}`;
   if (operator === 'greater_than') return `${columnRef} > ${valueText}`;
   if (operator === 'less_than') return `${columnRef} < ${valueText}`;
   if (operator === 'contains') return `contains(${columnRef}, ${valueText})`;
   if (operator === 'is_empty') return `${columnRef} == null || ${columnRef} == ""`;
-  if (operator === 'is_not_empty') return `${columnRef} != null && ${columnRef} != ""`;
+  if (operator === 'is_not_empty') return `${columnRef} <> null && ${columnRef} <> ""`;
   return '';
 };
 
