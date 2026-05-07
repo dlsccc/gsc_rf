@@ -424,7 +424,7 @@
                       :class="step.timeFormatMode === TIME_FORMAT_MODE.DATE ? 'btn-primary' : 'btn-default'"
                       @click="setTimeFormatMode(step, TIME_FORMAT_MODE.DATE)"
                     >
-                      YYYY-MM-DD
+                      yyyy-MM-dd
                     </button>
                     <span style="font-size: 12px; color: var(--text-secondary);">示例：2026-03-28</span>
                   </div>
@@ -435,7 +435,7 @@
                       :class="step.timeFormatMode === TIME_FORMAT_MODE.DATETIME ? 'btn-primary' : 'btn-default'"
                       @click="setTimeFormatMode(step, TIME_FORMAT_MODE.DATETIME)"
                     >
-                      YYYY-MM-DD hh:mm:ss
+                      yyyy-MM-dd HH:mm:ss
                     </button>
                     <span style="font-size: 12px; color: var(--text-secondary);">示例：2026-03-28 14:30:59</span>
                   </div>
@@ -446,7 +446,7 @@
                       :class="step.timeFormatMode === TIME_FORMAT_MODE.YEAR ? 'btn-primary' : 'btn-default'"
                       @click="setTimeFormatMode(step, TIME_FORMAT_MODE.YEAR)"
                     >
-                      YYYY
+                      yyyy
                     </button>
                     <span style="font-size: 12px; color: var(--text-secondary);">示例：2026</span>
                   </div>
@@ -457,7 +457,7 @@
                       :class="step.timeFormatMode === TIME_FORMAT_MODE.MONTH ? 'btn-primary' : 'btn-default'"
                       @click="setTimeFormatMode(step, TIME_FORMAT_MODE.MONTH)"
                     >
-                      YYYY-MM
+                      yyyy-MM
                     </button>
                     <span style="font-size: 12px; color: var(--text-secondary);">示例：2026-03</span>
                   </div>
@@ -468,7 +468,7 @@
                       :class="step.timeFormatMode === TIME_FORMAT_MODE.TIME ? 'btn-primary' : 'btn-default'"
                       @click="setTimeFormatMode(step, TIME_FORMAT_MODE.TIME)"
                     >
-                      hh:mm:ss
+                      HH:mm:ss
                     </button>
                     <span style="font-size: 12px; color: var(--text-secondary);">示例：14:30:59</span>
                   </div>
@@ -477,7 +477,7 @@
                   <input
                     v-model="step.customOriginType"
                     class="form-input"
-                    placeholder="其他原始格式请手动输入，例如 YYYY/MM/DD"
+                    placeholder="其他原始格式请手动输入，例如 yyyy/MM/dd"
                     style="font-size: 13px;"
                     @input="onCustomOriginTypeInput(step)"
                   />
@@ -592,7 +592,7 @@
                     :class="rule.timeFormatMode === TIME_FORMAT_MODE.DATE ? 'btn-primary' : 'btn-default'"
                     @click="setTimeFormatMode(rule, TIME_FORMAT_MODE.DATE)"
                   >
-                    YYYY-MM-DD
+                    yyyy-MM-dd
                   </button>
                   <span style="font-size: 12px; color: var(--text-secondary);">示例：2026-03-28</span>
                 </div>
@@ -603,7 +603,7 @@
                     :class="rule.timeFormatMode === TIME_FORMAT_MODE.DATETIME ? 'btn-primary' : 'btn-default'"
                     @click="setTimeFormatMode(rule, TIME_FORMAT_MODE.DATETIME)"
                   >
-                    YYYY-MM-DD hh:mm:ss
+                    yyyy-MM-dd HH:mm:ss
                   </button>
                   <span style="font-size: 12px; color: var(--text-secondary);">示例：2026-03-28 14:30:59</span>
                 </div>
@@ -614,7 +614,7 @@
                     :class="rule.timeFormatMode === TIME_FORMAT_MODE.YEAR ? 'btn-primary' : 'btn-default'"
                     @click="setTimeFormatMode(rule, TIME_FORMAT_MODE.YEAR)"
                   >
-                    YYYY
+                    yyyy
                   </button>
                   <span style="font-size: 12px; color: var(--text-secondary);">示例：2026</span>
                 </div>
@@ -625,7 +625,7 @@
                     :class="rule.timeFormatMode === TIME_FORMAT_MODE.MONTH ? 'btn-primary' : 'btn-default'"
                     @click="setTimeFormatMode(rule, TIME_FORMAT_MODE.MONTH)"
                   >
-                    YYYY-MM
+                    yyyy-MM
                   </button>
                   <span style="font-size: 12px; color: var(--text-secondary);">示例：2026-03</span>
                 </div>
@@ -636,7 +636,7 @@
                     :class="rule.timeFormatMode === TIME_FORMAT_MODE.TIME ? 'btn-primary' : 'btn-default'"
                     @click="setTimeFormatMode(rule, TIME_FORMAT_MODE.TIME)"
                   >
-                    hh:mm:ss
+                    HH:mm:ss
                   </button>
                   <span style="font-size: 12px; color: var(--text-secondary);">示例：14:30:59</span>
                 </div>
@@ -645,7 +645,7 @@
                 <input
                   v-model="rule.customOriginType"
                   class="form-input"
-                  placeholder="其他原始格式请手动输入，例如 YYYY/MM/DD"
+                  placeholder="其他原始格式请手动输入，例如 yyyy/MM/dd"
                   @input="onCustomOriginTypeInput(rule)"
                 />
               </div>
@@ -1273,16 +1273,16 @@ const resolveOriginFormatByConfig = (cfg = {}) => {
   if (explicit && explicit !== '-') return explicit;
 
   const mode = String(cfg.timeFormatMode || '').trim().toLowerCase();
-  if (mode === 'date') return 'YYYY-MM-DD';
-  if (mode === 'datetime') return 'YYYY-MM-DD hh:mm:ss';
-  if (mode === 'year') return 'YYYY';
-  if (mode === 'month') return 'YYYY-MM';
-  if (mode === 'time') return 'hh:mm:ss';
+  if (mode === 'date') return 'yyyy-MM-dd';
+  if (mode === 'datetime') return 'yyyy-MM-dd HH:mm:ss';
+  if (mode === 'year') return 'yyyy';
+  if (mode === 'month') return 'yyyy-MM';
+  if (mode === 'time') return 'HH:mm:ss';
 
-  if (cfg.type === TRANSFORM_TYPES.EXTRACT_YEAR) return 'YYYY';
-  if (cfg.type === TRANSFORM_TYPES.EXTRACT_MONTH) return 'YYYY-MM';
-  if (cfg.type === TRANSFORM_TYPES.EXTRACT_TIME || cfg.type === TRANSFORM_TYPES.FORMAT_TIME) return 'hh:mm:ss';
-  return 'YYYY-MM-DD';
+  if (cfg.type === TRANSFORM_TYPES.EXTRACT_YEAR) return 'yyyy';
+  if (cfg.type === TRANSFORM_TYPES.EXTRACT_MONTH) return 'yyyy-MM';
+  if (cfg.type === TRANSFORM_TYPES.EXTRACT_TIME || cfg.type === TRANSFORM_TYPES.FORMAT_TIME) return 'HH:mm:ss';
+  return 'yyyy-MM-dd';
 };
 
 const resolveTargetFormatByField = (field, cfg = {}) => {
@@ -1293,10 +1293,10 @@ const resolveTargetFormatByField = (field, cfg = {}) => {
   const modelFormat = normalizeTimeFormat(targetField?.format || targetField?.dataFormat);
   if (modelFormat && modelFormat !== '-') return modelFormat;
 
-  if (cfg.type === TRANSFORM_TYPES.EXTRACT_YEAR) return 'YYYY';
-  if (cfg.type === TRANSFORM_TYPES.EXTRACT_MONTH) return 'YYYY-MM';
-  if (cfg.type === TRANSFORM_TYPES.EXTRACT_TIME || cfg.type === TRANSFORM_TYPES.FORMAT_TIME) return 'hh:mm:ss';
-  return 'YYYY-MM-DD';
+  if (cfg.type === TRANSFORM_TYPES.EXTRACT_YEAR) return 'yyyy';
+  if (cfg.type === TRANSFORM_TYPES.EXTRACT_MONTH) return 'yyyy-MM';
+  if (cfg.type === TRANSFORM_TYPES.EXTRACT_TIME || cfg.type === TRANSFORM_TYPES.FORMAT_TIME) return 'HH:mm:ss';
+  return 'yyyy-MM-dd';
 };
 
 const parseByFormat = (value, format = '') => {
@@ -2442,8 +2442,8 @@ const resolveTimeFormatModeByType = (type, originType = '') => {
 };
 
 const resolveOriginTypeByTimeFormatMode = (mode) => {
-  if (mode === TIME_FORMAT_MODE.DATETIME) return 'YYYY-MM-DD hh:mm:ss';
-  if (mode === TIME_FORMAT_MODE.DATE) return 'YYYY-MM-DD';
+  if (mode === TIME_FORMAT_MODE.DATETIME) return 'yyyy-MM-dd HH:mm:ss';
+  if (mode === TIME_FORMAT_MODE.DATE) return 'yyyy-MM-dd';
   return '';
 };
 

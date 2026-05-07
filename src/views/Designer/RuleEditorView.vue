@@ -469,10 +469,11 @@ const REVERSE_TRANSFORM_TYPE_MAP = {
 
 const TIME_ORIGIN_TO_MODE_MAP = {
   'YYYY-MM-DD': 'date',
+  'YYYY-MM-DD HH:MM:SS': 'datetime',
   YYYY: 'year',
   'YYYY-MM': 'month',
-  'hh:mm:ss': 'time',
-  'hh:mm': 'time_minute',
+  'HH:MM:SS': 'time',
+  'HH:MM': 'time_minute',
   'YYYY/MM/DD': 'date_slash',
   'YYYY/MM': 'month_slash'
 };
