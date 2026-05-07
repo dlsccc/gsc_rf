@@ -724,7 +724,10 @@ const publishProjectModel = async () => {
   }
 
   try {
-    await projectModelsApi.publish({ modelCodeList: [modelCode] });
+    await projectModelsApi.publish({
+      modelCodeList: [modelCode],
+      projectCode: result.projectCode
+    });
   } catch {
     $warning('Publish failed. Please retry.');
     return;
