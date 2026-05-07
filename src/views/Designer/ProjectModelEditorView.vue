@@ -213,11 +213,11 @@ const businessTypeOptions = [
 const FIELD_FORMAT_OPTIONS = {
   STRING: [
     { value: '', label: '-' },
-    { value: 'YYYY', label: 'YYYY' },
-    { value: 'YYYY-MM', label: 'YYYY-MM' },
-    { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD' },
-    { value: 'YYYY-MM-DD hh:mm:ss', label: 'YYYY-MM-DD hh:mm:ss' },
-    { value: 'hh:mm:ss', label: 'hh:mm:ss' },
+    { value: 'yyyy', label: 'yyyy' },
+    { value: 'yyyy-MM', label: 'yyyy-MM' },
+    { value: 'yyyy-MM-dd', label: 'yyyy-MM-dd' },
+    { value: 'yyyy-MM-dd HH:mm:ss', label: 'yyyy-MM-dd HH:mm:ss' },
+    { value: 'HH:mm:ss', label: 'HH:mm:ss' },
     { value: '\u767e\u5206\u6570', label: '\u767e\u5206\u6570' }
   ],
   INT64: [
