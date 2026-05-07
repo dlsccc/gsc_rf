@@ -417,6 +417,10 @@ onMounted(async () => {
     return;
   }
   fillForm(null);
+  const standardFromQuery = String(route.query.standard || '').trim();
+  if (standardFromQuery && standardOptions.includes(standardFromQuery)) {
+    form.tags.standard = standardFromQuery;
+  }
 });
 
 watch(

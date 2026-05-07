@@ -1,180 +1,156 @@
 <template>
   <div class="model-list-container" style="margin-top: 64px; background: linear-gradient(135deg, #e6f7ff 0%, #fafafa 100%);">
     <div class="model-edit-header">
-      <div class="back-btn" @click="router.push('/designer')"><span class="material-icons">arrow_back</span></div>
+      <div class="back-btn" @click="router.push('/designer')">
+        <span class="material-icons">arrow_back</span>
+      </div>
       <div class="model-list-title">
         <span class="material-icons" style="color: var(--primary);">account_tree</span>
         数据模型列表
         <span class="model-count">共 {{ projectModels.length }} 个模型</span>
       </div>
-      <div style="flex: 1;" />
-      <button class="btn btn-primary" @click="router.push('/designer/project-models/new')">
-        <span class="material-icons" style="font-size: 18px;">add</span>
-        新建模型
-      </button>
     </div>
 
-    <div class="model-grid">
-      <div v-for="item in pagedProjectModels" :key="item.id" class="model-card">
-        <div class="model-card-header">
-          <div class="model-name">
-            <span class="material-icons" style="color: var(--primary);">account_tree</span>
-            <span class="model-name-text" :title="item.name">{{ item.name }}</span>
+    <div style="padding: 24px; max-width: 1860px; margin: 0 auto;">
+      <div class="board-wrapper">
+        <div class="board-header-grid">
+          <div class="board-corner"></div>
+          <div v-for="column in BOARD_COLUMNS" :key="column.key" class="board-header-cell">
+            {{ column.label }}
           </div>
-          <span class="model-status" :class="item.isRelease ? 'active' : 'draft'">{{ item.isRelease ? '已发布' : '未发布' }}</span>
+          <div class="board-header-cell board-header-add">新增</div>
         </div>
 
-        <div class="model-desc" :title="item.description || '暂无描述'">{{ item.description || '暂无描述' }}</div>
+        <div
+          v-for="(row, rowIndex) in RAT_ROWS"
+          :key="row.key"
+          class="board-row-section"
+          :style="rowIndex > 0 ? { borderTop: '1px solid rgba(24, 121, 184, 0.12)', marginTop: '14px', paddingTop: '14px' } : null"
+        >
+          <div class="board-row-grid">
+            <div class="board-rat-label">
+              <span class="board-rat-chip">{{ row.label }}</span>
+            </div>
 
-        <div class="model-meta">
-          <div class="model-meta-item"><span class="material-icons">link</span><span class="model-meta-item-text" :title="'引用: ' + resolveRefStandardModelName(item.refStandardModel)">引用: {{ resolveRefStandardModelName(item.refStandardModel) }}</span></div>
-          <div class="model-meta-item"><span class="material-icons">view_column</span><span class="model-meta-item-text" :title="item.fields.length + ' 个字段'">{{ item.fields.length }} 个字段</span></div>
-        </div>
+            <div
+              v-for="slot in getProjectBoardRow(row.key)"
+              :key="`${row.key}-${slot.column.key}`"
+              class="board-slot"
+            >
+              <button
+                v-if="slot.model"
+                class="board-card"
+                type="button"
+                @click="openProjectModel(slot.model)"
+              >
+                <div class="board-card-top">
+                  <span class="board-card-type">{{ slot.column.label }}</span>
+                  <span
+                    class="board-card-status"
+                    :class="slot.model.isRelease ? 'board-card-status-active' : 'board-card-status-draft'"
+                  >
+                    {{ slot.model.isRelease ? '已发布' : '未发布' }}
+                  </span>
+                </div>
+                <div class="board-card-name" :title="slot.model.name">{{ slot.model.name }}</div>
+                <div class="board-card-desc" :title="slot.model.description || '暂无描述'">{{ slot.model.description || '暂无描述' }}</div>
+                <div class="board-card-meta">
+                  <span>{{ slot.model.fields.length }} 个字段</span>
+                  <span>{{ resolveRefStandardModelName(slot.model.refStandardModel) }}</span>
+                </div>
+              </button>
 
-        <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; padding-top: 12px; border-top: 1px solid #f5f5f5;">
-          <span v-if="item.tags?.vendor" class="tag tag-primary">{{ item.tags.vendor }}</span>
-          <span v-if="item.tags?.standard" class="tag tag-warning">{{ item.tags.standard }}</span>
-          <span v-if="item.tags?.timeGranularity" class="tag tag-success">{{ item.tags.timeGranularity }}</span>
-          <span v-if="item.tags?.type" class="tag" style="background: #f9f0ff; color: #722ed1;">{{ item.tags.type }}</span>
-        </div>
+              <div v-else class="board-card board-card-empty">
+                <div class="board-card-top">
+                  <span class="board-card-type">{{ slot.column.label }}</span>
+                </div>
+                <div class="board-empty-text">暂无模型</div>
+              </div>
+            </div>
 
-        <div class="model-card-actions">
-          <button class="btn btn-default btn-sm" @click="router.push(`/designer/project-models/${item.id}/edit`)">
-            <span class="material-icons" style="font-size: 16px;">edit</span>
-            编辑
-          </button>
-          <button class="btn btn-default btn-sm" @click="router.push(`/designer/project-models/${item.id}/edit`)">
-            <span class="material-icons" style="font-size: 16px;">visibility</span>
-            查看
-          </button>
-          <button class="btn btn-default btn-sm" style="color: var(--danger);" @click="remove(item.id)">
-            <span class="material-icons" style="font-size: 16px;">delete</span>
-          </button>
+            <button class="board-card board-card-add" type="button" @click="createProjectModelForRat(row.key)">
+              <span class="material-icons board-add-icon">add</span>
+              <span class="board-add-text">新增{{ row.label }}模型</span>
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-
-    <div v-if="projectModels.length > pageSize" style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 16px;">
-      <button class="btn btn-default btn-sm" :disabled="currentPage <= 1" @click="setPage(currentPage - 1)">
-        <span class="material-icons" style="font-size: 16px;">chevron_left</span>
-      </button>
-      <button
-        v-for="page in pageNumbers"
-        :key="String(page)"
-        class="btn btn-sm"
-        :class="Number(page) === currentPage ? 'btn-primary' : 'btn-default'"
-        :disabled="typeof page !== 'number'"
-        @click="typeof page === 'number' && setPage(page)"
-      >
-        {{ typeof page === 'number' ? page : '...' }}
-      </button>
-      <button class="btn btn-default btn-sm" :disabled="currentPage >= totalPages" @click="setPage(currentPage + 1)">
-        <span class="material-icons" style="font-size: 16px;">chevron_right</span>
-      </button>
-    </div>
-
-    <div v-if="projectModels.length === 0" style="text-align: center; padding: 80px 20px; color: var(--text-secondary);">
-      <span class="material-icons" style="font-size: 64px; opacity: 0.3;">account_tree</span>
-      <p style="margin-top: 16px; font-size: 16px;">暂无数据模型</p>
-      <p style="margin-top: 8px; font-size: 14px;">点击上方"新建模型"按钮创建第一个数据模型</p>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { projectModelsApi, standardModelsApi } from '@/api/index.js';
 import { useAppStore } from '@/store/app.store.js';
-import { normalizeProjectModel, normalizeStandardModel, resolveModelCode, unwrapApiList, useModelStore } from '@/store/model.store.js';
+import { normalizeProjectModel, normalizeStandardModel, unwrapApiList, useModelStore } from '@/store/model.store.js';
 
 const router = useRouter();
 const appStore = useAppStore();
 const modelStore = useModelStore();
-const pageSize = 15;
-const currentPage = ref(1);
+
+const RAT_ROWS = [
+  { key: 'NR', label: '5G' },
+  { key: 'LTE', label: '4G' },
+  { key: 'UMTS', label: '3G' },
+  { key: 'GSM', label: '2G' }
+];
+
+const BOARD_COLUMNS = [
+  { key: 'ep', label: '工参' },
+  { key: 'HW', label: '华为' },
+  { key: 'ZTE', label: '中兴' },
+  { key: 'ERIC', label: '爱立信' },
+  { key: 'COMPANY4', label: '公司四' }
+];
+
+const RAT_TO_UI_STANDARD = {
+  NR: '5G',
+  LTE: '4G',
+  UMTS: '3G',
+  GSM: '2G'
+};
+
+const toText = (value) => String(value ?? '').trim();
 
 const projectModels = computed(() => {
   return modelStore.projectModels.filter((item) => Number(item.projectId) === Number(appStore.currentProject));
 });
 
-const totalPages = computed(() => {
-  return Math.max(1, Math.ceil(projectModels.value.length / pageSize));
-});
-
-const pagedProjectModels = computed(() => {
-  const start = (currentPage.value - 1) * pageSize;
-  return projectModels.value.slice(start, start + pageSize);
-});
-
-const pageNumbers = computed(() => {
-  const total = totalPages.value;
-  if (total <= 7) {
-    return Array.from({ length: total }, (_, index) => index + 1);
-  }
-
-  const current = currentPage.value;
-  const pages = [1];
-  const start = Math.max(2, current - 1);
-  const end = Math.min(total - 1, current + 1);
-
-  if (start > 2) {
-    pages.push('ellipsis-prev');
-  }
-
-  for (let page = start; page <= end; page += 1) {
-    pages.push(page);
-  }
-
-  if (end < total - 1) {
-    pages.push('ellipsis-next');
-  }
-
-  pages.push(total);
-  return pages;
-});
-
-const setPage = (page) => {
-  const next = Number(page);
-  if (!Number.isFinite(next)) return;
-  currentPage.value = Math.min(Math.max(next, 1), totalPages.value);
-};
-
-watch(
-  () => projectModels.value.length,
-  () => {
-    if (currentPage.value > totalPages.value) {
-      currentPage.value = totalPages.value;
-    }
-  }
-);
-
 const resolveCurrentProjectCode = () => {
   return String(appStore.currentProjectCode || appStore.currentProject || '').trim();
 };
 
-const loadProjectModels = async () => {
-  try {
-    const projectCode = resolveCurrentProjectCode();
-    const response = await projectModelsApi.list({ modelType: 'business', ...(projectCode ? { projectCode } : {}) });
-    const list = unwrapApiList(response);
-    modelStore.setProjectModels(list.map((item) => normalizeProjectModel(item, appStore.currentProject, projectCode)));
-    currentPage.value = 1;
-  } catch {
-    modelStore.setProjectModels([]);
-  }
+const resolveRatKey = (item) => {
+  const rat = toText(item?.rat || item?.tags?.standard || item?.format).toUpperCase();
+  if (rat === '5G') return 'NR';
+  if (rat === '4G') return 'LTE';
+  if (rat === '3G') return 'UMTS';
+  if (rat === '2G') return 'GSM';
+  return rat;
 };
 
-const loadStandardModels = async () => {
-  try {
-    const response = await standardModelsApi.list({ modelType: 'base' });
-    const list = unwrapApiList(response);
-    if (list.length > 0) {
-      modelStore.setStandardModels(list.map((item) => normalizeStandardModel(item)));
-    }
-  } catch {
-    // keep local state when backend is unavailable
-  }
+const resolveColumnKey = (item) => {
+  const type = toText(item?.tags?.type || item?.businessModelType).toLowerCase();
+  if (type === 'ep' || type === '工参') return 'ep';
+
+  const vendor = toText(item?.vendor || item?.factory || item?.tags?.vendor).toUpperCase();
+  if (vendor === 'HW') return 'HW';
+  if (vendor === 'ZTE') return 'ZTE';
+  if (['ERIC', 'ERICSSON', 'ERI'].includes(vendor)) return 'ERIC';
+  if (vendor) return 'COMPANY4';
+  return '';
+};
+
+const getProjectBoardRow = (ratKey) => {
+  return BOARD_COLUMNS.map((column) => {
+    const model = projectModels.value.find((item) => {
+      return resolveRatKey(item) === ratKey && resolveColumnKey(item) === column.key;
+    }) || null;
+
+    return { column, model };
+  });
 };
 
 const resolveRefStandardModelName = (refStandardModel) => {
@@ -191,27 +167,228 @@ const resolveRefStandardModelName = (refStandardModel) => {
   return target?.name || key;
 };
 
+const openProjectModel = (model) => {
+  router.push(`/designer/project-models/${model.id}/edit`);
+};
+
+const createProjectModelForRat = (ratKey) => {
+  router.push({
+    path: '/designer/project-models/new',
+    query: { rat: ratKey, standard: RAT_TO_UI_STANDARD[ratKey] || '' }
+  });
+};
+
+const loadProjectModels = async () => {
+  try {
+    const projectCode = resolveCurrentProjectCode();
+    const response = await projectModelsApi.list({ modelType: 'business', ...(projectCode ? { projectCode } : {}) });
+    const list = unwrapApiList(response);
+    modelStore.setProjectModels(list.map((item) => normalizeProjectModel(item, appStore.currentProject, projectCode)));
+  } catch {
+    modelStore.setProjectModels([]);
+  }
+};
+
+const loadStandardModels = async () => {
+  try {
+    const response = await standardModelsApi.list({ modelType: 'base' });
+    const list = unwrapApiList(response);
+    modelStore.setStandardModels(list.map((item) => normalizeStandardModel(item)));
+  } catch {
+    modelStore.setStandardModels([]);
+  }
+};
+
 onMounted(async () => {
   appStore.setRole('designer');
   await loadStandardModels();
   await loadProjectModels();
 });
-
-const remove = async (id) => {
-  if (!window.confirm('确定要删除该数据模型吗？此操作不可恢复。')) {
-    return;
-  }
-
-  const target = modelStore.getProjectModelById(id);
-  modelStore.removeProjectModelById(id);
-
-  try {
-    await projectModelsApi.remove({
-      modelCodeList: [resolveModelCode(target || { id })].filter(Boolean),
-      modelType: 'business'
-    });
-  } catch {
-    // 无后端时忽略错误。
-  }
-};
 </script>
+
+<style scoped>
+.board-wrapper {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(24, 121, 184, 0.1);
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 10px 30px rgba(24, 121, 184, 0.06);
+}
+
+.board-header-grid,
+.board-row-grid {
+  display: grid;
+  grid-template-columns: 88px repeat(5, minmax(0, 1fr)) minmax(0, 0.92fr);
+  gap: 14px;
+}
+
+.board-header-cell {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #edfaff 100%);
+  color: #226089;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.board-header-add {
+  background: linear-gradient(180deg, #f7fff8 0%, #eefcf0 100%);
+  color: #2b7a38;
+}
+
+.board-corner {
+  min-height: 40px;
+}
+
+.board-rat-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.board-rat-chip {
+  min-width: 60px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #0f88a8 0%, #5caee4 100%);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.board-slot {
+  min-width: 0;
+}
+
+.board-card {
+  width: 100%;
+  min-height: 168px;
+  border: 1px solid rgba(24, 121, 184, 0.12);
+  border-radius: 16px;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fcff 100%);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.board-card:not(.board-card-empty):not(.board-card-add) {
+  cursor: pointer;
+}
+
+.board-card:not(.board-card-empty):not(.board-card-add):hover,
+.board-card-add:hover {
+  transform: translateY(-2px);
+  border-color: rgba(24, 121, 184, 0.26);
+  box-shadow: 0 14px 30px rgba(24, 121, 184, 0.1);
+}
+
+.board-card-empty {
+  justify-content: center;
+  align-items: center;
+  border-style: dashed;
+  background: rgba(250, 252, 255, 0.78);
+}
+
+.board-card-add {
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  border-style: dashed;
+  border-color: rgba(43, 122, 56, 0.28);
+  background: linear-gradient(180deg, #fbfffb 0%, #f1fbf3 100%);
+}
+
+.board-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.board-card-type {
+  font-size: 12px;
+  font-weight: 700;
+  color: #5b7da4;
+  letter-spacing: 0.04em;
+}
+
+.board-card-status {
+  min-width: 54px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.board-card-status-active {
+  background: #edf9ef;
+  color: #2f7d3a;
+}
+
+.board-card-status-draft {
+  background: #fff6e9;
+  color: #c77911;
+}
+
+.board-card-name {
+  color: #10253d;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.board-card-desc {
+  flex: 1;
+  color: #6d7f95;
+  font-size: 13px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.board-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #7d8fa5;
+  font-size: 12px;
+}
+
+.board-empty-text {
+  color: #9aa8b8;
+  font-size: 13px;
+}
+
+.board-add-icon {
+  font-size: 34px;
+  color: #2b7a38;
+}
+
+.board-add-text {
+  color: #2b7a38;
+  font-size: 14px;
+  font-weight: 700;
+}
+</style>

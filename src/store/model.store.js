@@ -305,6 +305,17 @@ export const unwrapApiData = (response) => {
 export const unwrapApiList = (response) => {
   const data = unwrapApiData(response);
   if (Array.isArray(data?.list)) return data.list;
+  const groupedKeys = ['NR', 'LTE', 'UMTS', 'GSM'];
+  if (data && typeof data === 'object') {
+    const grouped = groupedKeys.flatMap((key) => {
+      const list = Array.isArray(data?.[key]) ? data[key] : [];
+      return list.map((item) => ({
+        ...item,
+        ...(item?.rat ? {} : { rat: key })
+      }));
+    });
+    if (grouped.length > 0) return grouped;
+  }
   if (Array.isArray(data)) return data;
   return [];
 };

@@ -2,10 +2,10 @@
   <div class="model-edit-container" style="margin-top: 64px; background: linear-gradient(135deg, #f0f5ff 0%, #fafafa 100%);">
     <div class="model-edit-header">
       <div class="back-btn" @click="router.push('/owner/standard-models')"><span class="material-icons">arrow_back</span></div>
-      <div class="model-edit-title">{{ isEdit ? '编辑标准数据模型' : '新建标准数据模型' }}</div>
+      <div class="model-edit-title">{{ isViewOnly ? '查看标准数据模型' : (isEdit ? '编辑标准数据模型' : '新建标准数据模型') }}</div>
     </div>
 
-    <div class="model-form-section">
+    <div class="model-form-section" :style="isViewOnly ? { pointerEvents: 'none', opacity: 0.9 } : null">
       <div class="section-title"><span class="material-icons">info</span>基本信息</div>
       <div class="form-row">
         <div class="form-group">
@@ -21,7 +21,7 @@
       </div>
     </div>
 
-    <div class="model-form-section">
+    <div class="model-form-section" :style="isViewOnly ? { pointerEvents: 'none', opacity: 0.9 } : null">
       <div class="section-title"><span class="material-icons">view_column</span>字段定义</div>
       <div class="field-table-container">
         <table class="field-table">
@@ -96,23 +96,23 @@
         </table>
       </div>
 
-      <div class="add-field-btn" @click="addField">
+      <div v-if="!isViewOnly" class="add-field-btn" @click="addField">
         <span class="material-icons">add</span>
         添加字段
       </div>
     </div>
 
     <div class="model-edit-actions">
-      <button class="btn btn-default" @click="router.push('/owner/standard-models')">取消</button>
-      <button class="btn btn-default" @click="triggerImportModel">
+      <button class="btn btn-default" @click="router.push('/owner/standard-models')">{{ isViewOnly ? '返回' : '取消' }}</button>
+      <button v-if="!isViewOnly" class="btn btn-default" @click="triggerImportModel">
         <span class="material-icons" style="font-size: 18px;">upload_file</span>
         Import Model
       </button>
-      <button class="btn btn-primary" @click="saveModel">
+      <button v-if="!isViewOnly" class="btn btn-primary" @click="saveModel">
         <span class="material-icons" style="font-size: 18px;">save</span>
         保存模型
       </button>
-      <button class="btn btn-default" @click="exportModel">
+      <button v-if="!isViewOnly" class="btn btn-default" @click="exportModel">
         <span class="material-icons" style="font-size: 18px;">download</span>
         Export Model
       </button>
@@ -221,6 +221,7 @@ const appStore = useAppStore();
 
 const editId = computed(() => route.params.id || '');
 const isEdit = computed(() => !!editId.value);
+const isViewOnly = computed(() => String(route.query.mode || '').toLowerCase() === 'view');
 
 const form = reactive(emptyModel());
 const importInputRef = ref(null);
