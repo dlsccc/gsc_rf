@@ -15,8 +15,10 @@ const toBoolean = (value) => {
 };
 
 const VENDOR_UI_TO_API = {
-  华为: 'HW',
-  中兴: 'ZTE'
+  ???: 'HW',
+  ???: 'ZTE',
+  ???: 'E',
+  ??????: 'NSN'
 };
 
 const RAT_UI_TO_API = {

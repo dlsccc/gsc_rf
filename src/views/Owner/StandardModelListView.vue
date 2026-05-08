@@ -90,8 +90,8 @@ const BOARD_COLUMNS = [
   { key: 'ep', label: '工参' },
   { key: 'HW', label: '华为' },
   { key: 'ZTE', label: '中兴' },
-  { key: 'ERIC', label: '爱立信' },
-  { key: 'COMPANY4', label: '公司四' }
+  { key: 'E', label: '爱立信' },
+  { key: 'NSN', label: '诺基亚西门子' }
 ];
 
 const toText = (value) => String(value ?? '').trim();
@@ -112,8 +112,8 @@ const resolveColumnKey = (item) => {
   const vendor = toText(item?.vendor || item?.factory || item?.tags?.vendor).toUpperCase();
   if (vendor === 'HW') return 'HW';
   if (vendor === 'ZTE') return 'ZTE';
-  if (['ERIC', 'ERICSSON', 'ERI'].includes(vendor)) return 'ERIC';
-  if (vendor) return 'COMPANY4';
+  if (['E', 'ERIC', 'ERICSSON', 'ERI'].includes(vendor)) return 'E';
+  if (vendor === 'NSN') return 'NSN';
   return '';
 };
 
