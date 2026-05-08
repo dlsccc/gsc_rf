@@ -18,7 +18,7 @@
           <div v-for="column in BOARD_COLUMNS" :key="column.key" class="board-header-cell">
             {{ column.label }}
           </div>
-          <div class="board-header-cell board-header-add">新增</div>
+          <div class="board-header-spacer"></div>
         </div>
 
         <div
@@ -218,26 +218,25 @@ onMounted(async () => {
 .board-header-grid,
 .board-row-grid {
   display: grid;
-  grid-template-columns: 88px repeat(5, minmax(0, 1fr)) minmax(0, 0.92fr);
+  grid-template-columns: 72px repeat(5, minmax(0, 1fr)) 58px;
   gap: 14px;
 }
 
 .board-header-cell {
-  min-height: 40px;
+  min-height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
-  background: linear-gradient(180deg, #ffffff 0%, #edfaff 100%);
-  color: #226089;
-  font-size: 14px;
+  border-radius: 10px;
+  background: rgba(237, 250, 255, 0.72);
+  color: #4b6a82;
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
 }
 
-.board-header-add {
-  background: linear-gradient(180deg, #f7fff8 0%, #eefcf0 100%);
-  color: #2b7a38;
+.board-header-spacer {
+  min-height: 34px;
 }
 
 .board-corner {
@@ -251,16 +250,17 @@ onMounted(async () => {
 }
 
 .board-rat-chip {
-  min-width: 60px;
-  height: 36px;
-  padding: 0 14px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #0f88a8 0%, #5caee4 100%);
-  color: #fff;
+  min-width: 44px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 9px;
+  background: rgba(15, 136, 168, 0.08);
+  color: #2a748e;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  border: 1px solid rgba(15, 136, 168, 0.12);
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -270,11 +270,11 @@ onMounted(async () => {
 
 .board-card {
   width: 100%;
-  min-height: 168px;
-  border: 1px solid rgba(24, 121, 184, 0.12);
-  border-radius: 16px;
-  background: linear-gradient(180deg, #ffffff 0%, #f7fcff 100%);
-  padding: 14px;
+  min-height: 156px;
+  border: 1px solid rgba(24, 121, 184, 0.1);
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 13px 14px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -289,25 +289,27 @@ onMounted(async () => {
 .board-card:not(.board-card-empty):not(.board-card-add):hover,
 .board-card-add:hover {
   transform: translateY(-2px);
-  border-color: rgba(24, 121, 184, 0.26);
-  box-shadow: 0 14px 30px rgba(24, 121, 184, 0.1);
+  border-color: rgba(24, 121, 184, 0.2);
+  box-shadow: 0 12px 24px rgba(24, 121, 184, 0.08);
 }
 
 .board-card-empty {
   justify-content: center;
   align-items: center;
   border-style: dashed;
-  background: rgba(250, 252, 255, 0.78);
+  background: rgba(248, 251, 255, 0.78);
 }
 
 .board-card-add {
+  min-height: 156px;
   justify-content: center;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
   cursor: pointer;
   border-style: dashed;
   border-color: rgba(43, 122, 56, 0.28);
   background: linear-gradient(180deg, #fbfffb 0%, #f1fbf3 100%);
+  padding: 0;
 }
 
 .board-card-top {
@@ -320,8 +322,8 @@ onMounted(async () => {
 .board-card-type {
   font-size: 12px;
   font-weight: 700;
-  color: #5b7da4;
-  letter-spacing: 0.04em;
+  color: #6a7f98;
+  letter-spacing: 0.02em;
 }
 
 .board-card-status {
@@ -348,7 +350,7 @@ onMounted(async () => {
 
 .board-card-name {
   color: #10253d;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   line-height: 1.35;
   overflow: hidden;
@@ -358,8 +360,8 @@ onMounted(async () => {
 
 .board-card-desc {
   flex: 1;
-  color: #6d7f95;
-  font-size: 13px;
+  color: #73849a;
+  font-size: 12px;
   line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -372,7 +374,7 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  color: #7d8fa5;
+  color: #8596aa;
   font-size: 12px;
 }
 
@@ -382,13 +384,18 @@ onMounted(async () => {
 }
 
 .board-add-icon {
-  font-size: 34px;
+  font-size: 28px;
   color: #2b7a38;
 }
 
 .board-add-text {
-  color: #2b7a38;
-  font-size: 14px;
-  font-weight: 700;
+  display: none;
+}
+
+.board-card-meta span:last-child {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

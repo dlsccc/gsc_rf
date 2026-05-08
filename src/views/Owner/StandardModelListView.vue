@@ -155,11 +155,11 @@ onMounted(async () => {
 
 <style scoped>
 .board-wrapper {
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(31, 86, 160, 0.1);
-  border-radius: 18px;
-  padding: 18px;
-  box-shadow: 0 10px 30px rgba(31, 86, 160, 0.06);
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(31, 86, 160, 0.08);
+  border-radius: 16px;
+  padding: 16px 18px 18px;
+  box-shadow: 0 8px 24px rgba(31, 86, 160, 0.05);
 }
 
 .board-header-grid,
@@ -170,16 +170,16 @@ onMounted(async () => {
 }
 
 .board-header-cell {
-  min-height: 40px;
+  min-height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
-  background: linear-gradient(180deg, #ffffff 0%, #edf4ff 100%);
-  color: #355b87;
-  font-size: 14px;
+  border-radius: 10px;
+  background: rgba(238, 245, 255, 0.7);
+  color: #4f6582;
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
 }
 
 .board-corner {
@@ -193,16 +193,17 @@ onMounted(async () => {
 }
 
 .board-rat-chip {
-  min-width: 60px;
-  height: 36px;
-  padding: 0 14px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #1f56a0 0%, #4f88d3 100%);
-  color: #fff;
+  min-width: 44px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 9px;
+  background: rgba(31, 86, 160, 0.08);
+  color: #355b87;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  border: 1px solid rgba(31, 86, 160, 0.12);
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -212,11 +213,11 @@ onMounted(async () => {
 
 .board-card {
   width: 100%;
-  min-height: 162px;
-  border: 1px solid rgba(31, 86, 160, 0.12);
-  border-radius: 16px;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-  padding: 14px;
+  min-height: 154px;
+  border: 1px solid rgba(31, 86, 160, 0.1);
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 13px 14px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -230,15 +231,15 @@ onMounted(async () => {
 
 .board-card:not(.board-card-empty):hover {
   transform: translateY(-2px);
-  border-color: rgba(31, 86, 160, 0.26);
-  box-shadow: 0 14px 30px rgba(31, 86, 160, 0.1);
+  border-color: rgba(31, 86, 160, 0.2);
+  box-shadow: 0 12px 24px rgba(31, 86, 160, 0.08);
 }
 
 .board-card-empty {
   justify-content: center;
   align-items: center;
   border-style: dashed;
-  background: rgba(250, 252, 255, 0.78);
+  background: rgba(248, 251, 255, 0.78);
 }
 
 .board-card-top {
@@ -251,17 +252,17 @@ onMounted(async () => {
 .board-card-type {
   font-size: 12px;
   font-weight: 700;
-  color: #5b7da4;
-  letter-spacing: 0.04em;
+  color: #6a7f98;
+  letter-spacing: 0.02em;
 }
 
 .board-card-badge {
   min-width: 28px;
-  height: 22px;
+  height: 20px;
   padding: 0 8px;
   border-radius: 999px;
-  background: #eef5ff;
-  color: #1f56a0;
+  background: #f2f6fb;
+  color: #5d7390;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -271,7 +272,7 @@ onMounted(async () => {
 
 .board-card-name {
   color: #10253d;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   line-height: 1.35;
   overflow: hidden;
@@ -281,8 +282,8 @@ onMounted(async () => {
 
 .board-card-desc {
   flex: 1;
-  color: #6d7f95;
-  font-size: 13px;
+  color: #73849a;
+  font-size: 12px;
   line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -295,7 +296,7 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  color: #7d8fa5;
+  color: #8596aa;
   font-size: 12px;
 }
 
