@@ -650,6 +650,11 @@ const onRefModelChange = async () => {
     isJoinKey: false
   }));
   form.fields = inheritedFields;
+  joinKeyList.value = Array.isArray(detail?.joinKeyList) ? [...detail.joinKeyList] : [];
+  form.fields = form.fields.map((field) => ({
+    ...field,
+    isJoinKey: joinKeyList.value.map((item) => toText(item).toUpperCase()).includes(toText(field.name).toUpperCase())
+  }));
   lockedPrimaryFieldName.value = (toText(detail?.tags?.type || detail?.businessModelType).toLowerCase() === 'ep' || toText(detail?.tags?.type) === '工参') ? 'VENDOR' : 'DATE_TIME';
 
   if (!Array.isArray(form.fields) || form.fields.length === 0) {
