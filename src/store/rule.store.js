@@ -114,21 +114,7 @@ const parseRuleInputString = (ruleInput) => {
   }
 };
 
-const defaultRules = [
-  {
-    id: 1,
-    ruleCode: '1',
-    name: 'UM_4G_HW_小时级Counter入湖',
-    description: '华为4G网络小时级Counter数据入湖规则，用于基站性能指标数据入湖',
-    status: 'active',
-    targetModel: 'UM_4G_HW_小时级Counter',
-    updateTime: '2024-03-04 15:30',
-    projectId: 1,
-    projectCode: 'project11111111',
-    inputTables: [{ ...RULE_INPUT_TABLES[0] }],
-    ruleJson: {}
-  }
-];
+const defaultRules = []
 
 export const normalizeRule = (rule = {}) => ({
   ...rule,
