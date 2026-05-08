@@ -35,14 +35,14 @@
       <div class="form-row">
         <div class="form-group">
           <label class="form-label"><span class="material-icons">business</span>厂商</label>
-          <select v-model="form.tags.vendor" class="form-select">
+          <select v-model="form.tags.vendor" class="form-select" :disabled="isVendorLocked">
             <option value="">请选择厂商</option>
             <option v-for="opt in vendorOptions" :key="opt" :value="opt">{{ opt }}</option>
           </select>
         </div>
         <div class="form-group">
           <label class="form-label"><span class="material-icons">settings_input_antenna</span>制式</label>
-          <select v-model="form.tags.standard" class="form-select">
+          <select v-model="form.tags.standard" class="form-select" :disabled="isStandardLocked">
             <option value="">请选择制式</option>
             <option v-for="opt in standardOptions" :key="opt" :value="opt">{{ opt }}</option>
           </select>
@@ -58,21 +58,20 @@
         </div>
         <div class="form-group">
           <label class="form-label"><span class="material-icons">place</span>空间粒度</label>
-          <select v-model="form.tags.spaceGranularity" class="form-select" :disabled="spaceGranularityOptions.length === 0">
-            <option value="">{{ spaceGranularityOptions.length === 0 ? '请先在字段定义中配置空间字段' : '请选择空间粒度' }}</option>
+          <select v-model="form.tags.spaceGranularity" class="form-select" :disabled="spaceGranularityOptions.length === 0" multiple>
             <option v-for="opt in spaceGranularityOptions" :key="opt" :value="opt">{{ opt }}</option>
           </select>
         </div>
         <div class="form-group">
           <label class="form-label"><span class="material-icons">category</span>类型</label>
-          <select v-model="form.tags.type" class="form-select">
+          <select v-model="form.tags.type" class="form-select" :disabled="isTypeLocked">
             <option value="">请选择类型</option>
-            <option v-for="opt in typeOptions" :key="opt" :value="opt">{{ opt }}</option>
+            <option v-for="opt in availableTypeOptions" :key="opt" :value="opt">{{ opt }}</option>
           </select>
           <div v-if="needInvolveCalc" style="margin-top: 8px;">
             <label class="form-label" style="display: flex; align-items: center; gap: 8px; font-weight: 500;">
               <input v-model="form.tags.involveCalc" type="checkbox" />
-              <span>空值/异常值是否参与计算</span>
+              <span>空值/异常值参与计算</span>
             </label>
             <div class="form-hint">异常值：NIL, NAN, NULL, /0等</div>
           </div>
@@ -426,6 +425,15 @@ const isEdit = computed(() => !!editId.value);
 const form = reactive(emptyModel());
 const importInputRef = ref(null);
 const needInvolveCalc = computed(() => ['Counter', 'KPI'].includes(String(form.tags?.type || '').trim()));
+const isStandardLocked = computed(() => !isEdit.value && !!toText(route.query.standard));
+const isVendorLocked = computed(() => !isEdit.value && !!toText(route.query.vendor));
+const isTypeLocked = computed(() => !isEdit.value && toText(form.tags?.type) === '工参');
+const availableTypeOptions = computed(() => {
+  if (toText(route.query.type) === '工参' || toText(form.tags?.type) === '工参') {
+    return ['工参'];
+  }
+  return ['Counter', 'KPI'];
+});
 const inheritedStandardModelCode = ref('');
 const lockedPrimaryFieldName = ref('');
 const joinKeyList = ref([]);
@@ -569,7 +577,12 @@ const fillForm = (data) => {
   }
   form.isRelease = form.isRelease === true || String(form.isRelease).toLowerCase() === 'true';
   form.tags.involveCalc = form.tags.involveCalc === true || String(form.tags.involveCalc).toLowerCase() === 'true';
-  form.tags.spaceGranularity = String(form.tags.spaceGranularity || '').trim();
+  if (Array.isArray(form.tags.spaceGranularity)) {
+    form.tags.spaceGranularity = form.tags.spaceGranularity.map((item) => String(item || '').trim()).filter(Boolean);
+  } else {
+    const nextSpace = String(form.tags.spaceGranularity || '').trim();
+    form.tags.spaceGranularity = nextSpace ? [nextSpace] : [];
+  }
   if (!Array.isArray(form.fields) || form.fields.length === 0) {
     form.fields = [emptyField()];
   }
@@ -582,10 +595,7 @@ const fillForm = (data) => {
     sourceModelCode: toText(field.sourceModelCode || field.sourceModel),
     isJoinKey: joinKeyList.value.map((item) => toText(item).toUpperCase()).includes(toText(field.name).toUpperCase())
   }));
-  const currentSpaceGranularity = String(form.tags.spaceGranularity || '').trim();
-  if (currentSpaceGranularity && !spaceGranularityOptions.value.includes(currentSpaceGranularity)) {
-    form.tags.spaceGranularity = '';
-  }
+  form.tags.spaceGranularity = form.tags.spaceGranularity.filter((item) => spaceGranularityOptions.value.includes(item));
 
   const refModel = resolveStandardModel(form.refStandardModel);
   if (refModel) {
@@ -630,10 +640,8 @@ watch(
 watch(
   spaceGranularityOptions,
   (options) => {
-    const current = String(form.tags.spaceGranularity || '').trim();
-    if (current && !options.includes(current)) {
-      form.tags.spaceGranularity = '';
-    }
+    form.tags.spaceGranularity = (Array.isArray(form.tags.spaceGranularity) ? form.tags.spaceGranularity : [])
+      .filter((item) => options.includes(item));
   }
 );
 const onRefModelChange = async () => {

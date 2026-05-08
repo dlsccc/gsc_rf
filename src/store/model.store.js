@@ -212,7 +212,12 @@ const normalizeTags = (model = {}) => ({
   vendor: toUiEnumValue(getTagValue(model, 'vendor', model.vendor || model.factory), VENDOR_API_TO_UI_UPPER, 'upper'),
   standard: toUiEnumValue(getTagValue(model, 'standard', model.rat || model.format), RAT_API_TO_UI_UPPER, 'upper'),
   timeGranularity: toUiEnumValue(getTagValue(model, 'timeGranularity', model.timeGranularity), TIME_GRANULARITY_API_TO_UI_LOWER, 'lower'),
-  spaceGranularity: toText(getTagValue(model, 'spaceGranularity', model.spaceGranularity)),
+  spaceGranularity: (() => {
+    const value = getTagValue(model, 'spaceGranularity', model.spaceGranularity);
+    if (Array.isArray(value)) return value.map((item) => toText(item)).filter(Boolean);
+    const text = toText(value);
+    return text ? [text] : [];
+  })(),
   type: toUiEnumValue(getTagValue(model, 'type', model.businessModelType), MODEL_TYPE_API_TO_UI_LOWER, 'lower'),
   involveCalc: getTagValue(model, 'involveCalc', undefined) !== undefined
     ? toBoolean(getTagValue(model, 'involveCalc', undefined))
@@ -293,7 +298,9 @@ export const toModelSavePayload = ({ entity, modelType, projectCode = '' }) => {
     vendor: toApiEnumValue(entity.tags?.vendor, VENDOR_UI_TO_API),
     rat: toApiEnumValue(entity.tags?.standard, RAT_UI_TO_API),
     timeGranularity: toApiEnumValue(entity.tags?.timeGranularity, TIME_GRANULARITY_UI_TO_API),
-    spaceGranularity: toText(entity.tags?.spaceGranularity),
+    spaceGranularity: Array.isArray(entity.tags?.spaceGranularity)
+      ? entity.tags.spaceGranularity.map((item) => toText(item)).filter(Boolean)
+      : (toText(entity.tags?.spaceGranularity) ? [toText(entity.tags?.spaceGranularity)] : []),
     businessModelType: toApiEnumValue(entity.tags?.type, MODEL_TYPE_UI_TO_API),
     involveCalc,
     ...(modelType === 'business' ? { joinKeyList: Array.isArray(entity.joinKeyList) ? entity.joinKeyList : [] } : {}),
