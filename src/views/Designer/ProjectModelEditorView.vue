@@ -86,21 +86,35 @@
         字段定义
       </div>
 
+      <div class="field-table-container field-layer-table field-master-header">
+        <table class="field-table">
+          <thead>
+            <tr>
+              <th style="width: 50px;">#</th>
+              <th style="width: 180px;">
+                字段名称 *
+                <span
+                  title="只能是数字、字母和下划线，以字母开头，最大长度64"
+                  style="display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; margin-left: 4px; border-radius: 50%; background: #fff7e6; color: #d46b08; font-size: 12px; font-weight: 700; cursor: help;"
+                >
+                  !
+                </span>
+              </th>
+              <th style="width: 140px;">字段类型 *</th>
+              <th style="width: 140px;">数据格式</th>
+              <th style="width: 120px;">业务类型</th>
+              <th>业务描述</th>
+              <th style="width: 120px;">样例值</th>
+              <th style="width: 80px;">操作</th>
+            </tr>
+          </thead>
+        </table>
+      </div>
+
       <div class="field-layer" v-if="layerOneFields.length > 0">
         <div class="field-layer-title"><span class="field-layer-index">①</span><span>固定主字段</span></div>
         <div class="field-table-container field-layer-table">
           <table class="field-table">
-            <thead>
-              <tr>
-                <th style="width: 50px;">#</th>
-                <th style="width: 180px;">字段名称</th>
-                <th style="width: 140px;">字段类型</th>
-                <th style="width: 140px;">数据格式</th>
-                <th style="width: 120px;">业务类型</th>
-                <th>业务描述</th>
-                <th style="width: 120px;">样例值</th>
-              </tr>
-            </thead>
             <tbody>
               <tr v-for="(item, index) in layerOneFields" :key="`layer1-${item.index}`">
                 <td class="field-index">{{ index + 1 }}</td>
@@ -950,6 +964,10 @@ const publishProjectModel = async () => {
   padding-top: 12px;
   margin-top: 12px;
   border-top: 1px solid rgba(24, 121, 184, 0.08);
+}
+
+.field-master-header {
+  margin-top: 10px;
 }
 
 .field-layer:first-of-type {
