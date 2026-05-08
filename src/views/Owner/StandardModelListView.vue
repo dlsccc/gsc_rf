@@ -131,10 +131,7 @@ const getStandardBoardRow = (ratKey) => {
 };
 
 const openStandardModel = (model) => {
-  router.push({
-    path: `/owner/standard-models/${model.id}/edit`,
-    query: { mode: 'view' }
-  });
+  router.push(`/owner/standard-models/${model.id}/edit`);
 };
 
 const loadStandardModels = async () => {
