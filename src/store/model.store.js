@@ -93,6 +93,18 @@ const toApiEnumValue = (value, map) => {
   return map[text] || text;
 };
 
+const normalizeCommaSeparatedList = (value) => {
+  if (Array.isArray(value)) {
+    return value
+      .flatMap((item) => String(item ?? '').split(','))
+      .map((item) => toText(item))
+      .filter(Boolean);
+  }
+  const text = toText(value);
+  if (!text) return [];
+  return text.split(',').map((item) => toText(item)).filter(Boolean);
+};
+
 const BUSINESS_FIELD_TYPES = {
   TIME: 'time',
   SPACE: 'space',
@@ -212,12 +224,7 @@ const normalizeTags = (model = {}) => ({
   vendor: toUiEnumValue(getTagValue(model, 'vendor', model.vendor || model.factory), VENDOR_API_TO_UI_UPPER, 'upper'),
   standard: toUiEnumValue(getTagValue(model, 'standard', model.rat || model.format), RAT_API_TO_UI_UPPER, 'upper'),
   timeGranularity: toUiEnumValue(getTagValue(model, 'timeGranularity', model.timeGranularity), TIME_GRANULARITY_API_TO_UI_LOWER, 'lower'),
-  spaceGranularity: (() => {
-    const value = getTagValue(model, 'spaceGranularity', model.spaceGranularity);
-    if (Array.isArray(value)) return value.map((item) => toText(item)).filter(Boolean);
-    const text = toText(value);
-    return text ? [text] : [];
-  })(),
+  spaceGranularity: normalizeCommaSeparatedList(getTagValue(model, 'spaceGranularity', model.spaceGranularity)),
   type: toUiEnumValue(getTagValue(model, 'type', model.businessModelType), MODEL_TYPE_API_TO_UI_LOWER, 'lower'),
   involveCalc: getTagValue(model, 'involveCalc', undefined) !== undefined
     ? toBoolean(getTagValue(model, 'involveCalc', undefined))
@@ -298,9 +305,7 @@ export const toModelSavePayload = ({ entity, modelType, projectCode = '' }) => {
     vendor: toApiEnumValue(entity.tags?.vendor, VENDOR_UI_TO_API),
     rat: toApiEnumValue(entity.tags?.standard, RAT_UI_TO_API),
     timeGranularity: toApiEnumValue(entity.tags?.timeGranularity, TIME_GRANULARITY_UI_TO_API),
-    spaceGranularity: Array.isArray(entity.tags?.spaceGranularity)
-      ? entity.tags.spaceGranularity.map((item) => toText(item)).filter(Boolean)
-      : (toText(entity.tags?.spaceGranularity) ? [toText(entity.tags?.spaceGranularity)] : []),
+    spaceGranularity: normalizeCommaSeparatedList(entity.tags?.spaceGranularity).join(','),
     businessModelType: toApiEnumValue(entity.tags?.type, MODEL_TYPE_UI_TO_API),
     involveCalc,
     ...(modelType === 'business' ? { joinKeyList: Array.isArray(entity.joinKeyList) ? entity.joinKeyList : [] } : {}),
