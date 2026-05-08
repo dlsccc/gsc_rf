@@ -19,6 +19,16 @@
           <div class="form-hint">简要描述该模型的用途和业务含义</div>
         </div>
       </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label"><span class="material-icons">category</span>{{ '\u5bf9\u8c61\u7c7b\u578b' }}</label>
+          <input :value="standardModelObjectType" class="form-input" type="text" disabled />
+        </div>
+        <div v-if="standardModelObjectType === '\u6027\u80fd\u5bf9\u8c61'" class="form-group">
+          <label class="form-label"><span class="material-icons">business</span>{{ '\u5382\u5546' }}</label>
+          <input :value="standardModelVendorName" class="form-input" type="text" disabled />
+        </div>
+      </div>
     </div>
 
     <div class="model-form-section" :style="isViewOnly ? { opacity: 0.9 } : null">
@@ -227,6 +237,13 @@ const form = reactive(emptyModel());
 const importInputRef = ref(null);
 
 const toText = (value) => String(value ?? '').trim();
+const standardModelObjectType = computed(() => {
+  const type = toText(form?.tags?.type || form?.businessModelType).toLowerCase();
+  return type === 'ep' || type === '\u5de5\u53c2' ? '\u5de5\u53c2\u5bf9\u8c61' : '\u6027\u80fd\u5bf9\u8c61';
+});
+const standardModelVendorName = computed(() => {
+  return toText(form?.tags?.vendor || form?.vendor || form?.factory) || '-';
+});
 
 const isValidModelCode = (value) => {
   const code = toText(value);
