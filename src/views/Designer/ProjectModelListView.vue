@@ -112,6 +112,21 @@ const RAT_TO_UI_STANDARD = {
   GSM: '2G'
 };
 
+const COLUMN_TO_STANDARD_TYPE = {
+  ep: '\u5de5\u53c2',
+  HW: 'Counter',
+  ZTE: 'Counter',
+  ERIC: 'Counter',
+  COMPANY4: 'Counter'
+};
+
+const COLUMN_TO_VENDOR = {
+  HW: '\u534e\u4e3a',
+  ZTE: '\u4e2d\u5174',
+  ERIC: '\u7231\u7acb\u4fe1',
+  COMPANY4: '\u516c\u53f8\u56db'
+};
+
 const toText = (value) => String(value ?? '').trim();
 
 const projectModels = computed(() => {
@@ -175,6 +190,18 @@ const createProjectModelForRat = (ratKey) => {
   router.push({
     path: '/designer/project-models/new',
     query: { rat: ratKey, standard: RAT_TO_UI_STANDARD[ratKey] || '' }
+  });
+};
+
+const createProjectModelForSlot = (ratKey, columnKey) => {
+  router.push({
+    path: '/designer/project-models/new',
+    query: {
+      rat: ratKey,
+      standard: RAT_TO_UI_STANDARD[ratKey] || '',
+      type: COLUMN_TO_STANDARD_TYPE[columnKey] || '',
+      vendor: COLUMN_TO_VENDOR[columnKey] || ''
+    }
   });
 };
 
