@@ -124,14 +124,11 @@ const COLUMN_TO_STANDARD_TYPE = {
   E: 'Counter',
   NSN: 'Counter'
 };
-};
 const COLUMN_TO_VENDOR = {
   HW: '\u534e\u4e3a',
   ZTE: '\u4e2d\u5174',
   E: '\u7231\u7acb\u4fe1',
   NSN: '\u8bfa\u57fa\u4e9a\u897f\u95e8\u5b50'
-};
-  COMPANY4: '\u516c\u53f8\u56db'
 };
 
 const toText = (value) => String(value ?? '').trim();
