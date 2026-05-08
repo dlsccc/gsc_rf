@@ -86,83 +86,248 @@
         字段定义
         <span style="font-size: 12px; color: var(--text-secondary); font-weight: normal; margin-left: 8px;">（基于引用的标准模型，可修改）</span>
       </div>
-      <div class="field-table-container">
-        <table class="field-table">
-          <thead>
-            <tr>
-              <th style="width: 50px;">#</th>
-              <th style="width: 180px;">
-                字段名称 *
-                <span
-                  title="只能是数字、字母和下划线，以字母开头，最大长度64"
-                  style="display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; margin-left: 4px; border-radius: 50%; background: #fff7e6; color: #d46b08; font-size: 12px; font-weight: 700; cursor: help;"
-                >
-                  !
-                </span>
-              </th>
-              <th style="width: 140px;">字段类型 *</th>
-              <th style="width: 140px;">数据格式</th>
-              <th style="width: 120px;">业务类型</th>
-              <th>业务描述</th>
-              <th style="width: 120px;">样例值</th>
-              <th style="width: 80px;">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(field, index) in form.fields" :key="index">
-              <td class="field-index">{{ index + 1 }}</td>
-              <td>
-                <input
-                  v-model="field.name"
-                  class="field-input"
-                  type="text"
-                  placeholder="字段名称"
-                  :style="getFieldNameError(field) ? { borderColor: 'var(--danger)', boxShadow: '0 0 0 1px var(--danger)' } : null"
-                />
-                <div v-if="getFieldNameError(field)" style="margin-top: 4px; font-size: 12px; color: var(--danger); line-height: 1.4;">
-                  {{ getFieldNameError(field) }}
-                </div>
-              </td>
-              <td>
-                <select v-model="field.type" class="field-select" @change="onFieldTypeChange(field)">
-                  <option value="">请选择</option>
-                  <option value="STRING">STRING</option>
-                  <option value="INT64">INT64</option>
-                  <option value="FLOAT64">FLOAT64</option>
-                </select>
-              </td>
-              <td>
-                <select v-model="field.format" class="field-select">
-                  <option v-for="opt in getFormatOptions(field.type)" :key="opt.value || 'none'" :value="opt.value">{{ opt.label }}</option>
-                </select>
-              </td>
-              <td>
-                <select v-model="field.businessType" class="field-select">
-                  <option v-for="type in businessTypeOptions" :key="type.value" :value="type.value">{{ type.label }}</option>
-                </select>
-              </td>
-              <td><input v-model="field.description" class="field-input" type="text" placeholder="业务含义描述" /></td>
-              <td><input v-model="field.example" class="field-input" type="text" placeholder="样例" /></td>
-              <td class="field-actions">
-                <button class="field-action-btn move" :disabled="index === 0" title="上移" @click="moveFieldUp(index)">
-                  <span class="material-icons" style="font-size: 16px;">arrow_upward</span>
-                </button>
-                <button class="field-action-btn move" :disabled="index === form.fields.length - 1" title="下移" @click="moveFieldDown(index)">
-                  <span class="material-icons" style="font-size: 16px;">arrow_downward</span>
-                </button>
-                <button class="field-action-btn" title="删除" @click="removeField(index)">
-                  <span class="material-icons" style="font-size: 16px;">delete</span>
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+
+      <div class="field-layer" v-if="layerOneFields.length > 0">
+        <div class="field-layer-title">第一层次：固定主字段</div>
+        <div class="field-table-container field-layer-table">
+          <table class="field-table">
+            <thead>
+              <tr>
+                <th style="width: 50px;">#</th>
+                <th style="width: 180px;">字段名称</th>
+                <th style="width: 140px;">字段类型</th>
+                <th style="width: 140px;">数据格式</th>
+                <th style="width: 120px;">业务类型</th>
+                <th>业务描述</th>
+                <th style="width: 120px;">样例值</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(item, index) in layerOneFields" :key="`layer1-${item.index}`">
+                <td class="field-index">{{ index + 1 }}</td>
+                <td><input :value="item.field.name" class="field-input" type="text" disabled /></td>
+                <td><input :value="item.field.type" class="field-input" type="text" disabled /></td>
+                <td><input :value="item.field.format" class="field-input" type="text" disabled /></td>
+                <td><input :value="toBusinessTypeLabel(item.field.businessType)" class="field-input" type="text" disabled /></td>
+                <td><input :value="item.field.description" class="field-input" type="text" disabled /></td>
+                <td><input :value="item.field.example" class="field-input" type="text" disabled /></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      <button class="btn btn-default" style="margin-top: 16px;" @click="addField">
-        <span class="material-icons" style="font-size: 18px;">add</span>
-        添加字段
-      </button>
+      <div class="field-layer" v-if="layerTwoFields.length > 0">
+        <div class="field-layer-title">第二层次：Join Key 字段</div>
+        <div class="field-table-container field-layer-table">
+          <table class="field-table">
+            <thead>
+              <tr>
+                <th style="width: 50px;">#</th>
+                <th style="width: 180px;">
+                  字段名称 *
+                  <span
+                    title="只能是数字、字母和下划线，以字母开头，最大长度64"
+                    style="display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; margin-left: 4px; border-radius: 50%; background: #fff7e6; color: #d46b08; font-size: 12px; font-weight: 700; cursor: help;"
+                  >
+                    !
+                  </span>
+                </th>
+                <th style="width: 140px;">字段类型 *</th>
+                <th style="width: 140px;">数据格式</th>
+                <th style="width: 120px;">业务类型</th>
+                <th>业务描述</th>
+                <th style="width: 120px;">样例值</th>
+                <th style="width: 80px;">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(item, index) in layerTwoFields" :key="`layer2-${item.index}`">
+                <td class="field-index">{{ index + 1 }}</td>
+                <td>
+                  <input
+                    v-model="item.field.name"
+                    class="field-input"
+                    type="text"
+                    placeholder="字段名称"
+                    :style="getFieldNameError(item.field) ? { borderColor: 'var(--danger)', boxShadow: '0 0 0 1px var(--danger)' } : null"
+                  />
+                  <div v-if="getFieldNameError(item.field)" style="margin-top: 4px; font-size: 12px; color: var(--danger); line-height: 1.4;">
+                    {{ getFieldNameError(item.field) }}
+                  </div>
+                </td>
+                <td><input :value="item.field.type" class="field-input" type="text" disabled /></td>
+                <td><input :value="item.field.format" class="field-input" type="text" disabled /></td>
+                <td><input :value="toBusinessTypeLabel(item.field.businessType)" class="field-input" type="text" disabled /></td>
+                <td><input :value="item.field.description" class="field-input" type="text" disabled /></td>
+                <td><input :value="item.field.example" class="field-input" type="text" disabled /></td>
+                <td class="field-actions">
+                  <button class="field-action-btn" title="删除" @click="removeField(item.index)">
+                    <span class="material-icons" style="font-size: 16px;">delete</span>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="field-layer" v-if="layerThreeFields.length > 0">
+        <div class="field-layer-title">第三层次：标准模型引用字段</div>
+        <div class="field-table-container field-layer-table">
+          <table class="field-table">
+            <thead>
+              <tr>
+                <th style="width: 50px;">#</th>
+                <th style="width: 180px;">
+                  字段名称 *
+                  <span
+                    title="只能是数字、字母和下划线，以字母开头，最大长度64"
+                    style="display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; margin-left: 4px; border-radius: 50%; background: #fff7e6; color: #d46b08; font-size: 12px; font-weight: 700; cursor: help;"
+                  >
+                    !
+                  </span>
+                </th>
+                <th style="width: 140px;">字段类型 *</th>
+                <th style="width: 140px;">数据格式</th>
+                <th style="width: 120px;">业务类型</th>
+                <th>业务描述</th>
+                <th style="width: 120px;">样例值</th>
+                <th style="width: 80px;">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(item, index) in layerThreeFields" :key="`layer3-${item.index}`">
+                <td class="field-index">{{ index + 1 }}</td>
+                <td>
+                  <input
+                    v-model="item.field.name"
+                    class="field-input"
+                    type="text"
+                    placeholder="字段名称"
+                    :style="getFieldNameError(item.field) ? { borderColor: 'var(--danger)', boxShadow: '0 0 0 1px var(--danger)' } : null"
+                  />
+                  <div v-if="getFieldNameError(item.field)" style="margin-top: 4px; font-size: 12px; color: var(--danger); line-height: 1.4;">
+                    {{ getFieldNameError(item.field) }}
+                  </div>
+                </td>
+                <td>
+                  <select v-model="item.field.type" class="field-select" @change="onFieldTypeChange(item.field)">
+                    <option value="">请选择</option>
+                    <option value="STRING">STRING</option>
+                    <option value="INT64">INT64</option>
+                    <option value="FLOAT64">FLOAT64</option>
+                  </select>
+                </td>
+                <td>
+                  <select v-model="item.field.format" class="field-select">
+                    <option v-for="opt in getFormatOptions(item.field.type)" :key="opt.value || 'none'" :value="opt.value">{{ opt.label }}</option>
+                  </select>
+                </td>
+                <td>
+                  <select v-model="item.field.businessType" class="field-select">
+                    <option v-for="type in businessTypeOptions" :key="type.value" :value="type.value">{{ type.label }}</option>
+                  </select>
+                </td>
+                <td><input v-model="item.field.description" class="field-input" type="text" placeholder="业务含义描述" /></td>
+                <td><input v-model="item.field.example" class="field-input" type="text" placeholder="样例" /></td>
+                <td class="field-actions">
+                  <button class="field-action-btn move" :disabled="index === 0" title="上移" @click="moveLayerField(layerThreeFields, index, -1)">
+                    <span class="material-icons" style="font-size: 16px;">arrow_upward</span>
+                  </button>
+                  <button class="field-action-btn move" :disabled="index === layerThreeFields.length - 1" title="下移" @click="moveLayerField(layerThreeFields, index, 1)">
+                    <span class="material-icons" style="font-size: 16px;">arrow_downward</span>
+                  </button>
+                  <button class="field-action-btn" title="删除" @click="removeField(item.index)">
+                    <span class="material-icons" style="font-size: 16px;">delete</span>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="field-layer">
+        <div class="field-layer-title">第四层次：新增字段</div>
+        <div class="field-table-container field-layer-table">
+          <table class="field-table">
+            <thead>
+              <tr>
+                <th style="width: 50px;">#</th>
+                <th style="width: 180px;">
+                  字段名称 *
+                  <span
+                    title="只能是数字、字母和下划线，以字母开头，最大长度64"
+                    style="display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; margin-left: 4px; border-radius: 50%; background: #fff7e6; color: #d46b08; font-size: 12px; font-weight: 700; cursor: help;"
+                  >
+                    !
+                  </span>
+                </th>
+                <th style="width: 140px;">字段类型 *</th>
+                <th style="width: 140px;">数据格式</th>
+                <th style="width: 120px;">业务类型</th>
+                <th>业务描述</th>
+                <th style="width: 120px;">样例值</th>
+                <th style="width: 80px;">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(item, index) in layerFourFields" :key="`layer4-${item.index}`">
+                <td class="field-index">{{ index + 1 }}</td>
+                <td>
+                  <input
+                    v-model="item.field.name"
+                    class="field-input"
+                    type="text"
+                    placeholder="字段名称"
+                    :style="getFieldNameError(item.field) ? { borderColor: 'var(--danger)', boxShadow: '0 0 0 1px var(--danger)' } : null"
+                  />
+                  <div v-if="getFieldNameError(item.field)" style="margin-top: 4px; font-size: 12px; color: var(--danger); line-height: 1.4;">
+                    {{ getFieldNameError(item.field) }}
+                  </div>
+                </td>
+                <td>
+                  <select v-model="item.field.type" class="field-select" @change="onFieldTypeChange(item.field)">
+                    <option value="">请选择</option>
+                    <option value="STRING">STRING</option>
+                    <option value="INT64">INT64</option>
+                    <option value="FLOAT64">FLOAT64</option>
+                  </select>
+                </td>
+                <td>
+                  <select v-model="item.field.format" class="field-select">
+                    <option v-for="opt in getFormatOptions(item.field.type)" :key="opt.value || 'none'" :value="opt.value">{{ opt.label }}</option>
+                  </select>
+                </td>
+                <td>
+                  <select v-model="item.field.businessType" class="field-select">
+                    <option v-for="type in businessTypeOptions" :key="type.value" :value="type.value">{{ type.label }}</option>
+                  </select>
+                </td>
+                <td><input v-model="item.field.description" class="field-input" type="text" placeholder="业务含义描述" /></td>
+                <td><input v-model="item.field.example" class="field-input" type="text" placeholder="样例" /></td>
+                <td class="field-actions">
+                  <button class="field-action-btn move" :disabled="index === 0" title="上移" @click="moveLayerField(layerFourFields, index, -1)">
+                    <span class="material-icons" style="font-size: 16px;">arrow_upward</span>
+                  </button>
+                  <button class="field-action-btn move" :disabled="index === layerFourFields.length - 1" title="下移" @click="moveLayerField(layerFourFields, index, 1)">
+                    <span class="material-icons" style="font-size: 16px;">arrow_downward</span>
+                  </button>
+                  <button class="field-action-btn" title="删除" @click="removeField(item.index)">
+                    <span class="material-icons" style="font-size: 16px;">delete</span>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <button class="btn btn-default" style="margin-top: 16px;" @click="addField">
+          <span class="material-icons" style="font-size: 18px;">add</span>
+          添加字段
+        </button>
+      </div>
     </div>
 
     <div class="model-edit-actions">
@@ -308,6 +473,9 @@ const isEdit = computed(() => !!editId.value);
 const form = reactive(emptyModel());
 const importInputRef = ref(null);
 const needInvolveCalc = computed(() => ['Counter', 'KPI'].includes(String(form.tags?.type || '').trim()));
+const inheritedStandardModelCode = ref('');
+const lockedPrimaryFieldName = ref('');
+const joinKeyList = ref([]);
 const spaceGranularityOptions = computed(() => {
   const options = (Array.isArray(form.fields) ? form.fields : [])
     .filter((field) => String(field?.businessType || '').trim().toLowerCase() === 'space')
@@ -321,6 +489,63 @@ const resolveCurrentProjectCode = () => {
 };
 
 const toText = (value) => String(value ?? '').trim();
+const isEpModel = computed(() => {
+  const type = toText(form.tags?.type || '').toLowerCase();
+  return type === '工参' || type === 'ep';
+});
+const referencedStandardFieldNameSet = computed(() => {
+  const standardModel = resolveStandardModel(form.refStandardModel);
+  const names = Array.isArray(standardModel?.fields) ? standardModel.fields : [];
+  return new Set(names.map((field) => toText(field?.name).toUpperCase()).filter(Boolean));
+});
+const layerOneFieldName = computed(() => lockedPrimaryFieldName.value || (isEpModel.value ? 'VENDOR' : 'DATE_TIME'));
+
+const layerOneFields = computed(() => {
+  return form.fields
+    .map((field, index) => ({ field, index }))
+    .filter((item) => toText(item.field?.name).toUpperCase() === toText(layerOneFieldName.value).toUpperCase());
+});
+
+const layerTwoFields = computed(() => {
+  const joinSet = new Set(joinKeyList.value.map((item) => toText(item).toUpperCase()));
+  const layerOneKey = toText(layerOneFieldName.value).toUpperCase();
+  return form.fields
+    .map((field, index) => ({ field, index }))
+    .filter((item) => {
+      const name = toText(item.field?.name).toUpperCase();
+      return name !== layerOneKey && joinSet.has(name);
+    });
+});
+
+const layerThreeFields = computed(() => {
+  const joinSet = new Set(joinKeyList.value.map((item) => toText(item).toUpperCase()));
+  const layerOneKey = toText(layerOneFieldName.value).toUpperCase();
+  const inheritedNameSet = referencedStandardFieldNameSet.value;
+  return form.fields
+    .map((field, index) => ({ field, index }))
+    .filter((item) => {
+      const name = toText(item.field?.name).toUpperCase();
+      const sourceCode = toText(item.field?.sourceModelCode);
+      const matchByCode = inheritedStandardModelCode.value && sourceCode === toText(inheritedStandardModelCode.value);
+      const matchByName = inheritedNameSet.has(name);
+      return name !== layerOneKey && !joinSet.has(name) && (matchByCode || matchByName);
+    });
+});
+
+const layerFourFields = computed(() => {
+  const joinSet = new Set(joinKeyList.value.map((item) => toText(item).toUpperCase()));
+  const layerOneKey = toText(layerOneFieldName.value).toUpperCase();
+  const inheritedNameSet = referencedStandardFieldNameSet.value;
+  return form.fields
+    .map((field, index) => ({ field, index }))
+    .filter((item) => {
+      const name = toText(item.field?.name).toUpperCase();
+      const sourceCode = toText(item.field?.sourceModelCode);
+      const matchByCode = inheritedStandardModelCode.value && sourceCode === toText(inheritedStandardModelCode.value);
+      const matchByName = inheritedNameSet.has(name);
+      return name !== layerOneKey && !joinSet.has(name) && !(matchByCode || matchByName);
+    });
+});
 
 const loadStandardModels = async () => {
   try {
@@ -396,6 +621,9 @@ const fillForm = (data) => {
     form.fields = [emptyField()];
   }
   form.fields = normalizeFieldRows(form.fields);
+  inheritedStandardModelCode.value = toText(source?.refStandardModel || source?.referenceModelCode || '');
+  joinKeyList.value = Array.isArray(source?.joinKeyList) ? [...source.joinKeyList] : [];
+  lockedPrimaryFieldName.value = isEpModel.value ? 'VENDOR' : 'DATE_TIME';
   const currentSpaceGranularity = String(form.tags.spaceGranularity || '').trim();
   if (currentSpaceGranularity && !spaceGranularityOptions.value.includes(currentSpaceGranularity)) {
     form.tags.spaceGranularity = '';
@@ -457,7 +685,13 @@ const onRefModelChange = async () => {
   if (!detail) return;
 
   form.refStandardModel = detail.modelCode || detail.code || form.refStandardModel;
-  form.fields = normalizeFieldRows(JSON.parse(JSON.stringify(detail.fields || [])));
+  inheritedStandardModelCode.value = toText(detail.modelCode || detail.code || form.refStandardModel);
+  const inheritedFields = normalizeFieldRows(JSON.parse(JSON.stringify(detail.fields || []))).map((field) => ({
+    ...field,
+    sourceModelCode: inheritedStandardModelCode.value
+  }));
+  form.fields = inheritedFields;
+  lockedPrimaryFieldName.value = (toText(detail?.tags?.type || detail?.businessModelType).toLowerCase() === 'ep' || toText(detail?.tags?.type) === '工参') ? 'VENDOR' : 'DATE_TIME';
 
   if (!Array.isArray(form.fields) || form.fields.length === 0) {
     form.fields = [emptyField()];
@@ -485,6 +719,15 @@ const moveFieldDown = (index) => {
   const temp = form.fields[index];
   form.fields[index] = form.fields[index + 1];
   form.fields[index + 1] = temp;
+};
+
+const moveLayerField = (layerList, index, direction) => {
+  const current = layerList[index];
+  const target = layerList[index + direction];
+  if (!current || !target) return;
+  const next = [...form.fields];
+  [next[current.index], next[target.index]] = [next[target.index], next[current.index]];
+  form.fields = next;
 };
 
 const getFieldNameError = (field) => {
@@ -754,5 +997,32 @@ const publishProjectModel = async () => {
   router.push('/designer/project-models');
 };
 </script>
+
+<style scoped>
+.field-layer {
+  padding-top: 14px;
+  margin-top: 14px;
+  border-top: 1px solid rgba(24, 121, 184, 0.12);
+}
+
+.field-layer:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.field-layer-title {
+  margin-bottom: 10px;
+  color: #4f6582;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.field-layer-table {
+  max-height: 260px;
+  overflow: auto;
+}
+</style>
 
 
