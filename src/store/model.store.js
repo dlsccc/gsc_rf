@@ -178,6 +178,8 @@ const normalizeField = (field = {}) => {
     type: toText(field.type || field.fieldType),
     format: toText(field.format || field.dataFormat),
     businessType,
+    sourceModelCode: toText(field.sourceModelCode || field.sourceModel),
+    isJoinKey: toBoolean(field.isJoinKey),
     isNull: field.isNull !== undefined ? !!field.isNull : true,
     description: toText(field.description || field.fieldDesc),
     example: toText(field.example || field.sampleValue || field.dataExample),
@@ -265,6 +267,8 @@ const toFieldListPayload = (fields = [], modelCode = '') => {
     fieldDesc: toText(field.description),
     dataFormat: toText(field.format),
     dataExample: toText(field.example),
+    sourceModel: toText(field.sourceModelCode || field.sourceModel),
+    isJoinKey: toBoolean(field.isJoinKey),
     isNull: field.isNull !== undefined ? !!field.isNull : true,
     fieldBusinessType: inferBusinessType(field),
     seq: index + 1
@@ -290,6 +294,7 @@ export const toModelSavePayload = ({ entity, modelType, projectCode = '' }) => {
     spaceGranularity: toText(entity.tags?.spaceGranularity),
     businessModelType: toApiEnumValue(entity.tags?.type, MODEL_TYPE_UI_TO_API),
     involveCalc,
+    ...(modelType === 'business' ? { joinKeyList: Array.isArray(entity.joinKeyList) ? entity.joinKeyList : [] } : {}),
     ...(modelType === 'business' ? { isRelease: toBoolean(entity.isRelease) } : {}),
     ...(projectCode ? { projectCode } : {})
   };

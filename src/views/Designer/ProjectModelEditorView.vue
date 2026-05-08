@@ -446,7 +446,7 @@ const normalizeFieldRows = (fields = []) => {
   return list.length > 0 ? list : [emptyField()];
 };
 
-const emptyField = () => ({ name: '', type: '', format: '', businessType: 'metric', description: '', example: '' });
+const emptyField = () => ({ name: '', type: '', format: '', businessType: 'metric', description: '', example: '', sourceModelCode: '', isJoinKey: false });
 const FIELD_NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_]{0,63}$/;
 const emptyModel = () => ({
   id: '',
@@ -624,6 +624,11 @@ const fillForm = (data) => {
   inheritedStandardModelCode.value = toText(source?.refStandardModel || source?.referenceModelCode || '');
   joinKeyList.value = Array.isArray(source?.joinKeyList) ? [...source.joinKeyList] : [];
   lockedPrimaryFieldName.value = isEpModel.value ? 'VENDOR' : 'DATE_TIME';
+  form.fields = form.fields.map((field) => ({
+    ...field,
+    sourceModelCode: toText(field.sourceModelCode || field.sourceModel),
+    isJoinKey: joinKeyList.value.map((item) => toText(item).toUpperCase()).includes(toText(field.name).toUpperCase())
+  }));
   const currentSpaceGranularity = String(form.tags.spaceGranularity || '').trim();
   if (currentSpaceGranularity && !spaceGranularityOptions.value.includes(currentSpaceGranularity)) {
     form.tags.spaceGranularity = '';
@@ -688,7 +693,8 @@ const onRefModelChange = async () => {
   inheritedStandardModelCode.value = toText(detail.modelCode || detail.code || form.refStandardModel);
   const inheritedFields = normalizeFieldRows(JSON.parse(JSON.stringify(detail.fields || []))).map((field) => ({
     ...field,
-    sourceModelCode: inheritedStandardModelCode.value
+    sourceModelCode: inheritedStandardModelCode.value,
+    isJoinKey: false
   }));
   form.fields = inheritedFields;
   lockedPrimaryFieldName.value = (toText(detail?.tags?.type || detail?.businessModelType).toLowerCase() === 'ep' || toText(detail?.tags?.type) === '工参') ? 'VENDOR' : 'DATE_TIME';
@@ -704,7 +710,9 @@ const addField = () => {
 
 const removeField = (index) => {
   if (form.fields.length <= 1) return;
+  const removedFieldName = toText(form.fields[index]?.name);
   form.fields.splice(index, 1);
+  joinKeyList.value = joinKeyList.value.filter((item) => toText(item).toUpperCase() !== removedFieldName.toUpperCase());
 };
 
 const moveFieldUp = (index) => {
