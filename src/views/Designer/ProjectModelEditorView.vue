@@ -421,6 +421,14 @@ onMounted(async () => {
   if (standardFromQuery && standardOptions.includes(standardFromQuery)) {
     form.tags.standard = standardFromQuery;
   }
+  const vendorFromQuery = String(route.query.vendor || '').trim();
+  if (vendorFromQuery && vendorOptions.includes(vendorFromQuery)) {
+    form.tags.vendor = vendorFromQuery;
+  }
+  const typeFromQuery = String(route.query.type || '').trim();
+  if (typeFromQuery && typeOptions.includes(typeFromQuery)) {
+    form.tags.type = typeFromQuery;
+  }
 });
 
 watch(

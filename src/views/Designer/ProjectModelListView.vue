@@ -327,6 +327,11 @@ onMounted(async () => {
   background: rgba(248, 251, 255, 0.78);
 }
 
+.board-card-empty-action {
+  cursor: pointer;
+  gap: 14px;
+}
+
 .board-card-add {
   min-height: 156px;
   justify-content: center;
@@ -408,6 +413,11 @@ onMounted(async () => {
 .board-empty-text {
   color: #9aa8b8;
   font-size: 13px;
+}
+
+.board-empty-add-icon {
+  font-size: 28px;
+  color: #7a94b4;
 }
 
 .board-add-icon {
