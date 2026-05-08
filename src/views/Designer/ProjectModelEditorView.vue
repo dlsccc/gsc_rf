@@ -1003,7 +1003,7 @@ const publishProjectModel = async () => {
   overflow: auto;
 }
 
-.field-layer-table .field-table thead {
+.field-layer-table:not(.field-master-header) .field-table thead {
   display: none;
 }
 </style>
