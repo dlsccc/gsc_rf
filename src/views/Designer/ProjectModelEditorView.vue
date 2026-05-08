@@ -315,7 +315,7 @@ import { createId } from '@/utils/id.js';
 import { $error, $success, $warning } from '@/utils/message.js';
 import { useAppStore } from '@/store/app.store.js';
 import { downloadFile } from '@/utils/fileUtils.js';
-import { normalizeProjectModel, normalizeStandardModel, resolveModelCode, toModelSavePayload, unwrapApiData, unwrapApiList, useModelStore } from '@/store/model.store.js';
+import { normalizeProjectModel, normalizeStandardModel, resolveModelCode, toBusinessTypeLabel, toModelSavePayload, unwrapApiData, unwrapApiList, useModelStore } from '@/store/model.store.js';
 
 const vendorOptions = ['华为', '中兴'];
 const standardOptions = ['2G', '3G', '4G', '5G'];
