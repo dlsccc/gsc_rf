@@ -308,7 +308,7 @@ export const unwrapApiList = (response) => {
   const groupedKeys = ['NR', 'LTE', 'UMTS', 'GSM'];
   if (data && typeof data === 'object') {
     const grouped = groupedKeys.flatMap((key) => {
-      const list = Array.isArray(data?.[key]) ? data[key] : [];
+      const list = Array.isArray(data?.[key]) ? data[key] : (Array.isArray(data?.[key.toLowerCase()]) ? data[key.toLowerCase()] : []);
       return list.map((item) => ({
         ...item,
         ...(item?.rat ? {} : { rat: key })
