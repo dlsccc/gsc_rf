@@ -26,6 +26,14 @@
                 </select>
               </div>
 
+              <div v-if="selectedModelIsEngineeringParam" class="form-group">
+                <label class="form-label"><span class="material-icons">apartment</span>厂商</label>
+                <select v-model="pipelineStore.writeConfig.vendor" class="form-select">
+                  <option value="">请选择厂商</option>
+                  <option v-for="vendor in engineeringParamVendors" :key="vendor" :value="vendor">{{ vendor }}</option>
+                </select>
+              </div>
+
               <div v-if="targetModelPreviewFields.length" class="form-group">
                 <label class="form-label"><span class="material-icons">view_column</span>模型字段预览</label>
                 <div class="data-grid-container" style="max-height: 220px;">
@@ -169,6 +177,17 @@ const form = reactive({
 
 const publishedProjectModels = computed(() => {
   return modelStore.projectModels.filter((item) => Number(item.projectId) === Number(appStore.currentProject) && item.isRelease === true);
+});
+
+const engineeringParamVendors = ['华为', '中兴', '爱立信', '诺基亚西门子'];
+
+const selectedProjectModel = computed(() => {
+  return publishedProjectModels.value.find((item) => String(item.id) === String(pipelineStore.selectedModelId)) || null;
+});
+
+const selectedModelIsEngineeringParam = computed(() => {
+  const type = toText(selectedProjectModel.value?.tags?.type || selectedProjectModel.value?.businessModelType).toLowerCase();
+  return type === '工参' || type === 'ep';
 });
 
 const targetModelPreviewFields = computed(() => {
@@ -915,6 +934,7 @@ const parseDedupConfigFromDsl = (deduplicateDsl) => {
 const parseWriteConfigFromDsl = (writeConfigDsl) => {
   const fallback = {
     mode: 'append',
+    vendor: '',
     deduplication: false,
     dedupFields: [],
     conflictStrategy: 'keep_old'
@@ -924,9 +944,11 @@ const parseWriteConfigFromDsl = (writeConfigDsl) => {
   const params = toParamMap(writeConfigDsl?.rule?.params || []);
   const writeMode = pickValue(params.write_mode);
   const overwrite = params.overwrite === true;
+  const vendor = pickValue(params.vendor);
 
   return {
     mode: writeMode || (overwrite ? 'replace' : 'append'),
+    vendor: vendor || '',
     deduplication: !!params.deduplication,
     dedupFields: toArrayValue(params.dedup_fields || params.dedupFields).map((item) => toText(item)).filter(Boolean),
     conflictStrategy: pickValue(params.conflict_strategy, params.conflictStrategy, 'keep_old') || 'keep_old'
@@ -983,6 +1005,7 @@ const applyRuleJsonToPipeline = (ruleJson = {}) => {
 
   const writeConfig = parseWriteConfigFromDsl(sections.writeConfigDsl);
   pipelineStore.writeConfig.mode = writeConfig.mode;
+  pipelineStore.writeConfig.vendor = writeConfig.vendor;
   pipelineStore.writeConfig.deduplication = writeConfig.deduplication;
   pipelineStore.writeConfig.dedupFields = [...writeConfig.dedupFields];
   pipelineStore.writeConfig.conflictStrategy = writeConfig.conflictStrategy;
@@ -1062,9 +1085,27 @@ const resolveSelectedModel = () => {
   return publishedProjectModels.value.find((item) => String(item.id) === String(pipelineStore.selectedModelId)) || null;
 };
 
+const syncWriteConfigForModel = (model) => {
+  const type = toText(model?.tags?.type || model?.businessModelType).toLowerCase();
+  const isEngineeringParam = type === '工参' || type === 'ep';
+  if (isEngineeringParam) {
+    pipelineStore.writeConfig.mode = 'partition_overwrite';
+    if (!engineeringParamVendors.includes(pipelineStore.writeConfig.vendor)) {
+      pipelineStore.writeConfig.vendor = '';
+    }
+    return;
+  }
+
+  pipelineStore.writeConfig.mode = ['append', 'replace'].includes(pipelineStore.writeConfig.mode)
+    ? pipelineStore.writeConfig.mode
+    : 'append';
+  pipelineStore.writeConfig.vendor = '';
+};
+
 const onSelectModel = async (modelId) => {
   pipelineStore.setModel(modelId);
-  await loadProjectModelDetail(modelId);
+  const detail = await loadProjectModelDetail(modelId);
+  syncWriteConfigForModel(detail);
 };
 
 onMounted(async () => {
@@ -1091,6 +1132,7 @@ onMounted(async () => {
     }
 
     applyRuleJsonToPipeline(targetRule?.ruleJson || {});
+    syncWriteConfigForModel(resolveSelectedModel());
     return;
   }
 
@@ -1394,6 +1436,9 @@ const saveRuleEntity = async ({ status = 'draft', dsl = null } = {}) => {
   const selectedModel = resolveSelectedModel();
   if (!selectedModel) {
     throw createValidationError('请先选择已发布的数据模型');
+  }
+  if (selectedModelIsEngineeringParam.value && !toText(pipelineStore.writeConfig.vendor)) {
+    throw createValidationError('请选择厂商');
   }
 
   const nextDsl = dsl || buildCurrentDsl(selectedModel);

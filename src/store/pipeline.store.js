@@ -26,6 +26,7 @@ export const usePipelineStore = defineStore('pipeline', () => {
 
   const writeConfig = reactive({
     mode: 'append',
+    vendor: '',
     deduplication: false,
     dedupFields: [],
     conflictStrategy: 'keep_old'
@@ -394,6 +395,7 @@ export const usePipelineStore = defineStore('pipeline', () => {
     joinConfig.fields = [{ leftField: '', rightField: '' }];
     joinConfig.links = [];
     writeConfig.mode = 'append';
+    writeConfig.vendor = '';
     writeConfig.deduplication = false;
     writeConfig.dedupFields = [];
     writeConfig.conflictStrategy = 'keep_old';

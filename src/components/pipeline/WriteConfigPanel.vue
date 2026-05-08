@@ -18,6 +18,15 @@
     <div class="form-group">
       <label class="form-label"><span class="material-icons" style="font-size: 18px; vertical-align: middle; margin-right: 6px;">edit_note</span>{{ t.writeMode }}</label>
 
+      <div v-if="isEngineeringParamModel" class="write-option selected">
+        <div class="write-option-header">
+          <div class="radio-circle"></div>
+          <span class="write-option-title">{{ t.partitionOverwriteMode }}</span>
+        </div>
+        <div class="write-option-desc">{{ t.partitionOverwriteDesc }}</div>
+      </div>
+
+      <template v-else>
       <div class="write-option" :class="{ selected: store.writeConfig.mode === 'append' }" @click="setMode('append')">
         <div class="write-option-header">
           <div class="radio-circle"></div>
@@ -54,6 +63,7 @@
         </div>
         <div class="write-option-desc">{{ t.replaceDesc }}</div>
       </div>
+      </template>
     </div>
 
     <div class="form-group">
@@ -95,6 +105,8 @@ const t = {
   mappedFields: '\u6620\u5c04\u5b57\u6bb5\u6570',
   processSteps: '\u5904\u7406\u6b65\u9aa4\u6570',
   writeMode: '\u5199\u5165\u6a21\u5f0f',
+  partitionOverwriteMode: '\u5206\u533a\u8986\u76d6',
+  partitionOverwriteDesc: '\u53ea\u8986\u76d6\u5bf9\u5e94\u5382\u5546\u7684\u6570\u636e',
   appendMode: '\u589e\u91cf\u5199\u5165',
   appendDesc: '\u5c06\u6570\u636e\u8ffd\u52a0\u5230\u76ee\u6807\u8868\u4e2d\uff0c\u53ef\u914d\u7f6e\u53bb\u91cd\u89c4\u5219\uff0c\u51b2\u7a81\u65f6\u9ed8\u8ba4\u4fdd\u7559\u65e7\u6570\u636e',
   enableDedup: '\u542f\u7528\u53bb\u91cd',
@@ -115,6 +127,12 @@ const modelStore = useModelStore();
 const selectedModelName = computed(() => {
   const model = modelStore.projectModels.find((item) => String(item.id) === String(props.store.selectedModelId));
   return model?.name || '-';
+});
+
+const isEngineeringParamModel = computed(() => {
+  const model = modelStore.projectModels.find((item) => String(item.id) === String(props.store.selectedModelId));
+  const type = String(model?.tags?.type || model?.businessModelType || '').trim().toLowerCase();
+  return type === '工参' || type === 'ep';
 });
 
 const processedRowCount = computed(() => {
@@ -161,6 +179,20 @@ watch(
   (value) => {
     if (value !== 'keep_old') {
       props.store.writeConfig.conflictStrategy = 'keep_old';
+    }
+  },
+  { immediate: true }
+);
+
+watch(
+  isEngineeringParamModel,
+  (value) => {
+    if (value) {
+      props.store.writeConfig.mode = 'partition_overwrite';
+      return;
+    }
+    if (!['append', 'replace'].includes(props.store.writeConfig.mode)) {
+      props.store.writeConfig.mode = 'append';
     }
   },
   { immediate: true }

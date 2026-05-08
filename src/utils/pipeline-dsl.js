@@ -836,8 +836,12 @@ const buildDataProcessingDsl = ({
 const buildWriteDsl = (selectedModel, writeConfig = {}, dedupConfig = {}) => {
   const modelCode = getModelCode(selectedModel);
   const partitionBy = [];
+  const modelType = trimText(selectedModel?.tags?.type || selectedModel?.businessModelType).toLowerCase();
+  const isEngineeringParam = modelType === '工参' || modelType === 'ep';
 
-  if (selectedModel?.fields?.some((field) => field.name === 'PARTITION_FIELD')) {
+  if (isEngineeringParam) {
+    partitionBy.push('VENDOR');
+  } else if (selectedModel?.fields?.some((field) => field.name === 'PARTITION_FIELD')) {
     partitionBy.push('PARTITION_FIELD');
   }
 
@@ -853,8 +857,9 @@ const buildWriteDsl = (selectedModel, writeConfig = {}, dedupConfig = {}) => {
         makeParam('format', 'enum', 'parquet'),
         makeParam('output_path', 'string', `/data/output/${modelCode}/`),
         makeParam('partition_by', 'array', partitionBy),
-        makeParam('overwrite', 'boolean', writeConfig.mode === 'replace'),
+        makeParam('overwrite', 'boolean', writeConfig.mode === 'replace' || writeConfig.mode === 'partition_overwrite'),
         makeParam('write_mode', 'enum', writeConfig.mode || 'append'),
+        ...(isEngineeringParam && trimText(writeConfig.vendor) ? [makeParam('vendor', 'string', trimText(writeConfig.vendor))] : []),
         makeParam('deduplication', 'boolean', !!writeConfig.deduplication),
         makeParam('dedup_fields', 'array', writeConfig.dedupFields || []),
         makeParam('conflict_strategy', 'enum', 'keep_old')
