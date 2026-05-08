@@ -5,7 +5,7 @@
       <div class="model-edit-title">{{ isViewOnly ? '查看标准数据模型' : (isEdit ? '编辑标准数据模型' : '新建标准数据模型') }}</div>
     </div>
 
-    <div class="model-form-section" :style="isViewOnly ? { pointerEvents: 'none', opacity: 0.9 } : null">
+    <div class="model-form-section" :style="isViewOnly ? { opacity: 0.9 } : null">
       <div class="section-title"><span class="material-icons">info</span>基本信息</div>
       <div class="form-row">
         <div class="form-group">
@@ -21,7 +21,7 @@
       </div>
     </div>
 
-    <div class="model-form-section" :style="isViewOnly ? { pointerEvents: 'none', opacity: 0.9 } : null">
+    <div class="model-form-section" :style="isViewOnly ? { opacity: 0.9 } : null">
       <div class="section-title"><span class="material-icons">view_column</span>字段定义</div>
       <div class="field-table-container">
         <table class="field-table">
