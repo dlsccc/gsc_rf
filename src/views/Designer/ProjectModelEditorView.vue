@@ -84,11 +84,10 @@
       <div class="section-title">
         <span class="material-icons">view_column</span>
         字段定义
-        <span style="font-size: 12px; color: var(--text-secondary); font-weight: normal; margin-left: 8px;">（基于引用的标准模型，可修改）</span>
       </div>
 
       <div class="field-layer" v-if="layerOneFields.length > 0">
-        <div class="field-layer-title">第一层次：固定主字段</div>
+        <div class="field-layer-title"><span class="field-layer-index">①</span><span>固定主字段</span></div>
         <div class="field-table-container field-layer-table">
           <table class="field-table">
             <thead>
@@ -118,29 +117,9 @@
       </div>
 
       <div class="field-layer" v-if="layerTwoFields.length > 0">
-        <div class="field-layer-title">第二层次：Join Key 字段</div>
+        <div class="field-layer-title"><span class="field-layer-index">②</span><span>Join Key 字段</span></div>
         <div class="field-table-container field-layer-table">
           <table class="field-table">
-            <thead>
-              <tr>
-                <th style="width: 50px;">#</th>
-                <th style="width: 180px;">
-                  字段名称 *
-                  <span
-                    title="只能是数字、字母和下划线，以字母开头，最大长度64"
-                    style="display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; margin-left: 4px; border-radius: 50%; background: #fff7e6; color: #d46b08; font-size: 12px; font-weight: 700; cursor: help;"
-                  >
-                    !
-                  </span>
-                </th>
-                <th style="width: 140px;">字段类型 *</th>
-                <th style="width: 140px;">数据格式</th>
-                <th style="width: 120px;">业务类型</th>
-                <th>业务描述</th>
-                <th style="width: 120px;">样例值</th>
-                <th style="width: 80px;">操作</th>
-              </tr>
-            </thead>
             <tbody>
               <tr v-for="(item, index) in layerTwoFields" :key="`layer2-${item.index}`">
                 <td class="field-index">{{ index + 1 }}</td>
@@ -173,29 +152,9 @@
       </div>
 
       <div class="field-layer" v-if="layerThreeFields.length > 0">
-        <div class="field-layer-title">第三层次：标准模型引用字段</div>
+        <div class="field-layer-title"><span class="field-layer-index">③</span><span>标准模型引用字段</span></div>
         <div class="field-table-container field-layer-table">
           <table class="field-table">
-            <thead>
-              <tr>
-                <th style="width: 50px;">#</th>
-                <th style="width: 180px;">
-                  字段名称 *
-                  <span
-                    title="只能是数字、字母和下划线，以字母开头，最大长度64"
-                    style="display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; margin-left: 4px; border-radius: 50%; background: #fff7e6; color: #d46b08; font-size: 12px; font-weight: 700; cursor: help;"
-                  >
-                    !
-                  </span>
-                </th>
-                <th style="width: 140px;">字段类型 *</th>
-                <th style="width: 140px;">数据格式</th>
-                <th style="width: 120px;">业务类型</th>
-                <th>业务描述</th>
-                <th style="width: 120px;">样例值</th>
-                <th style="width: 80px;">操作</th>
-              </tr>
-            </thead>
             <tbody>
               <tr v-for="(item, index) in layerThreeFields" :key="`layer3-${item.index}`">
                 <td class="field-index">{{ index + 1 }}</td>
@@ -249,29 +208,9 @@
       </div>
 
       <div class="field-layer">
-        <div class="field-layer-title">第四层次：新增字段</div>
+        <div class="field-layer-title"><span class="field-layer-index">④</span><span>新增字段</span></div>
         <div class="field-table-container field-layer-table">
           <table class="field-table">
-            <thead>
-              <tr>
-                <th style="width: 50px;">#</th>
-                <th style="width: 180px;">
-                  字段名称 *
-                  <span
-                    title="只能是数字、字母和下划线，以字母开头，最大长度64"
-                    style="display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; margin-left: 4px; border-radius: 50%; background: #fff7e6; color: #d46b08; font-size: 12px; font-weight: 700; cursor: help;"
-                  >
-                    !
-                  </span>
-                </th>
-                <th style="width: 140px;">字段类型 *</th>
-                <th style="width: 140px;">数据格式</th>
-                <th style="width: 120px;">业务类型</th>
-                <th>业务描述</th>
-                <th style="width: 120px;">样例值</th>
-                <th style="width: 80px;">操作</th>
-              </tr>
-            </thead>
             <tbody>
               <tr v-for="(item, index) in layerFourFields" :key="`layer4-${item.index}`">
                 <td class="field-index">{{ index + 1 }}</td>
@@ -1008,9 +947,9 @@ const publishProjectModel = async () => {
 
 <style scoped>
 .field-layer {
-  padding-top: 14px;
-  margin-top: 14px;
-  border-top: 1px solid rgba(24, 121, 184, 0.12);
+  padding-top: 12px;
+  margin-top: 12px;
+  border-top: 1px solid rgba(24, 121, 184, 0.08);
 }
 
 .field-layer:first-of-type {
@@ -1020,16 +959,29 @@ const publishProjectModel = async () => {
 }
 
 .field-layer-title {
-  margin-bottom: 10px;
-  color: #4f6582;
-  font-size: 13px;
+  margin-bottom: 8px;
+  color: #6f8095;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.field-layer-index {
+  color: #8da0b6;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .field-layer-table {
   max-height: 260px;
   overflow: auto;
+}
+
+.field-layer-table .field-table thead {
+  display: none;
 }
 </style>
 
