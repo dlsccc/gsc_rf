@@ -60,12 +60,17 @@
                 </div>
               </button>
 
-              <div v-else class="board-card board-card-empty">
+              <button
+                v-else
+                class="board-card board-card-empty board-card-empty-action"
+                type="button"
+                @click="createProjectModelForSlot(row.key, slot.column.key)"
+              >
                 <div class="board-card-top">
                   <span class="board-card-type">{{ slot.column.label }}</span>
                 </div>
-                <div class="board-empty-text">暂无模型</div>
-              </div>
+                <span class="material-icons board-empty-add-icon">add</span>
+              </button>
             </div>
 
             <button class="board-card board-card-add" type="button" @click="createProjectModelForRat(row.key)">
