@@ -58,9 +58,18 @@
         </div>
         <div class="form-group">
           <label class="form-label"><span class="material-icons">place</span>空间粒度</label>
-          <select v-model="form.tags.spaceGranularity" class="form-select" :disabled="spaceGranularityOptions.length === 0" multiple>
-            <option v-for="opt in spaceGranularityOptions" :key="opt" :value="opt">{{ opt }}</option>
-          </select>
+          <div class="multi-select-dropdown" :class="{ disabled: spaceGranularityOptions.length === 0 }">
+            <button type="button" class="form-select multi-select-trigger" :disabled="spaceGranularityOptions.length === 0" @click="toggleSpaceGranularityOpen">
+              <span>{{ selectedSpaceGranularityText }}</span>
+              <span class="material-icons" style="font-size: 18px;">{{ spaceGranularityOpen ? 'expand_less' : 'expand_more' }}</span>
+            </button>
+            <div v-if="spaceGranularityOpen && spaceGranularityOptions.length > 0" class="multi-select-menu">
+              <label v-for="opt in spaceGranularityOptions" :key="opt" class="multi-select-option">
+                <input :checked="form.tags.spaceGranularity.includes(opt)" type="checkbox" @change="toggleSpaceGranularityValue(opt)" />
+                <span>{{ opt }}</span>
+              </label>
+            </div>
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label"><span class="material-icons">category</span>类型</label>
@@ -306,7 +315,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { projectModelsApi, standardModelsApi } from '@/api/index.js';
 import { nowText } from '@/utils/date.js';
@@ -424,6 +433,7 @@ const isEdit = computed(() => !!editId.value);
 
 const form = reactive(emptyModel());
 const importInputRef = ref(null);
+const spaceGranularityOpen = ref(false);
 const needInvolveCalc = computed(() => ['Counter', 'KPI'].includes(String(form.tags?.type || '').trim()));
 const isStandardLocked = computed(() => !isEdit.value && !!toText(route.query.standard));
 const isVendorLocked = computed(() => !isEdit.value && !!toText(route.query.vendor));
@@ -443,6 +453,11 @@ const spaceGranularityOptions = computed(() => {
     .map((field) => String(field?.name || '').trim())
     .filter(Boolean);
   return [...new Set(options)];
+});
+const selectedSpaceGranularityText = computed(() => {
+  const list = Array.isArray(form.tags.spaceGranularity) ? form.tags.spaceGranularity : [];
+  if (list.length === 0) return '请选择空间粒度';
+  return list.join('、');
 });
 
 const resolveCurrentProjectCode = () => {
@@ -625,6 +640,11 @@ onMounted(async () => {
   if (typeFromQuery && typeOptions.includes(typeFromQuery)) {
     form.tags.type = typeFromQuery;
   }
+  document.addEventListener('click', handleDocumentClick, true);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleDocumentClick, true);
 });
 
 watch(
@@ -642,8 +662,34 @@ watch(
   (options) => {
     form.tags.spaceGranularity = (Array.isArray(form.tags.spaceGranularity) ? form.tags.spaceGranularity : [])
       .filter((item) => options.includes(item));
+    if (options.length === 0) {
+      spaceGranularityOpen.value = false;
+    }
   }
 );
+
+const toggleSpaceGranularityOpen = () => {
+  if (spaceGranularityOptions.value.length === 0) return;
+  spaceGranularityOpen.value = !spaceGranularityOpen.value;
+};
+
+const toggleSpaceGranularityValue = (value) => {
+  const current = Array.isArray(form.tags.spaceGranularity) ? [...form.tags.spaceGranularity] : [];
+  const index = current.indexOf(value);
+  if (index >= 0) {
+    current.splice(index, 1);
+  } else {
+    current.push(value);
+  }
+  form.tags.spaceGranularity = current;
+};
+
+const handleDocumentClick = (event) => {
+  const target = event?.target;
+  if (!(target instanceof Element)) return;
+  if (target.closest('.multi-select-dropdown')) return;
+  spaceGranularityOpen.value = false;
+};
 const onRefModelChange = async () => {
   if (!form.refStandardModel) return;
 
@@ -1013,6 +1059,57 @@ const publishProjectModel = async () => {
 
 .field-layer-table:not(.field-master-header) .field-table thead {
   display: none;
+}
+
+.multi-select-dropdown {
+  position: relative;
+}
+
+.multi-select-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+}
+
+.multi-select-trigger span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.multi-select-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: 220px;
+  overflow: auto;
+  padding: 8px 0;
+  background: #fff;
+  border: 1px solid rgba(24, 121, 184, 0.14);
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(24, 121, 184, 0.12);
+}
+
+.multi-select-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  color: #36485c;
+  cursor: pointer;
+}
+
+.multi-select-option:hover {
+  background: rgba(24, 121, 184, 0.05);
+}
+
+.multi-select-dropdown.disabled .multi-select-trigger {
+  cursor: not-allowed;
 }
 </style>
 

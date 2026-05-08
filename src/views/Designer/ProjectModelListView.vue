@@ -103,9 +103,9 @@ const RAT_ROWS = [
 ];
 
 const BOARD_COLUMNS = [
-  { key: 'ep', label: '???' },
-  { key: 'HW', label: '???' },
-  { key: 'ZTE', label: '???' },
+  { key: 'ep', label: '工参' },
+  { key: 'HW', label: '华为' },
+  { key: 'ZTE', label: '中兴' },
   { key: 'E', label: '\u7231\u7acb\u4fe1' },
   { key: 'NSN', label: '\u8bfa\u57fa\u4e9a\u897f\u95e8\u5b50' }
 ];
