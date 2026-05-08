@@ -33,7 +33,7 @@
     <div class="model-form-section">
       <div class="section-title"><span class="material-icons">local_offer</span>模型标签</div>
       <div class="form-row">
-        <div class="form-group">
+        <div v-if="!isEpModel" class="form-group">
           <label class="form-label"><span class="material-icons">business</span>厂商</label>
           <select v-model="form.tags.vendor" class="form-select" :disabled="isVendorLocked">
             <option value="">请选择厂商</option>
@@ -325,7 +325,7 @@ import { useAppStore } from '@/store/app.store.js';
 import { downloadFile } from '@/utils/fileUtils.js';
 import { normalizeProjectModel, normalizeStandardModel, resolveModelCode, toBusinessTypeLabel, toModelSavePayload, unwrapApiData, unwrapApiList, useModelStore } from '@/store/model.store.js';
 
-const vendorOptions = ['华为', '中兴'];
+const vendorOptions = ['华为', '中兴', '爱立信', '诺基亚西门子'];
 const standardOptions = ['2G', '3G', '4G', '5G'];
 const timeGranularityOptions = ['小时级', '天级'];
 const typeOptions = ['Counter', 'KPI', '工参'];
