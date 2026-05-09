@@ -96,6 +96,16 @@
 
       <div class="field-table-container field-layer-table field-master-header">
         <table class="field-table">
+          <colgroup>
+            <col style="width: 50px;" />
+            <col style="width: 180px;" />
+            <col style="width: 140px;" />
+            <col style="width: 140px;" />
+            <col style="width: 120px;" />
+            <col />
+            <col style="width: 120px;" />
+            <col style="width: 80px;" />
+          </colgroup>
           <thead>
             <tr>
               <th style="width: 50px;">#</th>
@@ -123,6 +133,16 @@
         <div class="field-layer-title"><span class="field-layer-index">①</span><span>固定主字段</span></div>
         <div class="field-table-container field-layer-table">
           <table class="field-table">
+            <colgroup>
+              <col style="width: 50px;" />
+              <col style="width: 180px;" />
+              <col style="width: 140px;" />
+              <col style="width: 140px;" />
+              <col style="width: 120px;" />
+              <col />
+              <col style="width: 120px;" />
+              <col style="width: 80px;" />
+            </colgroup>
             <tbody>
               <tr v-for="(item, index) in layerOneFields" :key="`layer1-${item.index}`">
                 <td class="field-index">{{ index + 1 }}</td>
@@ -142,6 +162,16 @@
         <div class="field-layer-title"><span class="field-layer-index">②</span><span>Join Key 字段</span></div>
         <div class="field-table-container field-layer-table">
           <table class="field-table">
+            <colgroup>
+              <col style="width: 50px;" />
+              <col style="width: 180px;" />
+              <col style="width: 140px;" />
+              <col style="width: 140px;" />
+              <col style="width: 120px;" />
+              <col />
+              <col style="width: 120px;" />
+              <col style="width: 80px;" />
+            </colgroup>
             <tbody>
               <tr v-for="(item, index) in layerTwoFields" :key="`layer2-${item.index}`">
                 <td class="field-index">{{ index + 1 }}</td>
@@ -177,6 +207,16 @@
         <div class="field-layer-title"><span class="field-layer-index">③</span><span>标准模型引用字段</span></div>
         <div class="field-table-container field-layer-table">
           <table class="field-table">
+            <colgroup>
+              <col style="width: 50px;" />
+              <col style="width: 180px;" />
+              <col style="width: 140px;" />
+              <col style="width: 140px;" />
+              <col style="width: 120px;" />
+              <col />
+              <col style="width: 120px;" />
+              <col style="width: 80px;" />
+            </colgroup>
             <tbody>
               <tr v-for="(item, index) in layerThreeFields" :key="`layer3-${item.index}`">
                 <td class="field-index">{{ index + 1 }}</td>
@@ -233,6 +273,16 @@
         <div class="field-layer-title"><span class="field-layer-index">④</span><span>新增字段</span></div>
         <div class="field-table-container field-layer-table">
           <table class="field-table">
+            <colgroup>
+              <col style="width: 50px;" />
+              <col style="width: 180px;" />
+              <col style="width: 140px;" />
+              <col style="width: 140px;" />
+              <col style="width: 120px;" />
+              <col />
+              <col style="width: 120px;" />
+              <col style="width: 80px;" />
+            </colgroup>
             <tbody>
               <tr v-for="(item, index) in layerFourFields" :key="`layer4-${item.index}`">
                 <td class="field-index">{{ index + 1 }}</td>
