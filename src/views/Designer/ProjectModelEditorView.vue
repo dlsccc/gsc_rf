@@ -936,7 +936,17 @@ const onImportModelFileChange = async (event) => {
       return;
     }
 
-    fillForm(normalizeProjectModel(imported, appStore.currentProject, resolveCurrentProjectCode()));
+    const currentIdentity = isEdit.value
+      ? {
+        id: form.id,
+        code: form.code,
+        modelCode: form.modelCode
+      }
+      : {};
+    fillForm(normalizeProjectModel({
+      ...imported,
+      ...currentIdentity
+    }, appStore.currentProject, resolveCurrentProjectCode()));
     $success('Model import succeeded.');
   } catch {
     $error('Model import failed.');
