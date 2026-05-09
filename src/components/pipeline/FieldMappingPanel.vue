@@ -133,18 +133,18 @@
                     <div
                       class="mapping-select-trigger"
                       @click.stop="toggleDropdown(field.name, $event)"
-                      style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; border: 1px solid #d9d9d9; border-radius: 4px; cursor: pointer; min-width: 100px; background: #fff;"
+                      :style="isVendorLockedField(field.name) ? 'display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; border: 1px solid #d9d9d9; border-radius: 4px; min-width: 100px; background: #f5f7fa; color: #bfbfbf; cursor: not-allowed;' : 'display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; border: 1px solid #d9d9d9; border-radius: 4px; cursor: pointer; min-width: 100px; background: #fff;'"
                     >
-                      <span style="font-size: 12px; color: #333;">
+                      <span :style="isVendorLockedField(field.name) ? 'font-size: 12px; color: #bfbfbf;' : 'font-size: 12px; color: #333;'">
                         <template v-if="getMappedSources(field.name).length > 0">
                           <span class="source-badge" :class="getSourceBadgeClass(getMappedSources(field.name)[0].sourceId)" style="font-size: 10px;">
                             {{ getSourceBadgeText(getMappedSources(field.name)[0].sourceId) }}
                           </span>
                           {{ getMappedSources(field.name)[0].name }}
                         </template>
-                        <span v-else style="color: #bfbfbf;">选择字段</span>
+                        <span v-else>{{ isVendorLockedField(field.name) ? '\u56fa\u5b9a\u8d4b\u503c' : '\u9009\u62e9\u5b57\u6bb5' }}</span>
                       </span>
-                      <span class="material-icons" style="font-size: 16px; color: #999;">expand_more</span>
+                      <span v-if="!isVendorLockedField(field.name)" class="material-icons" style="font-size: 16px; color: #999;">expand_more</span>
                     </div>
                   </div>
                 </th>
@@ -520,6 +520,10 @@ const previewData = computed(() => {
 });
 
 const toggleDropdown = (fieldName, event) => {
+  if (isVendorLockedField(fieldName)) {
+    activeDropdown.value = null;
+    return;
+  }
   if (activeDropdown.value === fieldName) {
     activeDropdown.value = null;
     return;
@@ -575,12 +579,17 @@ const getMappedSources = (targetField) => {
   });
 };
 
+const isVendorLockedField = (targetFieldName) => {
+  return !!props.store?.writeConfig?.vendor && toText(targetFieldName).toUpperCase() === 'VENDOR';
+};
+
 const isSourceMappedToTarget = (sourceKey, targetFieldName) => {
   const sources = props.store.mappings[targetFieldName] || [];
   return sources.includes(sourceKey);
 };
 
 const toggleFieldMapping = (targetFieldName, sourceField) => {
+  if (isVendorLockedField(targetFieldName)) return;
   const nextMappings = { ...(props.store.mappings || {}) };
   const sourceKeys = Array.isArray(nextMappings[targetFieldName]) ? [...nextMappings[targetFieldName]] : [];
   const index = sourceKeys.indexOf(sourceField.key);
@@ -601,6 +610,7 @@ const toggleFieldMapping = (targetFieldName, sourceField) => {
 };
 
 const removeMapping = (targetFieldName, sourceKey) => {
+  if (isVendorLockedField(targetFieldName)) return;
   const nextMappings = { ...(props.store.mappings || {}) };
   const sourceKeys = Array.isArray(nextMappings[targetFieldName]) ? [...nextMappings[targetFieldName]] : [];
   const filtered = sourceKeys.filter((key) => key !== sourceKey);
@@ -641,6 +651,15 @@ const closeDropdownOnOutsideClick = (event) => {
     activeDropdown.value = null;
   }
 };
+
+watch(
+  () => props.store.writeConfig?.vendor,
+  () => {
+    if (activeDropdown.value && isVendorLockedField(activeDropdown.value)) {
+      activeDropdown.value = null;
+    }
+  }
+);
 
 onMounted(async () => {
   await nextTick();

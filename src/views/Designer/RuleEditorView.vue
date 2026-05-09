@@ -148,6 +148,13 @@ import FieldMappingPanel from '@/components/pipeline/FieldMappingPanel.vue';
 import ProcessPanel from '@/components/pipeline/ProcessPanel.vue';
 import WriteConfigPanel from '@/components/pipeline/WriteConfigPanel.vue';
 
+const ENGINEERING_PARAM_VENDOR_CODES = {
+  '华为': 'HW',
+  '中兴': 'ZTE',
+  '爱立信': 'ERI',
+  '诺基亚西门子': 'NSN'
+};
+
 const route = useRoute();
 const router = useRouter();
 const appStore = useAppStore();
@@ -189,6 +196,38 @@ const selectedModelIsEngineeringParam = computed(() => {
   const type = toText(selectedProjectModel.value?.tags?.type || selectedProjectModel.value?.businessModelType).toLowerCase();
   return type === '工参' || type === 'ep';
 });
+
+const ensureEngineeringParamVendorBehavior = () => {
+  const vendorFieldName = (pipelineStore.targetFields || [])
+    .map((field) => toText(field?.name))
+    .find((name) => name.toUpperCase() === 'VENDOR');
+  if (!vendorFieldName) return;
+
+  if (!selectedModelIsEngineeringParam.value) {
+    return;
+  }
+
+  if (pipelineStore.mappings?.[vendorFieldName]) {
+    const nextMappings = { ...(pipelineStore.mappings || {}) };
+    delete nextMappings[vendorFieldName];
+    pipelineStore.setMappings(nextMappings);
+  }
+
+  const vendorCode = ENGINEERING_PARAM_VENDOR_CODES[toText(pipelineStore.writeConfig.vendor)] || '';
+  if (!vendorCode) {
+    delete pipelineStore.transforms[vendorFieldName];
+    return;
+  }
+
+  pipelineStore.transforms[vendorFieldName] = {
+    chain: [
+      {
+        type: 'set_value',
+        fixedValue: vendorCode
+      }
+    ]
+  };
+};
 
 const targetModelPreviewFields = computed(() => {
   return pipelineStore.targetFields.map((field) => ({
@@ -1106,6 +1145,7 @@ const onSelectModel = async (modelId) => {
   pipelineStore.setModel(modelId);
   const detail = await loadProjectModelDetail(modelId);
   syncWriteConfigForModel(detail);
+  ensureEngineeringParamVendorBehavior();
 };
 
 onMounted(async () => {
@@ -1133,6 +1173,7 @@ onMounted(async () => {
 
     applyRuleJsonToPipeline(targetRule?.ruleJson || {});
     syncWriteConfigForModel(resolveSelectedModel());
+    ensureEngineeringParamVendorBehavior();
     return;
   }
 
@@ -1144,6 +1185,13 @@ watch(
   () => pipelineStore.currentStep,
   (step) => {
     clearSqlDebugTimer();
+  }
+);
+
+watch(
+  () => pipelineStore.writeConfig.vendor,
+  () => {
+    ensureEngineeringParamVendorBehavior();
   }
 );
 
