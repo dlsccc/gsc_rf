@@ -308,7 +308,6 @@ export const toModelSavePayload = ({ entity, modelType, projectCode = '' }) => {
     spaceGranularity: normalizeCommaSeparatedList(entity.tags?.spaceGranularity).join(','),
     businessModelType: toApiEnumValue(entity.tags?.type, MODEL_TYPE_UI_TO_API),
     involveCalc,
-    ...(modelType === 'business' ? { joinKeyList: Array.isArray(entity.joinKeyList) ? entity.joinKeyList : [] } : {}),
     ...(modelType === 'business' ? { isRelease: toBoolean(entity.isRelease) } : {}),
     ...(projectCode ? { projectCode } : {})
   };
