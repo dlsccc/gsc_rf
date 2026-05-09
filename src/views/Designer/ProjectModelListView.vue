@@ -106,7 +106,7 @@ const BOARD_COLUMNS = [
   { key: 'ep', label: '工参' },
   { key: 'HW', label: '华为' },
   { key: 'ZTE', label: '中兴' },
-  { key: 'E', label: '\u7231\u7acb\u4fe1' },
+  { key: 'ERI', label: '\u7231\u7acb\u4fe1' },
   { key: 'NSN', label: '\u8bfa\u57fa\u4e9a\u897f\u95e8\u5b50' }
 ];
 
@@ -121,13 +121,13 @@ const COLUMN_TO_STANDARD_TYPE = {
   ep: '\u5de5\u53c2',
   HW: 'Counter',
   ZTE: 'Counter',
-  E: 'Counter',
+  ERI: 'Counter',
   NSN: 'Counter'
 };
 const COLUMN_TO_VENDOR = {
   HW: '\u534e\u4e3a',
   ZTE: '\u4e2d\u5174',
-  E: '\u7231\u7acb\u4fe1',
+  ERI: '\u7231\u7acb\u4fe1',
   NSN: '\u8bfa\u57fa\u4e9a\u897f\u95e8\u5b50'
 };
 
@@ -157,7 +157,7 @@ const resolveColumnKey = (item) => {
   const vendor = toText(item?.vendor || item?.factory || item?.tags?.vendor).toUpperCase();
   if (vendor === 'HW') return 'HW';
   if (vendor === 'ZTE') return 'ZTE';
-  if (['E', 'ERIC', 'ERICSSON', 'ERI'].includes(vendor)) return 'E';
+  if (['E', 'ERIC', 'ERICSSON', 'ERI'].includes(vendor)) return 'ERI';
   if (vendor === 'NSN') return 'NSN';
   return '';
 };

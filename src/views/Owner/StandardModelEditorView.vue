@@ -255,7 +255,7 @@ const SLOT_RAT_MAP = {
 const SLOT_VENDOR_MAP = {
   HW: '华为',
   ZTE: '中兴',
-  E: '爱立信',
+  ERI: '爱立信',
   NSN: '诺基亚西门子'
 };
 const standardModelObjectType = computed(() => {

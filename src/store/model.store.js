@@ -17,7 +17,7 @@ const toBoolean = (value) => {
 const VENDOR_UI_TO_API = {
   '华为': 'HW',
   '中兴': 'ZTE',
-  '爱立信': 'E',
+  '爱立信': 'ERI',
   '诺基亚西门子': 'NSN'
 };
 
