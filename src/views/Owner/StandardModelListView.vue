@@ -54,12 +54,17 @@
                 </div>
               </button>
 
-              <div v-else class="board-card board-card-empty">
+              <button
+                v-else
+                class="board-card board-card-empty"
+                type="button"
+                @click="createStandardModelForSlot(row.key, slot.column.key)"
+              >
                 <div class="board-card-top">
                   <span class="board-card-type">{{ slot.column.label }}</span>
                 </div>
-                <div class="board-empty-text">暂无模型</div>
-              </div>
+                <div class="board-empty-plus">+</div>
+              </button>
             </div>
           </div>
         </div>
@@ -132,6 +137,20 @@ const getStandardBoardRow = (ratKey) => {
 
 const openStandardModel = (model) => {
   router.push(`/owner/standard-models/${model.id}/edit`);
+};
+
+const createStandardModelForSlot = (ratKey, columnKey) => {
+  const query = {};
+  if (ratKey) {
+    query.rat = ratKey;
+  }
+  if (columnKey === 'ep') {
+    query.type = '工参';
+  } else {
+    query.type = 'Counter';
+    query.vendor = columnKey;
+  }
+  router.push({ path: '/owner/standard-models/new', query });
 };
 
 const loadStandardModels = async () => {
@@ -300,5 +319,12 @@ onMounted(async () => {
 .board-empty-text {
   color: #9aa8b8;
   font-size: 13px;
+}
+
+.board-empty-plus {
+  color: #6c84a0;
+  font-size: 34px;
+  line-height: 1;
+  font-weight: 300;
 }
 </style>

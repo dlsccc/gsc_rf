@@ -237,6 +237,18 @@ const form = reactive(emptyModel());
 const importInputRef = ref(null);
 
 const toText = (value) => String(value ?? '').trim();
+const SLOT_RAT_MAP = {
+  NR: '5G',
+  LTE: '4G',
+  UMTS: '3G',
+  GSM: '2G'
+};
+const SLOT_VENDOR_MAP = {
+  HW: '华为',
+  ZTE: '中兴',
+  E: '爱立信',
+  NSN: '诺基亚西门子'
+};
 const standardModelObjectType = computed(() => {
   const type = toText(form?.tags?.type || form?.businessModelType).toLowerCase();
   return type === 'ep' || type === '\u5de5\u53c2' ? '\u5de5\u53c2\u5bf9\u8c61' : '\u6027\u80fd\u5bf9\u8c61';
@@ -282,6 +294,15 @@ onMounted(async () => {
     return;
   }
   fillForm(null);
+  const ratFromQuery = toText(route.query.rat).toUpperCase();
+  const typeFromQuery = toText(route.query.type);
+  const vendorFromQuery = toText(route.query.vendor).toUpperCase();
+  form.tags = {
+    ...(form.tags || {}),
+    standard: SLOT_RAT_MAP[ratFromQuery] || toText(form?.tags?.standard),
+    type: typeFromQuery || toText(form?.tags?.type),
+    vendor: SLOT_VENDOR_MAP[vendorFromQuery] || toText(form?.tags?.vendor)
+  };
 });
 
 const addField = () => {
