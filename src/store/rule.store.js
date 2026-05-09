@@ -11,6 +11,12 @@ export const RULE_INPUT_TABLES = [
 
 const toText = (value) => String(value ?? '').trim();
 const DEFAULT_CREATE_BY = 'system';
+const RULE_VENDOR_UI_TO_API = {
+  '华为': 'HW',
+  '中兴': 'ZTE',
+  '爱立信': 'E',
+  '诺基亚西门子': 'NSN'
+};
 const toCamelKey = (key) => String(key ?? '').replace(/_([a-zA-Z0-9])/g, (_, char) => char.toUpperCase());
 const isPlainObject = (value) => Object.prototype.toString.call(value) === '[object Object]';
 
@@ -179,6 +185,8 @@ export const toSaveRulePayload = (entity = {}, payload = {}) => {
   const normalizedRuleJson = normalizeRuleJsonForApi(payload.ruleJson || payload.dsl || entity.ruleJson || {});
   const createBy = toText(payload.createBy) || DEFAULT_CREATE_BY;
   const projectCode = toText(payload.projectCode || entity.projectCode);
+  const vendorText = toText(payload.vendor || entity.vendor);
+  const vendor = RULE_VENDOR_UI_TO_API[vendorText] || vendorText;
 
   const requestPayload = {
     ruleName: toText(entity.name),
@@ -195,6 +203,10 @@ export const toSaveRulePayload = (entity = {}, payload = {}) => {
 
   if (projectCode) {
     requestPayload.projectCode = projectCode;
+  }
+
+  if (vendor) {
+    requestPayload.vendor = vendor;
   }
 
   if (persistedRuleId) {

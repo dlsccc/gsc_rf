@@ -1463,6 +1463,7 @@ const saveRuleEntity = async ({ status = 'draft', dsl = null } = {}) => {
       ...JSON.parse(JSON.stringify(form)),
       ruleId: resolvePersistedRuleIdForSave(),
       status,
+      vendor: pipelineStore.writeConfig.vendor,
       targetModel: selectedModel.modelCode || selectedModel.name,
       inputTables: resolveRuleInputTablesForSave(),
       uploadedFiles: pipelineStore.uploadedFiles,
