@@ -59,13 +59,22 @@
             <tr v-for="(field, index) in form.fields" :key="index">
               <td class="field-index">{{ index + 1 }}</td>
               <td>
-                <input
-                  v-model="field.name"
-                  class="field-input"
-                  type="text"
-                  placeholder="字段名称"
-                  :style="getFieldNameError(field) ? { borderColor: 'var(--danger)', boxShadow: '0 0 0 1px var(--danger)' } : null"
-                />
+                <div class="field-name-cell">
+                  <span
+                    v-if="field.isJoinKey"
+                    class="join-key-indicator material-icons"
+                    title="关联字段"
+                  >
+                    sync_alt
+                  </span>
+                  <input
+                    v-model="field.name"
+                    class="field-input"
+                    type="text"
+                    placeholder="字段名称"
+                    :style="getFieldNameError(field) ? { borderColor: 'var(--danger)', boxShadow: '0 0 0 1px var(--danger)' } : null"
+                  />
+                </div>
                 <div v-if="getFieldNameError(field)" style="margin-top: 4px; font-size: 12px; color: var(--danger); line-height: 1.4;">
                   {{ getFieldNameError(field) }}
                 </div>
