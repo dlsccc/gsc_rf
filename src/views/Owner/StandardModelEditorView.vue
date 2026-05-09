@@ -544,3 +544,28 @@ const exportModel = async () => {
   }
 };
 </script>
+
+<style scoped>
+.field-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.join-key-indicator {
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+  color: #9a8cff;
+}
+
+.field-name-cell .field-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+</style>
