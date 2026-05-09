@@ -31,12 +31,16 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAppStore } from '@/store/app.store.js';
 
 const router = useRouter();
 const appStore = useAppStore();
+const currentGdeProjectName = computed(() => {
+  const current = appStore.projectList.find((item) => String(item.id) === String(appStore.currentProject));
+  return String(current?.gdeProjectName || '').trim();
+});
 
 onMounted(async () => {
   appStore.setRole('operator');
@@ -48,6 +52,10 @@ const openLakeExecute = () => router.push('/operator/execute');
 const REPORT_GENERATION_URL = 'https://2000-itsc-gde-runtime.sd.huawei.com/adc-codeagent/static/rf-report/generation-entry.html';
 
 const openReportGeneration = () => {
-  window.open(REPORT_GENERATION_URL, '_blank', 'noopener,noreferrer');
+  const url = new URL(REPORT_GENERATION_URL);
+  if (currentGdeProjectName.value) {
+    url.searchParams.set('app_name', currentGdeProjectName.value);
+  }
+  window.open(url.toString(), '_blank', 'noopener,noreferrer');
 };
 </script>
