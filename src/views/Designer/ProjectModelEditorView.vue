@@ -485,9 +485,9 @@ const form = reactive(emptyModel());
 const importInputRef = ref(null);
 const spaceGranularityOpen = ref(false);
 const needInvolveCalc = computed(() => ['Counter', 'KPI'].includes(String(form.tags?.type || '').trim()));
-const isStandardLocked = computed(() => !isEdit.value && !!toText(route.query.standard));
-const isVendorLocked = computed(() => !isEdit.value && !!toText(route.query.vendor));
-const isTypeLocked = computed(() => !isEdit.value && toText(form.tags?.type) === '工参');
+const isStandardLocked = computed(() => false);
+const isVendorLocked = computed(() => false);
+const isTypeLocked = computed(() => false);
 const availableTypeOptions = computed(() => {
   if (toText(route.query.type) === '工参' || toText(form.tags?.type) === '工参') {
     return ['工参'];
