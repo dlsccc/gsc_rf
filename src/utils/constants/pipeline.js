@@ -37,6 +37,7 @@ export const TRANSFORM_TYPES = {
   REMOVE_THOUSAND_SEP: 'remove_thousand_sep',
   REMOVE_PERCENT: 'remove_percent',
   SET_VALUE: 'set_value',
+  SUBSTR: 'substr',
   CONCAT: 'concat',
   REPLACE: 'replace',
   FORMULA: 'formula'

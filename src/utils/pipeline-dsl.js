@@ -393,6 +393,8 @@ const buildTransformStep = (step = {}, columnRef = '$rule_input[0].key_columns[0
   }
 
   if (step.fixedValue !== undefined) params.push(makeParam('value', 'string', step.fixedValue));
+  if (step.start !== undefined && step.start !== '') params.push(makeParam('start', 'int', Number(step.start)));
+  if (step.end !== undefined && step.end !== '') params.push(makeParam('end', 'int', Number(step.end)));
   if (step.delimiter !== undefined) params.push(makeParam('delimiter', 'string', step.delimiter));
   if (step.search !== undefined) params.push(makeParam('search_value', 'string', step.search));
   if (step.replace !== undefined) params.push(makeParam('replace_value', 'string', step.replace));
@@ -421,6 +423,8 @@ const buildTransformDsl = (config, targetType = '', sourceAliasToId = {}, fallba
             transform_type: transformType,
             delimiter: step.delimiter ?? '',
             value: step.fixedValue ?? '',
+            start: step.start ?? '',
+            end: step.end ?? '',
             search_value: step.search ?? '',
             replace_value: step.replace ?? '',
             formula: step.formula ?? ''
@@ -453,6 +457,8 @@ const buildTransformDsl = (config, targetType = '', sourceAliasToId = {}, fallba
           type: rule.type,
           delimiter: rule.delimiter,
           fixedValue: rule.fixedValue,
+          start: rule.start,
+          end: rule.end,
           search: rule.search,
           replace: rule.replace,
           formula: rule.formula,

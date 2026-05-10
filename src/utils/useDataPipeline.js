@@ -17,6 +17,13 @@ const applySingleTransform = (value, config) => {
     }
     case TRANSFORM_TYPES.SET_VALUE:
       return config.fixedValue ?? '';
+    case TRANSFORM_TYPES.SUBSTR: {
+      const text = toText(value);
+      const start = Number(config.start);
+      const end = Number(config.end);
+      if (!Number.isFinite(start) || !Number.isFinite(end)) return text;
+      return text.slice(start, end);
+    }
     default:
       return value;
   }

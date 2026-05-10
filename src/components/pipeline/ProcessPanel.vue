@@ -410,6 +410,7 @@
                 <option :value="TRANSFORM_TYPES.CALC_WEEK">计算星期数</option>
                 <option :value="TRANSFORM_TYPES.CALC_WEEKDAY">计算星期几</option>
                 <option :value="TRANSFORM_TYPES.SET_VALUE">固定赋值</option>
+                <option :value="TRANSFORM_TYPES.SUBSTR">截取字符串</option>
                 <option :value="TRANSFORM_TYPES.CONCAT">多字段拼接</option>
                 <option :value="TRANSFORM_TYPES.REPLACE">替换内容</option>
                 <option :value="TRANSFORM_TYPES.FORMULA">自定义公式</option>
@@ -488,6 +489,15 @@
               </div>
               <div v-if="step.type === 'set_value'" style="margin-top: 8px;">
                 <input v-model="step.fixedValue" class="form-input" placeholder="固定值" style="font-size: 13px;" />
+              </div>
+              <div v-if="step.type === 'substr'" style="margin-top: 8px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                  <input v-model="step.start" class="form-input" placeholder="开始位置" style="font-size: 13px;" />
+                  <input v-model="step.end" class="form-input" placeholder="结束位置" style="font-size: 13px;" />
+                </div>
+                <div style="margin-top: 6px; font-size: 12px; color: var(--text-secondary);">
+                  开始位置为0，mathmatch截取mathm开始位置为0，结束位置为5
+                </div>
               </div>
               <div v-if="step.type === 'replace'" style="margin-top: 8px;">
                 <input v-model="step.search" class="form-input" placeholder="查找内容" style="margin-bottom: 4px; font-size: 13px;" />
@@ -576,6 +586,7 @@
                 <option :value="TRANSFORM_TYPES.CALC_WEEK">计算星期数</option>
                 <option :value="TRANSFORM_TYPES.CALC_WEEKDAY">计算星期几</option>
                 <option :value="TRANSFORM_TYPES.SET_VALUE">固定赋值</option>
+                <option :value="TRANSFORM_TYPES.SUBSTR">截取字符串</option>
                 <option :value="TRANSFORM_TYPES.CONCAT">多字段拼接</option>
                 <option :value="TRANSFORM_TYPES.REPLACE">替换内容</option>
                 <option :value="TRANSFORM_TYPES.FORMULA">自定义公式</option>
@@ -659,6 +670,17 @@
             <div v-if="rule.actionMode !== TRANSFORM_ACTION_MODES.KEEP_SOURCE && rule.type === 'set_value'" class="form-group">
               <label class="form-label" style="font-size: 12px;">固定值</label>
               <input v-model="rule.fixedValue" class="form-input" placeholder="例如：100" />
+            </div>
+
+            <div v-if="rule.actionMode !== TRANSFORM_ACTION_MODES.KEEP_SOURCE && rule.type === 'substr'" class="form-group">
+              <label class="form-label" style="font-size: 12px;">截取位置</label>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <input v-model="rule.start" class="form-input" placeholder="开始位置" />
+                <input v-model="rule.end" class="form-input" placeholder="结束位置" />
+              </div>
+              <div style="margin-top: 6px; font-size: 12px; color: var(--text-secondary);">
+                开始位置为0，mathmatch截取mathm开始位置为0，结束位置为5
+              </div>
             </div>
 
             <div v-if="rule.actionMode !== TRANSFORM_ACTION_MODES.KEEP_SOURCE && rule.type === 'replace'" class="form-group">
@@ -914,6 +936,7 @@ const TRANSFORM_TYPE_LABELS = Object.freeze({
   [TRANSFORM_TYPES.REMOVE_THOUSAND_SEP]: '去掉千分位',
   [TRANSFORM_TYPES.REMOVE_PERCENT]: '去掉百分号',
   [TRANSFORM_TYPES.SET_VALUE]: '固定赋值',
+  [TRANSFORM_TYPES.SUBSTR]: '截取字符串',
   [TRANSFORM_TYPES.CONCAT]: '多字段拼接',
   [TRANSFORM_TYPES.REPLACE]: '替换内容',
   [TRANSFORM_TYPES.FORMULA]: '自定义公式'
@@ -1621,6 +1644,13 @@ const applyTransformByConfig = (row, field, base, cfg) => {
       return String(base).replace(/%/g, '');
     case TRANSFORM_TYPES.SET_VALUE:
       return cfg.fixedValue || '';
+    case TRANSFORM_TYPES.SUBSTR: {
+      const text = String(base ?? '');
+      const start = Number(cfg.start);
+      const end = Number(cfg.end);
+      if (!Number.isFinite(start) || !Number.isFinite(end)) return text;
+      return text.slice(start, end);
+    }
     case TRANSFORM_TYPES.CONCAT: {
       const keys = props.store.mappings[field] || [];
       const delimiter = cfg.delimiter || '';
@@ -1916,7 +1946,7 @@ const PROCESS_DSL_DEFINITIONS = Object.freeze({
     logic: ['AND', 'OR']
   },
   transform: {
-    types: ['format_datetime', 'extract_year', 'extract_month', 'extract_time', 'format_time', 'calc_week', 'calc_weekday', 'set_value', 'concat', 'replace'],
+    types: ['format_datetime', 'extract_year', 'extract_month', 'extract_time', 'format_time', 'calc_week', 'calc_weekday', 'set_value', 'substr', 'concat', 'replace'],
     operators: [
       {
         type: 'format_datetime',
@@ -1929,6 +1959,7 @@ const PROCESS_DSL_DEFINITIONS = Object.freeze({
       { type: 'calc_week', params: [], required: [] },
       { type: 'calc_weekday', params: [], required: [] },
       { type: 'set_value', params: [{ name: 'fixedValue', type: 'string', required: true }], required: ['fixedValue'] },
+      { type: 'substr', params: [{ name: 'start', type: 'int', required: true }, { name: 'end', type: 'int', required: true }], required: ['start', 'end'] },
       { type: 'concat', params: [{ name: 'delimiter', type: 'string', required: false }], required: [] },
       { type: 'replace', params: [{ name: 'search', type: 'string', required: true }, { name: 'replace', type: 'string', required: true }], required: ['search', 'replace'] }
     ],
@@ -1962,6 +1993,7 @@ const normalizeTransformType = (value) => {
     calcweekday: TRANSFORM_TYPES.CALC_WEEKDAY,
     set_value: TRANSFORM_TYPES.SET_VALUE,
     setvalue: TRANSFORM_TYPES.SET_VALUE,
+    substr: TRANSFORM_TYPES.SUBSTR,
     concat: TRANSFORM_TYPES.CONCAT,
     replace: TRANSFORM_TYPES.REPLACE,
     formula: TRANSFORM_TYPES.FORMULA
@@ -2119,6 +2151,8 @@ const normalizeTransformItem = (rawItem) => {
   if (merged.actionMode !== undefined) normalized.actionMode = trimText(merged.actionMode);
   if (merged.delimiter !== undefined) normalized.delimiter = trimText(merged.delimiter);
   if (merged.fixedValue !== undefined || merged.value !== undefined) normalized.fixedValue = trimText(merged.fixedValue ?? merged.value);
+  if (merged.start !== undefined && merged.start !== null && merged.start !== '') normalized.start = trimText(merged.start);
+  if (merged.end !== undefined && merged.end !== null && merged.end !== '') normalized.end = trimText(merged.end);
   if (merged.search !== undefined || merged.searchValue !== undefined) normalized.search = trimText(merged.search ?? merged.searchValue);
   if (merged.replace !== undefined || merged.replaceValue !== undefined) normalized.replace = trimText(merged.replace ?? merged.replaceValue);
   if (merged.formula !== undefined) normalized.formula = trimText(merged.formula);
@@ -2539,6 +2573,8 @@ const addTransformRule = () => {
     type: TRANSFORM_TYPES.SET_VALUE,
     delimiter: '',
     fixedValue: '',
+    start: '',
+    end: '',
     search: '',
     replace: '',
     formula: '',
@@ -2553,7 +2589,7 @@ const removeTransformRule = (index) => {
 
 const addChainStep = () => {
   if (!Array.isArray(transformModal.chain)) transformModal.chain = [];
-  transformModal.chain.push({ type: TRANSFORM_TYPES.SET_VALUE, delimiter: '', fixedValue: '', search: '', replace: '', formula: '', timeFormatMode: '', customOriginType: '' });
+  transformModal.chain.push({ type: TRANSFORM_TYPES.SET_VALUE, delimiter: '', fixedValue: '', start: '', end: '', search: '', replace: '', formula: '', timeFormatMode: '', customOriginType: '' });
 };
 
 const removeChainStep = (index) => {
