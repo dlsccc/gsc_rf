@@ -496,7 +496,6 @@ const availableTypeOptions = computed(() => {
 });
 const inheritedStandardModelCode = ref('');
 const lockedPrimaryFieldName = ref('');
-const joinKeyList = ref([]);
 const spaceGranularityOptions = computed(() => {
   const options = (Array.isArray(form.fields) ? form.fields : [])
     .filter((field) => String(field?.businessType || '').trim().toLowerCase() === 'space')
@@ -533,18 +532,16 @@ const layerOneFields = computed(() => {
 });
 
 const layerTwoFields = computed(() => {
-  const joinSet = new Set(joinKeyList.value.map((item) => toText(item).toUpperCase()));
   const layerOneKey = toText(layerOneFieldName.value).toUpperCase();
   return form.fields
     .map((field, index) => ({ field, index }))
     .filter((item) => {
       const name = toText(item.field?.name).toUpperCase();
-      return name !== layerOneKey && joinSet.has(name);
+      return name !== layerOneKey && item.field?.isJoinKey === true;
     });
 });
 
 const layerThreeFields = computed(() => {
-  const joinSet = new Set(joinKeyList.value.map((item) => toText(item).toUpperCase()));
   const layerOneKey = toText(layerOneFieldName.value).toUpperCase();
   const inheritedNameSet = referencedStandardFieldNameSet.value;
   return form.fields
@@ -554,12 +551,11 @@ const layerThreeFields = computed(() => {
       const sourceCode = toText(item.field?.sourceModelCode);
       const matchByCode = inheritedStandardModelCode.value && sourceCode === toText(inheritedStandardModelCode.value);
       const matchByName = inheritedNameSet.has(name);
-      return name !== layerOneKey && !joinSet.has(name) && (matchByCode || matchByName);
+      return name !== layerOneKey && item.field?.isJoinKey !== true && (matchByCode || matchByName);
     });
 });
 
 const layerFourFields = computed(() => {
-  const joinSet = new Set(joinKeyList.value.map((item) => toText(item).toUpperCase()));
   const layerOneKey = toText(layerOneFieldName.value).toUpperCase();
   const inheritedNameSet = referencedStandardFieldNameSet.value;
   return form.fields
@@ -569,7 +565,7 @@ const layerFourFields = computed(() => {
       const sourceCode = toText(item.field?.sourceModelCode);
       const matchByCode = inheritedStandardModelCode.value && sourceCode === toText(inheritedStandardModelCode.value);
       const matchByName = inheritedNameSet.has(name);
-      return name !== layerOneKey && !joinSet.has(name) && !(matchByCode || matchByName);
+      return name !== layerOneKey && item.field?.isJoinKey !== true && !(matchByCode || matchByName);
     });
 });
 
@@ -653,12 +649,11 @@ const fillForm = (data) => {
   }
   form.fields = normalizeFieldRows(form.fields);
   inheritedStandardModelCode.value = toText(source?.refStandardModel || source?.referenceModelCode || '');
-  joinKeyList.value = Array.isArray(source?.joinKeyList) ? [...source.joinKeyList] : [];
   lockedPrimaryFieldName.value = isEpModel.value ? 'VENDOR' : 'DATE_TIME';
   form.fields = form.fields.map((field) => ({
     ...field,
     sourceModelCode: toText(field.sourceModelCode || field.sourceModel),
-    isJoinKey: joinKeyList.value.map((item) => toText(item).toUpperCase()).includes(toText(field.name).toUpperCase())
+    isJoinKey: field.isJoinKey === true
   }));
   form.tags.spaceGranularity = form.tags.spaceGranularity.filter((item) => spaceGranularityOptions.value.includes(item));
 
@@ -750,15 +745,9 @@ const onRefModelChange = async () => {
   inheritedStandardModelCode.value = toText(detail.modelCode || detail.code || form.refStandardModel);
   const inheritedFields = normalizeFieldRows(JSON.parse(JSON.stringify(detail.fields || []))).map((field) => ({
     ...field,
-    sourceModelCode: inheritedStandardModelCode.value,
-    isJoinKey: false
+    sourceModelCode: inheritedStandardModelCode.value
   }));
   form.fields = inheritedFields;
-  joinKeyList.value = Array.isArray(detail?.joinKeyList) ? [...detail.joinKeyList] : [];
-  form.fields = form.fields.map((field) => ({
-    ...field,
-    isJoinKey: joinKeyList.value.map((item) => toText(item).toUpperCase()).includes(toText(field.name).toUpperCase())
-  }));
   lockedPrimaryFieldName.value = (toText(detail?.tags?.type || detail?.businessModelType).toLowerCase() === 'ep' || toText(detail?.tags?.type) === '工参') ? 'VENDOR' : 'DATE_TIME';
 
   if (!Array.isArray(form.fields) || form.fields.length === 0) {
@@ -772,9 +761,7 @@ const addField = () => {
 
 const removeField = (index) => {
   if (form.fields.length <= 1) return;
-  const removedFieldName = toText(form.fields[index]?.name);
   form.fields.splice(index, 1);
-  joinKeyList.value = joinKeyList.value.filter((item) => toText(item).toUpperCase() !== removedFieldName.toUpperCase());
 };
 
 const moveFieldUp = (index) => {
