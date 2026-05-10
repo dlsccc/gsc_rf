@@ -68,6 +68,14 @@
                   <span>{{ getSlotDisplayModel(slot).fields.length }} \u4e2a\u5b57\u6bb5</span>
                   <span>{{ resolveRefStandardModelName(getSlotDisplayModel(slot).refStandardModel) }}</span>
                 </div>
+                <button
+                  v-if="!getSlotDisplayModel(slot).isRelease"
+                  type="button"
+                  class="board-card-delete-btn"
+                  @click.stop="deleteProjectModel(getSlotDisplayModel(slot))"
+                >
+                  删除
+                </button>
                 <div
                   v-if="activeSlotMenu === slot.slotKey && slot.models.length > 1"
                   class="board-card-switcher"
@@ -117,6 +125,7 @@ import { useRouter } from 'vue-router';
 import { projectModelsApi, standardModelsApi } from '@/api/index.js';
 import { useAppStore } from '@/store/app.store.js';
 import { normalizeProjectModel, normalizeStandardModel, unwrapApiList, useModelStore } from '@/store/model.store.js';
+import { $confirm, $error, $success } from '@/utils/message.js';
 
 const router = useRouter();
 const appStore = useAppStore();
@@ -229,6 +238,29 @@ const resolveRefStandardModelName = (refStandardModel) => {
 
 const openProjectModel = (model) => {
   router.push(`/designer/project-models/${model.id}/edit`);
+};
+
+const deleteProjectModel = async (model) => {
+  const target = model || null;
+  if (!target || target.isRelease) return;
+  const modelCode = String(target.modelCode || target.code || target.id || '').trim();
+  if (!modelCode) {
+    $error('删除失败：模型编码为空');
+    return;
+  }
+
+  await $confirm(`确认删除模型“${target.name || modelCode}”吗？`, '删除模型', {
+    onOk: async () => {
+      try {
+        await projectModelsApi.remove({ modelCodeList: [modelCode] });
+        modelStore.removeProjectModelById(target.id || modelCode);
+        activeSlotMenu.value = '';
+        $success('模型删除成功');
+      } catch {
+        $error('模型删除失败');
+      }
+    }
+  });
 };
 
 const toggleSlotModelMenu = (slotKey) => {
@@ -489,6 +521,21 @@ const closeSlotMenuOnOutsideClick = (event) => {
   flex: 0 0 auto;
   color: #6f8095;
   font-size: 12px;
+}
+
+.board-card-delete-btn {
+  align-self: flex-end;
+  margin-top: auto;
+  border: 0;
+  background: transparent;
+  color: #d64545;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.board-card-delete-btn:hover {
+  color: #b52f2f;
 }
 
 .board-card-status {
