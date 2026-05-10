@@ -41,22 +41,49 @@
                 v-if="slot.model"
                 class="board-card"
                 type="button"
-                @click="openProjectModel(slot.model)"
+                @click="openProjectModel(getSlotDisplayModel(slot))"
               >
                 <div class="board-card-top">
                   <span class="board-card-type">{{ slot.column.label }}</span>
-                  <span
-                    class="board-card-status"
-                    :class="slot.model.isRelease ? 'board-card-status-active' : 'board-card-status-draft'"
-                  >
-                    {{ slot.model.isRelease ? '已发布' : '未发布' }}
-                  </span>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <button
+                      v-if="slot.models.length > 1"
+                      type="button"
+                      class="board-card-badge-btn"
+                      @click.stop="toggleSlotModelMenu(slot.slotKey)"
+                    >
+                      {{ slot.models.length }}
+                    </button>
+                    <span
+                      class="board-card-status"
+                      :class="getSlotDisplayModel(slot).isRelease ? 'board-card-status-active' : 'board-card-status-draft'"
+                    >
+                      {{ getSlotDisplayModel(slot).isRelease ? '\u5df2\u53d1\u5e03' : '\u672a\u53d1\u5e03' }}
+                    </span>
+                  </div>
                 </div>
-                <div class="board-card-name" :title="slot.model.name">{{ slot.model.name }}</div>
-                <div class="board-card-desc" :title="slot.model.description || '暂无描述'">{{ slot.model.description || '暂无描述' }}</div>
+                <div class="board-card-name" :title="getSlotDisplayModel(slot).name">{{ getSlotDisplayModel(slot).name }}</div>
+                <div class="board-card-desc" :title="getSlotDisplayModel(slot).description || '\u6682\u65e0\u63cf\u8ff0'">{{ getSlotDisplayModel(slot).description || '\u6682\u65e0\u63cf\u8ff0' }}</div>
                 <div class="board-card-meta">
-                  <span>{{ slot.model.fields.length }} 个字段</span>
-                  <span>{{ resolveRefStandardModelName(slot.model.refStandardModel) }}</span>
+                  <span>{{ getSlotDisplayModel(slot).fields.length }} \u4e2a\u5b57\u6bb5</span>
+                  <span>{{ resolveRefStandardModelName(getSlotDisplayModel(slot).refStandardModel) }}</span>
+                </div>
+                <div
+                  v-if="activeSlotMenu === slot.slotKey && slot.models.length > 1"
+                  class="board-card-switcher"
+                  @click.stop
+                >
+                  <button
+                    v-for="model in slot.models"
+                    :key="model.id"
+                    type="button"
+                    class="board-card-switcher-item"
+                    :class="{ active: String(getSlotDisplayModel(slot).id) === String(model.id) }"
+                    @click.stop="selectSlotModel(slot.slotKey, model.id)"
+                  >
+                    <span class="board-card-switcher-name">{{ model.name }}</span>
+                    <span class="board-card-switcher-status">{{ model.isRelease ? '\u5df2\u53d1\u5e03' : '\u672a\u53d1\u5e03' }}</span>
+                  </button>
                 </div>
               </button>
 
@@ -85,7 +112,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { projectModelsApi, standardModelsApi } from '@/api/index.js';
 import { useAppStore } from '@/store/app.store.js';
@@ -94,6 +121,8 @@ import { normalizeProjectModel, normalizeStandardModel, unwrapApiList, useModelS
 const router = useRouter();
 const appStore = useAppStore();
 const modelStore = useModelStore();
+const activeSlotMenu = ref('');
+const slotSelectedModelMap = ref({});
 
 const RAT_ROWS = [
   { key: 'NR', label: '5G' },
@@ -164,12 +193,24 @@ const resolveColumnKey = (item) => {
 
 const getProjectBoardRow = (ratKey) => {
   return BOARD_COLUMNS.map((column) => {
-    const model = projectModels.value.find((item) => {
+    const models = projectModels.value.filter((item) => {
       return resolveRatKey(item) === ratKey && resolveColumnKey(item) === column.key;
-    }) || null;
+    });
 
-    return { column, model };
+    return {
+      column,
+      models,
+      model: models[0] || null,
+      slotKey: `${ratKey}_${column.key}`
+    };
   });
+};
+
+const getSlotDisplayModel = (slot) => {
+  const models = Array.isArray(slot?.models) ? slot.models : [];
+  if (models.length === 0) return null;
+  const selectedId = String(slotSelectedModelMap.value?.[slot.slotKey] || '').trim();
+  return models.find((item) => String(item.id) === selectedId) || models[0];
 };
 
 const resolveRefStandardModelName = (refStandardModel) => {
@@ -188,6 +229,18 @@ const resolveRefStandardModelName = (refStandardModel) => {
 
 const openProjectModel = (model) => {
   router.push(`/designer/project-models/${model.id}/edit`);
+};
+
+const toggleSlotModelMenu = (slotKey) => {
+  activeSlotMenu.value = activeSlotMenu.value === slotKey ? '' : slotKey;
+};
+
+const selectSlotModel = (slotKey, modelId) => {
+  slotSelectedModelMap.value = {
+    ...(slotSelectedModelMap.value || {}),
+    [slotKey]: modelId
+  };
+  activeSlotMenu.value = '';
 };
 
 const createProjectModelForRat = (ratKey) => {
@@ -234,7 +287,19 @@ onMounted(async () => {
   appStore.setRole('designer');
   await loadStandardModels();
   await loadProjectModels();
+  document.addEventListener('click', closeSlotMenuOnOutsideClick, true);
 });
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', closeSlotMenuOnOutsideClick, true);
+});
+
+const closeSlotMenuOnOutsideClick = (event) => {
+  const target = event?.target;
+  if (!(target instanceof Element)) return;
+  if (target.closest('.board-card-switcher') || target.closest('.board-card-badge-btn')) return;
+  activeSlotMenu.value = '';
+};
 </script>
 
 <style scoped>
@@ -311,6 +376,7 @@ onMounted(async () => {
   gap: 10px;
   text-align: left;
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  position: relative;
 }
 
 .board-card:not(.board-card-empty):not(.board-card-add) {
@@ -360,6 +426,69 @@ onMounted(async () => {
   font-weight: 700;
   color: #6a7f98;
   letter-spacing: 0.02em;
+}
+
+.board-card-badge-btn {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(24, 121, 184, 0.12);
+  color: #1879b8;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.board-card-switcher {
+  position: absolute;
+  top: 34px;
+  right: 12px;
+  z-index: 10;
+  width: min(240px, calc(100% - 24px));
+  max-height: 220px;
+  overflow: auto;
+  padding: 6px;
+  border: 1px solid rgba(24, 121, 184, 0.12);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(24, 121, 184, 0.14);
+}
+
+.board-card-switcher-item {
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.board-card-switcher-item:hover,
+.board-card-switcher-item.active {
+  background: rgba(24, 121, 184, 0.08);
+}
+
+.board-card-switcher-name {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #23384d;
+  font-size: 13px;
+}
+
+.board-card-switcher-status {
+  flex: 0 0 auto;
+  color: #6f8095;
+  font-size: 12px;
 }
 
 .board-card-status {
