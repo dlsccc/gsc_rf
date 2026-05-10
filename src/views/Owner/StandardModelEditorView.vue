@@ -498,7 +498,17 @@ const onImportModelFileChange = async (event) => {
       $warning('Model import returned empty payload.');
       return;
     }
-    fillForm(normalizeStandardModel(imported));
+    const currentIdentity = isEdit.value
+      ? {
+        id: form.id,
+        code: form.code,
+        modelCode: form.modelCode
+      }
+      : {};
+    fillForm(normalizeStandardModel({
+      ...imported,
+      ...currentIdentity
+    }));
     $success('Model import succeeded.');
   } catch {
     $error('Model import failed.');
