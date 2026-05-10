@@ -65,7 +65,7 @@
                 <div class="board-card-name" :title="getSlotDisplayModel(slot).name">{{ getSlotDisplayModel(slot).name }}</div>
                 <div class="board-card-desc" :title="getSlotDisplayModel(slot).description || '\u6682\u65e0\u63cf\u8ff0'">{{ getSlotDisplayModel(slot).description || '\u6682\u65e0\u63cf\u8ff0' }}</div>
                 <div class="board-card-meta">
-                  <span>{{ getSlotDisplayModel(slot).fields.length }} \u4e2a\u5b57\u6bb5</span>
+                  <span>{{ getSlotDisplayModel(slot).fields.length }} 个字段</span>
                   <span>{{ resolveRefStandardModelName(getSlotDisplayModel(slot).refStandardModel) }}</span>
                 </div>
                 <button
@@ -74,7 +74,7 @@
                   class="board-card-delete-btn"
                   @click.stop="deleteProjectModel(getSlotDisplayModel(slot))"
                 >
-                  删除
+                  <span class="material-icons" style="font-size: 14px;">delete</span>
                 </button>
                 <div
                   v-if="activeSlotMenu === slot.slotKey && slot.models.length > 1"
@@ -89,7 +89,7 @@
                     :class="{ active: String(getSlotDisplayModel(slot).id) === String(model.id) }"
                     @click.stop="selectSlotModel(slot.slotKey, model.id)"
                   >
-                    <span class="board-card-switcher-name">{{ model.name }}</span>
+                    <span class="board-card-switcher-name" :title="model.name">{{ model.name }}</span>
                     <span class="board-card-switcher-status">{{ model.isRelease ? '\u5df2\u53d1\u5e03' : '\u672a\u53d1\u5e03' }}</span>
                   </button>
                 </div>
