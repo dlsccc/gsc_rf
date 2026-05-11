@@ -252,7 +252,7 @@ const deleteProjectModel = async (model) => {
   await $confirm(`确认删除模型“${target.name || modelCode}”吗？`, '删除模型', {
     onOk: async () => {
       try {
-        await projectModelsApi.remove({ modelCodeList: [modelCode] });
+        await projectModelsApi.remove({ modelType: 'business', modelCodeList: [modelCode] });
         modelStore.removeProjectModelById(target.id || modelCode);
         activeSlotMenu.value = '';
         $success('模型删除成功');
