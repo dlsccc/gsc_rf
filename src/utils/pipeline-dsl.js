@@ -418,13 +418,15 @@ const buildTransformDsl = (config, targetType = '', sourceAliasToId = {}, fallba
       params: [
         makeParam('transform_type', 'enum', 'chain'),
         makeParam('steps', 'array', config.chain.map((step) => {
+          const startValue = step.start !== undefined && step.start !== '' ? Number(step.start) : '';
+          const endValue = step.end !== undefined && step.end !== '' ? Number(step.end) : '';
           const transformType = resolveTransformTypeForApi(step);
           const next = {
             transform_type: transformType,
             delimiter: step.delimiter ?? '',
             value: step.fixedValue ?? '',
-            start: step.start ?? '',
-            end: step.end ?? '',
+            start: startValue,
+            end: endValue,
             search_value: step.search ?? '',
             replace_value: step.replace ?? '',
             formula: step.formula ?? ''
