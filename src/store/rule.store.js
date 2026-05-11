@@ -128,6 +128,7 @@ export const normalizeRule = (rule = {}) => ({
   ruleCode: toText(rule.ruleCode || rule.ruleId || rule.id),
   targetModelName: toText(rule.targetModelName || rule.targetModel),
   projectCode: toText(rule.projectCode || rule.project_code),
+  datacubeExecFlowId: toText(rule.datacubeExecFlowId || rule.datacube_exec_flow_id),
   inputTables: normalizeRuleInputTables(rule),
   ruleJson: rule.ruleJson || {}
 });
@@ -163,15 +164,18 @@ export const mapApiRuleToEntity = (item = {}, projectId, projectCode = '') => {
     || modelSelection?.model_name
     || targetModel
   );
+  const datacubeExecFlowId = toText(item.datacubeExecFlowId || item.datacube_exec_flow_id);
+  const status = datacubeExecFlowId ? 'active' : toText(item.status || 'draft');
 
   return normalizeRule({
     id,
     ruleCode: id,
     name: toText(item.ruleName || item.name),
     description: toText(item.ruleDesc || item.description),
-    status: toText(item.status || 'draft'),
+    status,
     targetModel,
     targetModelName,
+    datacubeExecFlowId,
     projectId: item.projectId || projectId,
     projectCode: toText(item.projectCode || item.project_code || projectCode),
     inputTables,
