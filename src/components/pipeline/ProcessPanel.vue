@@ -2469,6 +2469,9 @@ const resolveTimeFormatModeByType = (type, originType = '') => {
     if (normalizedOriginType) return '';
     return TIME_FORMAT_MODE.DATE;
   }
+  if (type === TRANSFORM_TYPES.FORMAT_TIME && normalizedOriginType) {
+    return '';
+  }
   if (type === TRANSFORM_TYPES.EXTRACT_YEAR) return TIME_FORMAT_MODE.YEAR;
   if (type === TRANSFORM_TYPES.EXTRACT_MONTH) return TIME_FORMAT_MODE.MONTH;
   if (type === TRANSFORM_TYPES.FORMAT_TIME || type === TRANSFORM_TYPES.EXTRACT_TIME) return TIME_FORMAT_MODE.TIME;

@@ -541,6 +541,9 @@ const resolveTimeFormatMode = (originType, transformType) => {
   if (TIME_ORIGIN_TO_MODE_MAP[normalizedOrigin]) {
     return TIME_ORIGIN_TO_MODE_MAP[normalizedOrigin];
   }
+  if (normalizedOrigin) {
+    return '';
+  }
 
   const normalizedType = toText(transformType).toLowerCase();
   if (normalizedType === 'extract_year') return 'year';
