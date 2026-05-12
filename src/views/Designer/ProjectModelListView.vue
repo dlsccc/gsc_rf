@@ -69,7 +69,6 @@
                   <span>{{ resolveRefStandardModelName(getSlotDisplayModel(slot).refStandardModel) }}</span>
                 </div>
                 <button
-                  v-if="!getSlotDisplayModel(slot).isRelease"
                   type="button"
                   class="board-card-delete-btn"
                   @click.stop="deleteProjectModel(getSlotDisplayModel(slot))"
@@ -242,7 +241,7 @@ const openProjectModel = (model) => {
 
 const deleteProjectModel = async (model) => {
   const target = model || null;
-  if (!target || target.isRelease) return;
+  if (!target) return;
   const modelCode = String(target.modelCode || target.code || target.id || '').trim();
   if (!modelCode) {
     $error('删除失败：模型编码为空');
