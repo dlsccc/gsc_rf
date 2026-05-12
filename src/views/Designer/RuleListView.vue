@@ -86,6 +86,7 @@ import { useRouter } from 'vue-router';
 import { rulesApi } from '@/api/index.js';
 import { useRuleStore, mapApiRuleToEntity, unwrapApiList as unwrapRuleList } from '@/store/rule.store.js';
 import { useAppStore } from '@/store/app.store.js';
+import { $confirm } from '@/utils/message.js';
 
 const router = useRouter();
 const appStore = useAppStore();
@@ -179,16 +180,18 @@ watch(
 );
 
 const remove = async (id) => {
-  if (!window.confirm('\u786e\u5b9a\u8981\u5220\u9664\u8be5\u5165\u6e56\u89c4\u5219\u5417\uff1f\u6b64\u64cd\u4f5c\u4e0d\u53ef\u6062\u590d\u3002')) {
-    return;
-  }
-
-  ruleStore.removeRuleById(id);
-  try {
-    await rulesApi.remove({ id: String(id) });
-  } catch {
-    // ignore remove failure when backend is unavailable
-  }
+  await $confirm('确定要删除该入湖规则吗？此操作不可恢复。', '删除规则', {
+    confirmButtonText: '是',
+    cancelButtonText: '否',
+    onOk: async () => {
+      ruleStore.removeRuleById(id);
+      try {
+        await rulesApi.remove({ id: String(id) });
+      } catch {
+        // ignore remove failure when backend is unavailable
+      }
+    }
+  });
 };
 </script>
 

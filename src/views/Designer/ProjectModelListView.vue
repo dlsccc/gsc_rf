@@ -249,6 +249,8 @@ const deleteProjectModel = async (model) => {
   }
 
   await $confirm(`确认删除模型“${target.name || modelCode}”吗？`, '删除模型', {
+    confirmButtonText: '是',
+    cancelButtonText: '否',
     onOk: async () => {
       try {
         await projectModelsApi.remove({ modelType: 'business', modelCodeList: [modelCode] });
