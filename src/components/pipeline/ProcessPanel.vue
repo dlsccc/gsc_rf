@@ -1,43 +1,6 @@
 <template>
-  <div style="display: flex; gap: 16px; min-height: 620px;">
-    <aside class="sidebar" style="width: 280px; border-radius: 12px; border: 1px solid var(--border);">
-      <div class="sidebar-header">
-        <span><span class="material-icons" style="font-size: 18px; vertical-align: middle; margin-right: 6px;">history</span>操作记录</span>
-        <span v-if="history.length > 0" class="badge">{{ history.length }}</span>
-      </div>
-      <div class="sidebar-content">
-        <div v-if="history.length === 0" class="empty-state">
-          <div class="empty-state-icon"><span class="material-icons" style="font-size: 48px;">folder_open</span></div>
-          <p>暂无操作记录</p>
-          <p style="font-size: 12px; margin-top: 8px;">在表中配置筛选 / 转换 / 排序 / 去重</p>
-        </div>
-        <div
-          v-for="(item, index) in history"
-          :key="`${item.type}-${item.field || 'global'}`"
-          class="history-item"
-          :class="{ active: activeHistoryIndex === index }"
-          @click="goToHistoryItem(index)"
-        >
-          <div class="history-icon" :class="item.type">
-            <span v-if="item.type === 'filter'" class="material-icons" style="font-size: 16px;">filter_alt</span>
-            <span v-else-if="item.type === 'transform'" class="material-icons" style="font-size: 16px;">transform</span>
-            <span v-else-if="item.type === 'sort'" class="material-icons" style="font-size: 16px;">sort</span>
-            <span v-else-if="item.type === 'dedup'" class="material-icons" style="font-size: 16px;">delete_sweep</span>
-            <span v-else class="material-icons" style="font-size: 16px;">tune</span>
-          </div>
-          <div class="history-content">
-            <div class="history-title">{{ item.title }}</div>
-            <div class="history-desc">{{ item.description }}</div>
-            <div class="history-actions">
-              <button class="history-btn" @click.stop="undoHistoryItem(index)">撤销</button>
-              <button class="history-btn delete" @click.stop="deleteHistoryItem(index)">删除</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </aside>
-
-    <div style="flex: 1; min-width: 0;">
+  <div style="min-height: 620px;">
+    <div style="min-width: 0;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
         <button class="btn btn-default btn-sm" @click="showRawPreview = !showRawPreview">
           <span class="material-icons" style="font-size: 16px; vertical-align: middle;">
@@ -65,10 +28,6 @@
             <span class="material-icons" style="font-size: 16px; vertical-align: middle;">done_all</span>
             {{ '\u4e00\u952e\u91c7\u7eb3' }}({{ pendingSuggestionCount }})
           </button>
-          <div v-if="history.length" class="preview-indicator">
-            <span class="material-icons" style="font-size: 14px;">check_circle</span>
-            {{ '\u5df2\u914d\u7f6e' }} {{ history.length }} {{ '\u4e2a\u64cd\u4f5c' }}
-          </div>
         </div>
       </div>
 
@@ -895,7 +854,6 @@ const applySortForField = (fieldName, order, historySuffix = '', withHistory = t
   }
   setSortItems(items);
   if (withHistory) {
-    addHistory('sort', '排序', `${field} P${getSortPriority(field)} ${nextOrder === SORT_ORDER.ASC ? '升序' : '降序'}${historySuffix}`, field);
   }
 };
 
@@ -951,8 +909,6 @@ const TRANSFORM_ACTION_MODES = Object.freeze({
   TRANSFORM: 'transform'
 });
 
-const history = ref([]);
-const activeHistoryIndex = ref(-1);
 
 const columnPopover = reactive({ show: false, x: 0, y: 0, field: '', type: '' });
 
@@ -1868,16 +1824,6 @@ const initFilters = () => {
   });
 };
 
-const addHistory = (type, title, description, field = '') => {
-  const existing = history.value.findIndex((item) => item.type === type && item.field === field);
-  if (existing >= 0) {
-    history.value[existing] = { type, title, description, field };
-  } else {
-    history.value.push({ type, title, description, field });
-  }
-  activeHistoryIndex.value = history.value.length - 1;
-};
-
 const notifyOperationApplied = (type, field = '') => {
   emit('operation-applied', {
     type: String(type || '').trim(),
@@ -1886,21 +1832,7 @@ const notifyOperationApplied = (type, field = '') => {
   });
 };
 
-const goToHistoryItem = (index) => {
-  activeHistoryIndex.value = index;
-};
-
 const applyDedupConfig = () => {
-  if (dedupConfig.enabled && dedupConfig.fields.length > 0) {
-    addHistory(
-      'dedup',
-      '去重',
-      `按 ${dedupConfig.fields.join(', ')} 去重，保留${dedupConfig.keep === 'first' ? '第一行' : dedupConfig.keep === 'last' ? '最后一行' : '任意一行'}`,
-      'GLOBAL'
-    );
-  } else {
-    history.value = history.value.filter((item) => item.type !== 'dedup');
-  }
   notifyOperationApplied('dedup', 'GLOBAL');
 };
 
@@ -2255,12 +2187,10 @@ const applySuggestionForField = (fieldName, operations = {}, withHistory = true)
   let applied = false;
   if (operations.filter) {
     filterConfigs[fieldName] = JSON.parse(JSON.stringify(operations.filter));
-    if (withHistory) addHistory('filter', '\u7b5b\u9009', `${fieldName}: \u5e94\u7528\u667a\u80fd\u63a8\u8350\u7b5b\u9009`, fieldName);
     applied = true;
   }
   if (operations.transform) {
     transforms[fieldName] = JSON.parse(JSON.stringify(operations.transform));
-    if (withHistory) addHistory('transform', '\u6570\u636e\u8f6c\u6362', `${fieldName}: \u5e94\u7528\u667a\u80fd\u63a8\u8350\u8f6c\u6362`, fieldName);
     applied = true;
   }
   if (operations.sort) {
@@ -2387,7 +2317,6 @@ const applyFilterConfig = (field) => {
   if (conf.mode === 'simple' && conf.operator) {
     const valueDesc = conf.value || '';
     const suffix = valueDesc ? ` ${valueDesc}` : '';
-    addHistory('filter', '筛选', `${field} ${getFilterOperatorLabel(conf.operator)}${suffix}`, field);
   } else if (conf.mode === 'compound' && conf.conditions && conf.conditions.length > 0) {
     const activeConds = conf.conditions.filter((item) => item.operator);
     if (activeConds.length > 0) {
@@ -2400,17 +2329,14 @@ const applyFilterConfig = (field) => {
           return `${getFilterOperatorLabel(item.operator)}${suffix}`;
         })
         .join(` ${logicLabel} `);
-      addHistory('filter', '筛选', `${field} [${logicLabel}] ${desc}`, field);
     }
   } else if (conf.mode === 'formula' && conf.formula) {
-    addHistory('filter', '筛选', `${field} 公式: ${conf.formula}`, field);
   }
   columnPopover.show = false;
   notifyOperationApplied('filter', field);
 };
 const clearFilter = (field) => {
   filterConfigs[field] = { mode: 'simple', operator: '', value: '', formula: '', conditions: [], logic: 'AND' };
-  history.value = history.value.filter((item) => !(item.type === 'filter' && item.field === field));
   columnPopover.show = false;
   notifyOperationApplied('filter', field);
 };
@@ -2441,10 +2367,8 @@ const clearSort = (field = '') => {
   const targetField = trimText(field);
   if (targetField) {
     removeSortForField(targetField);
-    history.value = history.value.filter((item) => !(item.type === 'sort' && trimText(item.field) === targetField));
   } else {
     setSortItems([]);
-    history.value = history.value.filter((item) => item.type !== 'sort');
   }
   columnPopover.show = false;
   notifyOperationApplied('sort', targetField);
@@ -2659,7 +2583,6 @@ const confirmTransform = () => {
     chain: storedChain
   };
   const chainDesc = storedChain.length > 0 ? ' [链:' + storedChain.map((step) => getTransformTypeLabel(step.type)).join('→') + ']' : '';
-  addHistory('transform', '数据转换', transformModal.field + chainDesc, transformModal.field);
   notifyOperationApplied('transform', transformModal.field);
   closeTransformModal();
 };
@@ -2732,14 +2655,12 @@ const applyColumnConfig = () => {
     if (applyModal.applyFilter && copiedConfig.value.filter) {
       if (applyModal.override || !isFilterActive(target)) {
         filterConfigs[target] = JSON.parse(JSON.stringify(copiedConfig.value.filter));
-        addHistory('filter', '筛选', `${target} 复制筛选配置`, target);
       }
     }
 
     if (applyModal.applyTransform && copiedConfig.value.transform) {
       if (applyModal.override || !transforms[target]) {
         transforms[target] = JSON.parse(JSON.stringify(copiedConfig.value.transform));
-        addHistory('transform', '数据转换', `${target} 复制转换配置`, target);
       }
     }
 
@@ -2752,26 +2673,6 @@ const applyColumnConfig = () => {
 
   notifyOperationApplied('batch_apply', applyModal.sourceField);
   closeApplyModal();
-};
-
-const undoHistoryItem = (index) => {
-  const item = history.value[index];
-  if (!item) return;
-  if (item.type === 'filter') {
-    filterConfigs[item.field] = { mode: 'simple', operator: '', value: '', formula: '', conditions: [], logic: 'AND' };
-  } else if (item.type === 'transform') {
-    delete transforms[item.field];
-  } else if (item.type === 'sort') {
-    removeSortForField(item.field);
-  } else if (item.type === 'dedup') {
-    dedupConfig.enabled = false;
-  }
-  history.value.splice(index, 1);
-  notifyOperationApplied(item.type || 'undo', item.field || '');
-};
-
-const deleteHistoryItem = (index) => {
-  undoHistoryItem(index);
 };
 
 const hasEffectiveTransform = (field) => {
