@@ -1159,6 +1159,8 @@ const getMappedSources = (targetField) => {
   });
 };
 
+const hasMappedSources = (targetField) => getMappedSources(targetField).length > 0;
+
 const getMappingSource = (targetField) => {
   const keys = props.store.mappings[targetField] || [];
   if (keys.length === 0) return '';
@@ -1798,6 +1800,7 @@ const filteredApplyTargets = computed(() => {
   const keyword = applyModal.search.trim().toLowerCase();
   return targetModelFields.value
     .filter((field) => field.name !== applyModal.sourceField)
+    .filter((field) => hasMappedSources(field.name))
     .filter((field) => !keyword || field.name.toLowerCase().includes(keyword));
 });
 
@@ -2652,8 +2655,7 @@ const applyColumnConfig = () => {
   if (!copiedConfig.value) return;
 
   applyModal.selected.forEach((target) => {
-    const targetMappings = props.store.mappings?.[target];
-    if (!Array.isArray(targetMappings) || targetMappings.length === 0) {
+    if (!hasMappedSources(target)) {
       return;
     }
 
