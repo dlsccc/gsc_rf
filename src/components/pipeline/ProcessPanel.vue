@@ -2652,6 +2652,11 @@ const applyColumnConfig = () => {
   if (!copiedConfig.value) return;
 
   applyModal.selected.forEach((target) => {
+    const targetMappings = props.store.mappings?.[target];
+    if (!Array.isArray(targetMappings) || targetMappings.length === 0) {
+      return;
+    }
+
     if (applyModal.applyFilter && copiedConfig.value.filter) {
       if (applyModal.override || !isFilterActive(target)) {
         filterConfigs[target] = JSON.parse(JSON.stringify(copiedConfig.value.filter));
