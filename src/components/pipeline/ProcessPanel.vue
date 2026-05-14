@@ -2660,21 +2660,15 @@ const applyColumnConfig = () => {
     }
 
     if (applyModal.applyFilter && copiedConfig.value.filter) {
-      if (applyModal.override || !isFilterActive(target)) {
-        filterConfigs[target] = JSON.parse(JSON.stringify(copiedConfig.value.filter));
-      }
+      filterConfigs[target] = JSON.parse(JSON.stringify(copiedConfig.value.filter));
     }
 
     if (applyModal.applyTransform && copiedConfig.value.transform) {
-      if (applyModal.override || !transforms[target]) {
-        transforms[target] = JSON.parse(JSON.stringify(copiedConfig.value.transform));
-      }
+      transforms[target] = JSON.parse(JSON.stringify(copiedConfig.value.transform));
     }
 
     if (applyModal.applySort && copiedConfig.value.sort) {
-      if (applyModal.override || !isSortActive(target)) {
-        applySortForField(target, copiedConfig.value.sort.order || SORT_ORDER.ASC);
-      }
+      applySortForField(target, copiedConfig.value.sort.order || SORT_ORDER.ASC);
     }
   });
 
