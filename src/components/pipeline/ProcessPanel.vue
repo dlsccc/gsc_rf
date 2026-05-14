@@ -1161,6 +1161,40 @@ const getMappedSources = (targetField) => {
 
 const hasMappedSources = (targetField) => getMappedSources(targetField).length > 0;
 
+const remapSourceKeyForTargetField = (sourceFieldName, targetFieldName, sourceKey) => {
+  const sourceMappings = toArray(props.store.mappings?.[sourceFieldName]).map((item) => trimText(item)).filter(Boolean);
+  const targetMappings = toArray(props.store.mappings?.[targetFieldName]).map((item) => trimText(item)).filter(Boolean);
+  const currentKey = trimText(sourceKey);
+  if (!currentKey || sourceMappings.length === 0 || targetMappings.length === 0) {
+    return currentKey;
+  }
+  const sourceIndex = sourceMappings.findIndex((item) => item === currentKey);
+  if (sourceIndex < 0) {
+    return currentKey;
+  }
+  return targetMappings[sourceIndex] || currentKey;
+};
+
+const remapTransformConfigForTargetField = (sourceFieldName, targetFieldName, transformConfig) => {
+  const sourceField = trimText(sourceFieldName);
+  const targetField = trimText(targetFieldName);
+  if (!sourceField || !targetField || !transformConfig || sourceField === targetField) {
+    return JSON.parse(JSON.stringify(transformConfig || null));
+  }
+
+  const next = JSON.parse(JSON.stringify(transformConfig));
+
+  if (Array.isArray(next?.rules)) {
+    next.rules = next.rules.map((rule) => ({
+      ...rule,
+      conditionSourceKey: remapSourceKeyForTargetField(sourceField, targetField, rule?.conditionSourceKey),
+      actionSourceKey: remapSourceKeyForTargetField(sourceField, targetField, rule?.actionSourceKey)
+    }));
+  }
+
+  return next;
+};
+
 const getMappingSource = (targetField) => {
   const keys = props.store.mappings[targetField] || [];
   if (keys.length === 0) return '';
@@ -2664,7 +2698,7 @@ const applyColumnConfig = () => {
     }
 
     if (applyModal.applyTransform && copiedConfig.value.transform) {
-      transforms[target] = JSON.parse(JSON.stringify(copiedConfig.value.transform));
+      transforms[target] = remapTransformConfigForTargetField(applyModal.sourceField, target, copiedConfig.value.transform);
     }
 
     if (applyModal.applySort && copiedConfig.value.sort) {
