@@ -1,5 +1,22 @@
 <template>
   <div class="function-menu" style="margin-top: 64px;">
+    <div v-if="deployNotice.show" class="deploy-notice" :class="`deploy-notice-${deployNotice.status}`">
+      <div class="deploy-notice-content">
+        <span class="material-icons" :class="{ 'deploy-notice-spinning': deployNotice.status === 'processing' }">
+          {{ deployNotice.status === 'processing' ? 'autorenew' : (deployNotice.status === 'success' ? 'check_circle' : 'error') }}
+        </span>
+        <span>{{ deployNotice.text }}</span>
+      </div>
+      <button
+        v-if="deployNotice.status !== 'processing'"
+        type="button"
+        class="deploy-notice-close"
+        @click="hideDeployNotice"
+      >
+        <span class="material-icons">close</span>
+      </button>
+    </div>
+
     <div class="menu-header">
       <div class="back-btn" @click="goEntrance"><span class="material-icons">arrow_back</span></div>
       <div class="menu-title-area">
@@ -105,13 +122,48 @@
       </div>
     </div>
   </div>
+
+  <div v-if="deployModal.show" class="modal-overlay" @click="closeDeployModal">
+    <div class="modal project-modal" role="dialog" aria-modal="true" aria-labelledby="deploy-modal-title" @click.stop>
+      <div class="modal-header">
+        <span id="deploy-modal-title">项目部署</span>
+        <span class="modal-close" role="button" tabindex="0" aria-label="关闭弹窗" @click="closeDeployModal" @keydown.enter="closeDeployModal">×</span>
+      </div>
+      <div class="modal-body">
+        <div v-if="deployModal.loading" class="field-tip" style="font-size: 14px;">正在查询可部署信息...</div>
+        <template v-else>
+          <div class="form-group">
+            <label class="form-label">工程名</label>
+            <input :value="deployForm.appName" type="text" class="form-input" disabled>
+          </div>
+          <div class="form-group">
+            <label class="form-label">版本</label>
+            <input :value="deployForm.appVersion" type="text" class="form-input" disabled>
+          </div>
+          <div class="form-group">
+            <label class="form-label">环境名称</label>
+            <input :value="deployEnvNamesText" type="text" class="form-input" disabled>
+          </div>
+          <div v-if="deployModal.statusText" class="field-tip" style="font-size: 13px;">{{ deployModal.statusText }}</div>
+        </template>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" type="button" @click="closeDeployModal">取消</button>
+        <button class="btn btn-primary" type="button" :disabled="deployModal.loading || deployModal.submitting || !deployForm.appName || !deployForm.appVersion || deployForm.envNames.length === 0" @click="confirmDeploy">
+          {{ deployModal.submitting ? '部署中...' : '确认' }}
+        </button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
-import { onBeforeUnmount, onMounted, reactive, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAppStore } from '@/store/app.store.js';
 import { $error, $success, $warning } from '@/utils/message.js';
+import { projectsApi } from '@/api/index.js';
+import userStore from '@/store/userInfo.js';
 
 const router = useRouter();
 const appStore = useAppStore();
@@ -123,12 +175,30 @@ const projectModal = reactive({
   mode: 'create',
   submitting: false
 });
+const deployModal = reactive({
+  show: false,
+  loading: false,
+  submitting: false,
+  statusText: ''
+});
+const deployNotice = reactive({
+  show: false,
+  status: 'processing',
+  text: ''
+});
 const projectForm = reactive({
   id: '',
   projectName: '',
   projectCode: '',
   gdeProjectName: ''
 });
+const deployForm = reactive({
+  appName: '',
+  appVersion: '',
+  envNames: []
+});
+const deployPollingTimer = ref(null);
+const deployNoticeTimer = ref(null);
 
 const REPORT_TEMPLATE_URL = 'https://astr-lab.gts.huawei.com/dacs/rfreport#/';
 const PROJECT_CODE_PATTERN = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]+$/;
@@ -140,6 +210,13 @@ const clearProjectForm = () => {
   projectForm.projectName = '';
   projectForm.projectCode = '';
   projectForm.gdeProjectName = '';
+};
+
+const clearDeployForm = () => {
+  deployForm.appName = '';
+  deployForm.appVersion = '';
+  deployForm.envNames = [];
+  deployModal.statusText = '';
 };
 
 const loadProjectList = async () => {
@@ -161,6 +238,14 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', closeProjectMenuOnOutsideClick);
+  if (deployPollingTimer.value) {
+    window.clearTimeout(deployPollingTimer.value);
+    deployPollingTimer.value = null;
+  }
+  if (deployNoticeTimer.value) {
+    window.clearTimeout(deployNoticeTimer.value);
+    deployNoticeTimer.value = null;
+  }
 });
 
 const toggleProjectMenu = () => {
@@ -192,6 +277,39 @@ const openEditProjectModal = (project) => {
 const closeProjectModal = () => {
   if (projectModal.submitting) return;
   projectModal.show = false;
+};
+
+const closeDeployModal = () => {
+  if (deployModal.loading || deployModal.submitting) return;
+  deployModal.show = false;
+  if (deployPollingTimer.value) {
+    window.clearTimeout(deployPollingTimer.value);
+    deployPollingTimer.value = null;
+  }
+};
+
+const hideDeployNotice = () => {
+  deployNotice.show = false;
+  deployNotice.text = '';
+  if (deployNoticeTimer.value) {
+    window.clearTimeout(deployNoticeTimer.value);
+    deployNoticeTimer.value = null;
+  }
+};
+
+const showDeployNotice = (status, text, autoHideMs = 0) => {
+  deployNotice.status = status;
+  deployNotice.text = text;
+  deployNotice.show = true;
+  if (deployNoticeTimer.value) {
+    window.clearTimeout(deployNoticeTimer.value);
+    deployNoticeTimer.value = null;
+  }
+  if (autoHideMs > 0) {
+    deployNoticeTimer.value = window.setTimeout(() => {
+      hideDeployNotice();
+    }, autoHideMs);
+  }
 };
 
 const showDeleteDisabledTip = () => {
@@ -254,7 +372,120 @@ const goReportTemplate = () => {
   window.open(REPORT_TEMPLATE_URL, '_target');
 };
 
-const goPublish = () => router.push('/designer/publish');
+const getCurrentProject = () => appStore.projectList.find((item) => String(item.id) === String(appStore.currentProject)) || null;
+const getCurrentUserAccount = () => String(userStore?.state?.userInfo?.account || '').trim();
+const deployEnvNamesText = computed(() => deployForm.envNames.join(', '));
+
+const pollDeployStatus = async () => {
+  try {
+    const response = await projectsApi.queryDeployStatus({
+      appName: deployForm.appName,
+      appVersion: deployForm.appVersion
+    });
+    const payload = response?.data ?? response ?? {};
+    const deployStatus = String(payload?.deployStatus || payload?.status || '').trim().toLowerCase();
+    if (deployStatus === 'processing') {
+      showDeployNotice('processing', '部署进行中，请稍候...');
+      deployPollingTimer.value = window.setTimeout(pollDeployStatus, 20000);
+      return;
+    }
+    deployPollingTimer.value = null;
+    deployModal.submitting = false;
+    if (deployStatus === 'success') {
+      showDeployNotice('success', '部署成功', 5000);
+      $success('部署成功');
+      return;
+    }
+    if (deployStatus === 'failed') {
+      showDeployNotice('failed', '部署失败');
+      $error('部署失败');
+      return;
+    }
+    showDeployNotice('failed', String(payload?.deployStatus || payload?.status || '部署状态未知'));
+  } catch {
+    deployPollingTimer.value = null;
+    deployModal.submitting = false;
+    showDeployNotice('failed', '查询部署状态失败');
+    $error('查询部署状态失败');
+  }
+};
+
+const confirmDeploy = async () => {
+  const userAccount = getCurrentUserAccount();
+  if (!userAccount) {
+    $warning('未获取到当前用户账号');
+    return;
+  }
+  deployModal.submitting = true;
+  deployModal.statusText = '';
+  if (deployPollingTimer.value) {
+    window.clearTimeout(deployPollingTimer.value);
+    deployPollingTimer.value = null;
+  }
+  try {
+    const response = await projectsApi.deploy({
+      appName: deployForm.appName,
+      appVersion: deployForm.appVersion,
+      envNames: [...deployForm.envNames],
+      userAccount
+    });
+    const payload = response?.data ?? response ?? {};
+    const status = String(payload?.status || '').trim().toLowerCase();
+    if (status === 'locked') {
+      deployModal.submitting = false;
+      $warning('有其他人正在部署');
+      return;
+    }
+    if (status === 'deploying') {
+      deployModal.submitting = false;
+      deployModal.show = false;
+      showDeployNotice('processing', '部署进行中，请稍候...');
+      deployPollingTimer.value = window.setTimeout(pollDeployStatus, 20000);
+      return;
+    }
+    deployModal.submitting = false;
+    deployModal.show = false;
+    if (status === 'success') {
+      showDeployNotice('success', '部署成功', 5000);
+      $success('部署成功');
+      return;
+    }
+    if (status === 'failed') {
+      showDeployNotice('failed', '部署失败');
+      $error('部署失败');
+      return;
+    }
+  } catch {
+    deployModal.submitting = false;
+    $error('发起部署失败');
+  }
+};
+
+const goPublish = async () => {
+  const currentProject = getCurrentProject();
+  const appName = String(currentProject?.gdeProjectName || '').trim();
+  if (!appName) {
+    $warning('当前项目缺少工程名');
+    return;
+  }
+  clearDeployForm();
+  deployModal.show = true;
+  deployModal.loading = true;
+  try {
+    const response = await projectsApi.queryDeployableInfo({ appName });
+    const payload = response?.data ?? response ?? {};
+    deployForm.appName = String(payload?.appName || appName).trim();
+    deployForm.appVersion = String(payload?.appVersion || '').trim();
+    deployForm.envNames = Array.isArray(payload?.envNames) ? payload.envNames.map((item) => String(item || '').trim()).filter(Boolean) : [];
+  } catch {
+    deployModal.show = false;
+    $error('查询可部署信息失败');
+    return;
+  } finally {
+    deployModal.loading = false;
+  }
+};
+
 const goEntrance = () => router.push('/');
 </script>
 
@@ -404,6 +635,77 @@ const goEntrance = () => router.push('/');
   font-size: 12px;
   color: var(--text-secondary);
   line-height: 1.5;
+}
+
+.deploy-notice {
+  position: fixed;
+  top: 84px;
+  right: 24px;
+  z-index: 120;
+  min-width: 280px;
+  max-width: 420px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.14);
+  border: 1px solid transparent;
+  background: #fff;
+}
+
+.deploy-notice-processing {
+  border-color: rgba(24, 121, 184, 0.18);
+  background: #f5fbff;
+  color: #1879b8;
+}
+
+.deploy-notice-success {
+  border-color: rgba(47, 125, 58, 0.18);
+  background: #f6fff7;
+  color: #2f7d3a;
+}
+
+.deploy-notice-failed {
+  border-color: rgba(214, 69, 69, 0.18);
+  background: #fff7f7;
+  color: #c53a3a;
+}
+
+.deploy-notice-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.deploy-notice-close {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.deploy-notice-close:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.deploy-notice-spinning {
+  animation: deploy-notice-spin 1.2s linear infinite;
+}
+
+@keyframes deploy-notice-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 </style>
