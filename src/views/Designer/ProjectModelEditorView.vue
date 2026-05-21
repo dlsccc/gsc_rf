@@ -122,7 +122,7 @@
               <th style="width: 140px;">数据格式</th>
               <th style="width: 120px;">业务类型</th>
               <th>业务描述</th>
-              <th style="width: 120px;">样例值</th>
+              <th style="width: 120px;">是否关联</th>
               <th style="width: 80px;">操作</th>
             </tr>
           </thead>
@@ -151,7 +151,7 @@
                 <td><input :value="item.field.format" class="field-input" type="text" disabled /></td>
                 <td><input :value="toBusinessTypeLabel(item.field.businessType)" class="field-input" type="text" disabled /></td>
                 <td><input :value="item.field.description" class="field-input" type="text" disabled /></td>
-                <td><input :value="item.field.example" class="field-input" type="text" disabled /></td>
+                <td style="text-align: center;"><input :checked="item.field.isJoinKey === true" class="field-checkbox" type="checkbox" disabled /></td>
               </tr>
             </tbody>
           </table>
@@ -191,7 +191,7 @@
                 <td><input :value="item.field.format" class="field-input" type="text" disabled /></td>
                 <td><input :value="toBusinessTypeLabel(item.field.businessType)" class="field-input" type="text" disabled /></td>
                 <td><input :value="item.field.description" class="field-input" type="text" disabled /></td>
-                <td><input :value="item.field.example" class="field-input" type="text" disabled /></td>
+                <td style="text-align: center;"><input v-model="item.field.isJoinKey" class="field-checkbox" type="checkbox" /></td>
                 <td class="field-actions">
                   <button class="field-action-btn" title="删除" @click="removeField(item.index)">
                     <span class="material-icons" style="font-size: 16px;">delete</span>
@@ -251,14 +251,8 @@
                   </select>
                 </td>
                 <td><input v-model="item.field.description" class="field-input" type="text" placeholder="业务含义描述" /></td>
-                <td><input v-model="item.field.example" class="field-input" type="text" placeholder="样例" /></td>
+                <td style="text-align: center;"><input v-model="item.field.isJoinKey" class="field-checkbox" type="checkbox" /></td>
                 <td class="field-actions">
-                  <button class="field-action-btn move" :disabled="index === 0" title="上移" @click="moveLayerField(layerThreeFields, index, -1)">
-                    <span class="material-icons" style="font-size: 16px;">arrow_upward</span>
-                  </button>
-                  <button class="field-action-btn move" :disabled="index === layerThreeFields.length - 1" title="下移" @click="moveLayerField(layerThreeFields, index, 1)">
-                    <span class="material-icons" style="font-size: 16px;">arrow_downward</span>
-                  </button>
                   <button class="field-action-btn" title="删除" @click="removeField(item.index)">
                     <span class="material-icons" style="font-size: 16px;">delete</span>
                   </button>
@@ -317,14 +311,8 @@
                   </select>
                 </td>
                 <td><input v-model="item.field.description" class="field-input" type="text" placeholder="业务含义描述" /></td>
-                <td><input v-model="item.field.example" class="field-input" type="text" placeholder="样例" /></td>
+                <td style="text-align: center;"><input v-model="item.field.isJoinKey" class="field-checkbox" type="checkbox" /></td>
                 <td class="field-actions">
-                  <button class="field-action-btn move" :disabled="index === 0" title="上移" @click="moveLayerField(layerFourFields, index, -1)">
-                    <span class="material-icons" style="font-size: 16px;">arrow_upward</span>
-                  </button>
-                  <button class="field-action-btn move" :disabled="index === layerFourFields.length - 1" title="下移" @click="moveLayerField(layerFourFields, index, 1)">
-                    <span class="material-icons" style="font-size: 16px;">arrow_downward</span>
-                  </button>
                   <button class="field-action-btn" title="删除" @click="removeField(item.index)">
                     <span class="material-icons" style="font-size: 16px;">delete</span>
                   </button>
@@ -776,15 +764,6 @@ const moveFieldDown = (index) => {
   const temp = form.fields[index];
   form.fields[index] = form.fields[index + 1];
   form.fields[index + 1] = temp;
-};
-
-const moveLayerField = (layerList, index, direction) => {
-  const current = layerList[index];
-  const target = layerList[index + direction];
-  if (!current || !target) return;
-  const next = [...form.fields];
-  [next[current.index], next[target.index]] = [next[target.index], next[current.index]];
-  form.fields = next;
 };
 
 const getFieldNameError = (field) => {
