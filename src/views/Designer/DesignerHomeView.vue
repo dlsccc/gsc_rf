@@ -163,7 +163,7 @@ import { useRouter } from 'vue-router';
 import { useAppStore } from '@/store/app.store.js';
 import { $error, $success, $warning } from '@/utils/message.js';
 import { projectsApi } from '@/api/index.js';
-import userStore from '@/store/userInfo.js';
+import { loginState } from '@hw-itsc/common/src/utils/login-util.js';
 
 const router = useRouter();
 const appStore = useAppStore();
@@ -373,7 +373,7 @@ const goReportTemplate = () => {
 };
 
 const getCurrentProject = () => appStore.projectList.find((item) => String(item.id) === String(appStore.currentProject)) || null;
-const getCurrentUserAccount = () => String(userStore?.state?.userInfo?.account || '').trim();
+const getCurrentUserAccount = () => String(loginState?.userInfo?.account || '').trim();
 const deployEnvNamesText = computed(() => deployForm.envNames.join(', '));
 
 const pollDeployStatus = async () => {
