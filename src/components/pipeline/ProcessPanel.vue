@@ -2743,6 +2743,11 @@ const switchTransformMode = (mode) => {
 
   const targetLabel = nextMode === TRANSFORM_EDIT_MODES.CHAIN ? '转换链' : '条件转换';
   $confirm(`切换到“${targetLabel}”后，将清空当前模式下已填写的内容，是否继续？`, '切换转换模式', {
+    confirmButtonText: '确认',
+    cancelButtonText: '取消',
+    customClass: 'message-tip-class transform-mode-confirm',
+    modalClass: 'transform-mode-confirm-overlay',
+    zIndex: 5000,
     onOk: applySwitch
   });
 };
