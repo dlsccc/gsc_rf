@@ -334,7 +334,7 @@
         <span class="modal-close" @click="closeTransformModal" @keydown.enter="closeTransformModal" role="button" aria-label="关闭弹窗" tabindex="0"><span class="material-icons">close</span></span>
       </div>
       <div class="modal-body">
-        <div v-else class="form-group">
+        <div class="form-group">
           <label class="form-label"><span class="material-icons" style="font-size: 16px; vertical-align: middle; margin-right: 4px;">swap_horiz</span>转换模式</label>
           <div style="display: inline-flex; padding: 4px; border: 1px solid var(--border); border-radius: 10px; background: #fafafa; gap: 4px;">
             <button
@@ -490,7 +490,7 @@
           </button>
         </div>
 
-        <div class="form-group">
+        <div v-else class="form-group">
           <label class="form-label"><span class="material-icons" style="font-size: 16px; vertical-align: middle; margin-right: 4px;">rule</span>条件转换</label>
           <div class="popover-muted" style="margin-bottom: 12px; padding: 10px; background: #fafafa; border-radius: 6px;">
             满足条件时才应用转换规则；未命中则保留原值
