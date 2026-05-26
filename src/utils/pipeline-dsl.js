@@ -238,7 +238,7 @@ const buildConditionExpression = (rule = {}, columnRef = '$rule_input[0].key_col
 
   if (operator === 'equals') return `${columnRef} == ${valueText}`;
   if (operator === 'not_equals') return `${columnRef} <> ${valueText}`;
-  if (operator === 'contains') return `contains(${columnRef}, ${valueText})`;
+  if (operator === 'contains') return `${columnRef} contains ${valueText}`;
   if (operator === 'is_empty') return `${columnRef} == null || ${columnRef} == ""`;
   if (operator === 'is_not_empty') return `${columnRef} <> null && ${columnRef} <> ""`;
   return '';

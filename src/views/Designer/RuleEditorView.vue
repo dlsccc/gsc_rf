@@ -602,6 +602,15 @@ const parseConditionExpression = (conditionExpr) => {
   const expr = toText(conditionExpr);
   if (!expr) return null;
 
+  const infixContainsMatch = expr.match(/^\s*\$rule_input\[(\d+)\]\.key_columns\[0\]\s+contains\s+(.+)\s*$/i);
+  if (infixContainsMatch) {
+    return {
+      operator: 'contains',
+      value: stripQuotedText(infixContainsMatch[2]),
+      inputIndex: Number(infixContainsMatch[1]) || 0
+    };
+  }
+
   const containsMatch = expr.match(/^\s*contains\(\$rule_input\[(\d+)\]\.key_columns\[0\],\s*(.+)\)\s*$/i);
   if (containsMatch) {
     return {
