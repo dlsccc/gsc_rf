@@ -2747,7 +2747,7 @@ const switchTransformMode = (mode) => {
     cancelButtonText: '取消',
     customClass: 'message-tip-class transform-mode-confirm',
     modalClass: 'transform-mode-confirm-overlay',
-    zIndex: 5000,
+    zIndex: 7000,
     onOk: applySwitch
   });
 };
@@ -2999,3 +2999,13 @@ onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside);
 });
 </script>
+
+<style>
+.transform-mode-confirm-overlay {
+  z-index: 6999 !important;
+}
+
+.transform-mode-confirm {
+  z-index: 7000 !important;
+}
+</style>

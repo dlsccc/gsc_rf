@@ -227,8 +227,6 @@ const normalizeIndexPart = (value) => {
 const formatConditionValue = (value) => {
   if (value === null || value === undefined) return 'null';
   const text = String(value);
-  if (/^-?\d+(\.\d+)?$/.test(text)) return text;
-  if (/^(true|false)$/i.test(text)) return text.toLowerCase();
   return `"${text.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 };
 
