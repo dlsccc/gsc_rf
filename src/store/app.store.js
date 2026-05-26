@@ -16,27 +16,6 @@ const toBoolean = (value) => {
   return Boolean(value);
 };
 
-const BUILTIN_PROJECTS = [
-  {
-    id: 1,
-    code: 'project11111111',
-    name: '椹潵UM椤圭洰',
-    projectCode: 'project11111111',
-    projectName: '椹潵UM椤圭洰',
-    gdeProjectName: '',
-    needCreateGdeProject: false
-  },
-  {
-    id: 2,
-    code: 'project_01',
-    name: '姣涘Chinguitel',
-    projectCode: 'project_01',
-    projectName: '姣涘Chinguitel',
-    gdeProjectName: '',
-    needCreateGdeProject: false
-  }
-];
-
 const unwrapApiData = (response) => {
   if (response && typeof response === 'object' && Object.prototype.hasOwnProperty.call(response, 'data')) {
     return response.data;
@@ -71,30 +50,10 @@ const normalizeProject = (project = {}, index = 0) => {
   };
 };
 
-const mergeProjects = (apiList = []) => {
-  const builtinList = BUILTIN_PROJECTS.map((item, index) => normalizeProject(item, index));
-  const fromApi = (Array.isArray(apiList) ? apiList : [])
-    .map((item, index) => normalizeProject(item, builtinList.length + index))
-    .filter((item) => item.code || item.name);
-
-  const mergedMap = new Map();
-  builtinList.forEach((item) => {
-    const key = item.code || `id:${String(item.id)}`;
-    mergedMap.set(key, item);
-  });
-  fromApi.forEach((item) => {
-    const key = item.code || `id:${String(item.id)}`;
-    const previous = mergedMap.get(key);
-    mergedMap.set(key, previous ? { ...previous, ...item } : item);
-  });
-
-  return Array.from(mergedMap.values());
-};
-
 export const useAppStore = defineStore('app', () => {
   const currentRole = ref(null);
-  const projectList = ref(BUILTIN_PROJECTS.map((item, index) => normalizeProject(item, index)));
-  const currentProject = ref(projectList.value[0]?.id ?? '');
+  const projectList = ref([]);
+  const currentProject = ref('');
   const deployNotice = reactive({
     show: false,
     status: 'processing',
@@ -145,17 +104,21 @@ export const useAppStore = defineStore('app', () => {
 
   const setProjectList = (projects = []) => {
     const currentCode = toText(currentProjectCode.value);
-    const merged = mergeProjects(projects);
-    projectList.value = merged;
+    const nextList = (Array.isArray(projects) ? projects : [])
+      .map((item, index) => normalizeProject(item, index))
+      .filter((item) => item.code || item.name);
+
+    projectList.value = nextList;
 
     if (currentCode) {
-      const matched = merged.find((item) => toText(item.code) === currentCode);
+      const matched = nextList.find((item) => toText(item.code) === currentCode);
       if (matched) {
         currentProject.value = matched.id;
         return;
       }
     }
-    currentProject.value = merged[0]?.id ?? '';
+
+    currentProject.value = nextList[0]?.id ?? '';
   };
 
   const loadProjects = async () => {
