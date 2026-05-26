@@ -334,7 +334,29 @@
         <span class="modal-close" @click="closeTransformModal" @keydown.enter="closeTransformModal" role="button" aria-label="关闭弹窗" tabindex="0"><span class="material-icons">close</span></span>
       </div>
       <div class="modal-body">
-        <div class="form-group">
+        <div v-else class="form-group">
+          <label class="form-label"><span class="material-icons" style="font-size: 16px; vertical-align: middle; margin-right: 4px;">swap_horiz</span>转换模式</label>
+          <div style="display: inline-flex; padding: 4px; border: 1px solid var(--border); border-radius: 10px; background: #fafafa; gap: 4px;">
+            <button
+              type="button"
+              class="btn btn-sm"
+              :class="transformModal.mode === TRANSFORM_EDIT_MODES.CHAIN ? 'btn-primary' : 'btn-default'"
+              @click="switchTransformMode(TRANSFORM_EDIT_MODES.CHAIN)"
+            >
+              转换链
+            </button>
+            <button
+              type="button"
+              class="btn btn-sm"
+              :class="transformModal.mode === TRANSFORM_EDIT_MODES.CONDITIONAL ? 'btn-primary' : 'btn-default'"
+              @click="switchTransformMode(TRANSFORM_EDIT_MODES.CONDITIONAL)"
+            >
+              条件转换
+            </button>
+          </div>
+        </div>
+
+        <div v-if="transformModal.mode === TRANSFORM_EDIT_MODES.CHAIN" class="form-group">
           <label class="form-label"><span class="material-icons" style="font-size: 16px; vertical-align: middle; margin-right: 4px;">link</span>转换链（按顺序执行）</label>
           <div class="popover-muted" style="margin-bottom: 12px; padding: 10px; background: #fafafa; border-radius: 6px;">
             多个转换步骤按顺序执行，前一步的输出作为后一步的输入
@@ -843,7 +865,7 @@ import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from
 import { DEDUP_KEEP, SORT_ORDER, TRANSFORM_TYPES } from '@/utils/constants/pipeline.js';
 import { apiSystemService } from '@/api/index.js';
 import { useModelStore } from '@/store/model.store.js';
-import { $error, $success, $warning } from '@/utils/message.js';
+import { $confirm, $error, $success, $warning } from '@/utils/message.js';
 
 const props = defineProps({
   store: { type: Object, required: true },
@@ -987,12 +1009,18 @@ const TRANSFORM_ACTION_MODES = Object.freeze({
   TRANSFORM: 'transform'
 });
 
+const TRANSFORM_EDIT_MODES = Object.freeze({
+  CHAIN: 'chain',
+  CONDITIONAL: 'conditional'
+});
+
 
 const columnPopover = reactive({ show: false, x: 0, y: 0, field: '', type: '' });
 
 const transformModal = reactive({
   show: false,
   field: '',
+  mode: TRANSFORM_EDIT_MODES.CHAIN,
   rules: [],
   chain: [],
   elseRule: {
@@ -1763,6 +1791,26 @@ const createDefaultElseRule = () => ({
   timeFormatMode: '',
   customOriginType: ''
 });
+
+const hasConditionalTransformContent = (rules = [], elseRule = null) => {
+  const hasRules = Array.isArray(rules) && rules.some((rule) => trimText(rule?.operator));
+  const hasElseTransform = trimText(elseRule?.actionMode) === TRANSFORM_ACTION_MODES.TRANSFORM;
+  const hasElseSource = !!trimText(elseRule?.actionSourceKey);
+  return hasRules || hasElseTransform || hasElseSource;
+};
+
+const resolveTransformModalMode = (transformConfig = null) => {
+  if (Array.isArray(transformConfig?.chain) && transformConfig.chain.length > 0) {
+    return TRANSFORM_EDIT_MODES.CHAIN;
+  }
+  if (Array.isArray(transformConfig?.rules) && transformConfig.rules.length > 0) {
+    return TRANSFORM_EDIT_MODES.CONDITIONAL;
+  }
+  if (transformConfig?.elseRule && hasConditionalTransformContent([], transformConfig.elseRule)) {
+    return TRANSFORM_EDIT_MODES.CONDITIONAL;
+  }
+  return TRANSFORM_EDIT_MODES.CHAIN;
+};
 
 const getFieldValue = (row, field) => {
   if (row?.__remoteDebugRow) {
@@ -2662,11 +2710,49 @@ const moveChainStep = (index, direction) => {
   transformModal.chain[newIndex] = temp;
 };
 
+const resetChainTransformConfig = () => {
+  transformModal.chain = [];
+};
+
+const resetConditionalTransformConfig = () => {
+  transformModal.rules = [];
+  transformModal.elseRule = createDefaultElseRule();
+};
+
+const switchTransformMode = (mode) => {
+  const nextMode = trimText(mode);
+  if (!nextMode || transformModal.mode === nextMode) return;
+
+  const hasCurrentContent = transformModal.mode === TRANSFORM_EDIT_MODES.CHAIN
+    ? Array.isArray(transformModal.chain) && transformModal.chain.length > 0
+    : hasConditionalTransformContent(transformModal.rules, transformModal.elseRule);
+
+  const applySwitch = () => {
+    if (nextMode === TRANSFORM_EDIT_MODES.CHAIN) {
+      resetConditionalTransformConfig();
+    } else {
+      resetChainTransformConfig();
+    }
+    transformModal.mode = nextMode;
+  };
+
+  if (!hasCurrentContent) {
+    applySwitch();
+    return;
+  }
+
+  const targetLabel = nextMode === TRANSFORM_EDIT_MODES.CHAIN ? '转换链' : '条件转换';
+  $confirm(`切换到“${targetLabel}”后，将清空当前模式下已填写的内容，是否继续？`, '切换转换模式', {
+    onOk: applySwitch
+  });
+};
+
 const openTransformModal = (field) => {
   previousFocus.value = document.activeElement;
   columnPopover.show = false;
   transformModal.field = field;
   transformModal.show = true;
+  transformModal.mode = resolveTransformModalMode(transforms[field]);
   transformModal.rules = transforms[field]?.rules
     ? JSON.parse(JSON.stringify(transforms[field].rules)).map((rule) => toModalTransformItem(rule))
     : [];
@@ -2709,9 +2795,12 @@ const closeTransformModal = () => {
 };
 
 const confirmTransform = () => {
-  const storedRules = transformModal.rules.map((rule) => toStoredTransformItem(rule));
-  const storedChain = transformModal.chain.map((step) => toStoredTransformItem(step));
-  const storedElseRule = toStoredTransformItem(transformModal.elseRule || createDefaultElseRule());
+  const isChainMode = transformModal.mode === TRANSFORM_EDIT_MODES.CHAIN;
+  const storedRules = isChainMode ? [] : transformModal.rules.map((rule) => toStoredTransformItem(rule));
+  const storedChain = isChainMode ? transformModal.chain.map((step) => toStoredTransformItem(step)) : [];
+  const storedElseRule = isChainMode
+    ? createDefaultElseRule()
+    : toStoredTransformItem(transformModal.elseRule || createDefaultElseRule());
   transforms[transformModal.field] = {
     rules: storedRules,
     chain: storedChain,
