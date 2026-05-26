@@ -46,10 +46,6 @@ const passFilter = (value, filter) => {
       return text.trim() === '';
     case 'is_not_empty':
       return text.trim() !== '';
-    case 'greater_than':
-      return Number(text) > Number(target);
-    case 'less_than':
-      return Number(text) < Number(target);
     default:
       return true;
   }
@@ -77,10 +73,6 @@ const passesTransformRule = (row, field, rule) => {
       return value === null || value === undefined || String(value).trim() === '';
     case 'is_not_empty':
       return !(value === null || value === undefined || String(value).trim() === '');
-    case 'greater_than':
-      return Number(value) > Number(rule?.value ?? '');
-    case 'less_than':
-      return Number(value) < Number(rule?.value ?? '');
     default:
       return false;
   }
@@ -97,6 +89,11 @@ const applyTransformConfig = (row, field, transform) => {
 
   return applySingleTransform(base, transform);
 };
+
+const createDefaultElseRule = () => ({
+  actionSourceKey: '',
+  actionMode: 'keep_source'
+});
 
 export const buildPreviewRows = ({ sourceRows, mappings, targetFields }) => {
   return sourceRows.map((sourceRow) => {
@@ -139,6 +136,7 @@ export const buildProcessedRows = ({ previewRows, filters, transforms, sortConfi
             return;
           }
         }
+        next[field] = applyTransformConfig(next, field, transform?.elseRule || createDefaultElseRule());
         return;
       }
 

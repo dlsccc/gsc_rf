@@ -1,7 +1,10 @@
 import { defineStore } from 'pinia';
-import { computed, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { ROLES, ROLE_LABEL } from '@/utils/roles.js';
 import { projectsApi } from '@/api/modules/projects.api.js';
+
+const DEPLOY_POLL_INTERVAL_MS = 20000;
+const DEPLOY_PROCESSING_STATUSES = new Set(['processing', 'deploying']);
 
 const toText = (value) => String(value ?? '').trim();
 const toBoolean = (value) => {
@@ -17,18 +20,18 @@ const BUILTIN_PROJECTS = [
   {
     id: 1,
     code: 'project11111111',
-    name: '马来UM项目',
+    name: '椹潵UM椤圭洰',
     projectCode: 'project11111111',
-    projectName: '马来UM项目',
+    projectName: '椹潵UM椤圭洰',
     gdeProjectName: '',
     needCreateGdeProject: false
   },
   {
     id: 2,
     code: 'project_01',
-    name: '毛塔Chinguitel',
+    name: '姣涘Chinguitel',
     projectCode: 'project_01',
-    projectName: '毛塔Chinguitel',
+    projectName: '姣涘Chinguitel',
     gdeProjectName: '',
     needCreateGdeProject: false
   }
@@ -92,6 +95,16 @@ export const useAppStore = defineStore('app', () => {
   const currentRole = ref(null);
   const projectList = ref(BUILTIN_PROJECTS.map((item, index) => normalizeProject(item, index)));
   const currentProject = ref(projectList.value[0]?.id ?? '');
+  const deployNotice = reactive({
+    show: false,
+    status: 'processing',
+    text: '',
+    appName: '',
+    appVersion: ''
+  });
+  let deployPollingTimer = null;
+  let deployNoticeTimer = null;
+  let deployPollingInFlight = false;
 
   const currentProjectCode = computed(() => {
     const project = projectList.value.find((item) => String(item.id) === String(currentProject.value));
@@ -162,6 +175,113 @@ export const useAppStore = defineStore('app', () => {
     return unwrapApiData(response);
   };
 
+  const clearDeployNoticeTimers = () => {
+    if (deployPollingTimer) {
+      window.clearTimeout(deployPollingTimer);
+      deployPollingTimer = null;
+    }
+    if (deployNoticeTimer) {
+      window.clearTimeout(deployNoticeTimer);
+      deployNoticeTimer = null;
+    }
+  };
+
+  const scheduleDeployPolling = (delay = DEPLOY_POLL_INTERVAL_MS) => {
+    if (deployPollingTimer) {
+      window.clearTimeout(deployPollingTimer);
+    }
+    deployPollingTimer = window.setTimeout(() => {
+      pollDeployStatus();
+    }, delay);
+  };
+
+  const stopDeployPolling = () => {
+    if (deployPollingTimer) {
+      window.clearTimeout(deployPollingTimer);
+      deployPollingTimer = null;
+    }
+    deployPollingInFlight = false;
+  };
+
+  const hideDeployNotice = () => {
+    deployNotice.show = false;
+    deployNotice.text = '';
+    if (deployNoticeTimer) {
+      window.clearTimeout(deployNoticeTimer);
+      deployNoticeTimer = null;
+    }
+  };
+
+  const showDeployNotice = (status, text, options = {}) => {
+    const { appName = deployNotice.appName, appVersion = deployNotice.appVersion, autoHideMs = 0 } = options || {};
+    deployNotice.status = toText(status) || 'processing';
+    deployNotice.text = toText(text);
+    deployNotice.appName = toText(appName);
+    deployNotice.appVersion = toText(appVersion);
+    deployNotice.show = true;
+    if (deployNoticeTimer) {
+      window.clearTimeout(deployNoticeTimer);
+      deployNoticeTimer = null;
+    }
+    if (autoHideMs > 0) {
+      deployNoticeTimer = window.setTimeout(() => {
+        hideDeployNotice();
+      }, autoHideMs);
+    }
+  };
+
+  const normalizeDeployStatus = (value) => toText(value).toLowerCase();
+
+  const pollDeployStatus = async () => {
+    if (deployPollingInFlight) return;
+
+    const appName = toText(deployNotice.appName);
+    const appVersion = toText(deployNotice.appVersion);
+    if (!appName || !appVersion) return;
+
+    deployPollingTimer = null;
+    deployPollingInFlight = true;
+
+    try {
+      const response = await projectsApi.queryDeployStatus({ appName, appVersion });
+      const payload = unwrapApiData(response) || {};
+      const deployStatus = normalizeDeployStatus(payload.deployStatus || payload.status);
+
+      if (DEPLOY_PROCESSING_STATUSES.has(deployStatus)) {
+        showDeployNotice('processing', '部署进行中，请稍候...', { appName, appVersion });
+        deployPollingInFlight = false;
+        scheduleDeployPolling();
+        return;
+      }
+
+      stopDeployPolling();
+
+      if (deployStatus === 'success') {
+        showDeployNotice('success', '部署成功', { appName, appVersion, autoHideMs: 5000 });
+        return;
+      }
+      if (deployStatus === 'failed') {
+        showDeployNotice('failed', '部署失败', { appName, appVersion });
+        return;
+      }
+      showDeployNotice('failed', toText(payload.deployStatus || payload.status || '部署状态未知'), { appName, appVersion });
+    } catch {
+      stopDeployPolling();
+      showDeployNotice('failed', '查询部署状态失败', { appName, appVersion });
+    } finally {
+      if (deployPollingInFlight) {
+        deployPollingInFlight = false;
+      }
+    }
+  };
+
+  const startDeployPolling = ({ appName = '', appVersion = '' } = {}) => {
+    clearDeployNoticeTimers();
+    deployPollingInFlight = false;
+    showDeployNotice('processing', '部署进行中，请稍候...', { appName, appVersion });
+    scheduleDeployPolling(0);
+  };
+
   return {
     currentRole,
     currentRoleLabel,
@@ -174,6 +294,11 @@ export const useAppStore = defineStore('app', () => {
     setProjectByCode,
     setProjectList,
     loadProjects,
-    createOrUpdateProject
+    createOrUpdateProject,
+    deployNotice,
+    hideDeployNotice,
+    showDeployNotice,
+    startDeployPolling,
+    stopDeployPolling
   };
 });

@@ -1,22 +1,5 @@
 <template>
   <div class="function-menu" style="margin-top: 64px;">
-    <div v-if="deployNotice.show" class="deploy-notice" :class="`deploy-notice-${deployNotice.status}`">
-      <div class="deploy-notice-content">
-        <span class="material-icons" :class="{ 'deploy-notice-spinning': deployNotice.status === 'processing' }">
-          {{ deployNotice.status === 'processing' ? 'autorenew' : (deployNotice.status === 'success' ? 'check_circle' : 'error') }}
-        </span>
-        <span>{{ deployNotice.text }}</span>
-      </div>
-      <button
-        v-if="deployNotice.status !== 'processing'"
-        type="button"
-        class="deploy-notice-close"
-        @click="hideDeployNotice"
-      >
-        <span class="material-icons">close</span>
-      </button>
-    </div>
-
     <div class="menu-header">
       <div class="back-btn" @click="goEntrance"><span class="material-icons">arrow_back</span></div>
       <div class="menu-title-area">
@@ -99,7 +82,7 @@
             placeholder="请输入项目编码"
             :disabled="projectModal.mode === 'edit'"
           >
-          <div class="field-tip">命名要求：字母+数字</div>
+          <div class="field-tip">命名要求：同时包含字母和数字</div>
         </div>
         <div class="form-group">
           <label class="form-label">工程名 <span class="required-star">*</span></label>
@@ -111,7 +94,7 @@
             placeholder="请输入工程名"
             :disabled="projectModal.mode === 'edit'"
           >
-          <div class="field-tip">命名要求：以字母开头且只能输入字母、数字、下划线、中划线、点，长度3-64个字符，不能以[...]结尾</div>
+          <div class="field-tip">命名要求：以字母开头，仅支持字母、数字、下划线、中划线和点，长度 3-64，且不能以 `...` 结尾</div>
         </div>
       </div>
       <div class="modal-footer">
@@ -181,11 +164,6 @@ const deployModal = reactive({
   submitting: false,
   statusText: ''
 });
-const deployNotice = reactive({
-  show: false,
-  status: 'processing',
-  text: ''
-});
 const projectForm = reactive({
   id: '',
   projectName: '',
@@ -197,13 +175,13 @@ const deployForm = reactive({
   appVersion: '',
   envNames: []
 });
-const deployPollingTimer = ref(null);
-const deployNoticeTimer = ref(null);
+
+const DEPLOY_PROCESSING_STATUSES = new Set(['processing', 'deploying']);
 
 const REPORT_TEMPLATE_URL = 'https://astr-lab.gts.huawei.com/dacs/rfreport#/';
 const PROJECT_CODE_PATTERN = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]+$/;
 const GDE_PROJECT_NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_.-]{2,63}$/;
-const GDE_PROJECT_NAME_FORBIDDEN_SUFFIX = /(\[\.\.\.\]|\.\.\.|…|\u2026)$/;
+const GDE_PROJECT_NAME_FORBIDDEN_SUFFIX = /(\[\.\.\.\]|\.\.\.|…$)/;
 
 const clearProjectForm = () => {
   projectForm.id = '';
@@ -238,14 +216,6 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', closeProjectMenuOnOutsideClick);
-  if (deployPollingTimer.value) {
-    window.clearTimeout(deployPollingTimer.value);
-    deployPollingTimer.value = null;
-  }
-  if (deployNoticeTimer.value) {
-    window.clearTimeout(deployNoticeTimer.value);
-    deployNoticeTimer.value = null;
-  }
 });
 
 const toggleProjectMenu = () => {
@@ -282,34 +252,6 @@ const closeProjectModal = () => {
 const closeDeployModal = () => {
   if (deployModal.loading || deployModal.submitting) return;
   deployModal.show = false;
-  if (deployPollingTimer.value) {
-    window.clearTimeout(deployPollingTimer.value);
-    deployPollingTimer.value = null;
-  }
-};
-
-const hideDeployNotice = () => {
-  deployNotice.show = false;
-  deployNotice.text = '';
-  if (deployNoticeTimer.value) {
-    window.clearTimeout(deployNoticeTimer.value);
-    deployNoticeTimer.value = null;
-  }
-};
-
-const showDeployNotice = (status, text, autoHideMs = 0) => {
-  deployNotice.status = status;
-  deployNotice.text = text;
-  deployNotice.show = true;
-  if (deployNoticeTimer.value) {
-    window.clearTimeout(deployNoticeTimer.value);
-    deployNoticeTimer.value = null;
-  }
-  if (autoHideMs > 0) {
-    deployNoticeTimer.value = window.setTimeout(() => {
-      hideDeployNotice();
-    }, autoHideMs);
-  }
 };
 
 const showDeleteDisabledTip = () => {
@@ -330,7 +272,7 @@ const validateProjectForm = () => {
     return false;
   }
   if (projectModal.mode !== 'edit' && !PROJECT_CODE_PATTERN.test(projectCode)) {
-    $warning('项目编码命名不合规范，请按“字母+数字”填写');
+    $warning('项目编码命名不符合规范，请按“字母+数字”填写');
     return false;
   }
   if (!gdeProjectName) {
@@ -338,7 +280,7 @@ const validateProjectForm = () => {
     return false;
   }
   if (!GDE_PROJECT_NAME_PATTERN.test(gdeProjectName) || GDE_PROJECT_NAME_FORBIDDEN_SUFFIX.test(gdeProjectName)) {
-    $warning('工程名命名不合规范，请修改后重试');
+    $warning('工程名命名不符合规范，请修改后重试');
     return false;
   }
   return true;
@@ -376,52 +318,16 @@ const getCurrentProject = () => appStore.projectList.find((item) => String(item.
 const getCurrentUserAccount = () => String(loginState?.userInfo?.account || '').trim();
 const deployEnvNamesText = computed(() => deployForm.envNames.join(', '));
 
-const pollDeployStatus = async () => {
-  try {
-    const response = await projectsApi.queryDeployStatus({
-      appName: deployForm.appName,
-      appVersion: deployForm.appVersion
-    });
-    const payload = response?.data ?? response ?? {};
-    const deployStatus = String(payload?.deployStatus || payload?.status || '').trim().toLowerCase();
-    if (deployStatus === 'processing') {
-      showDeployNotice('processing', '部署进行中，请稍候...');
-      deployPollingTimer.value = window.setTimeout(pollDeployStatus, 20000);
-      return;
-    }
-    deployPollingTimer.value = null;
-    deployModal.submitting = false;
-    if (deployStatus === 'success') {
-      showDeployNotice('success', '部署成功', 5000);
-      $success('部署成功');
-      return;
-    }
-    if (deployStatus === 'failed') {
-      showDeployNotice('failed', '部署失败');
-      $error('部署失败');
-      return;
-    }
-    showDeployNotice('failed', String(payload?.deployStatus || payload?.status || '部署状态未知'));
-  } catch {
-    deployPollingTimer.value = null;
-    deployModal.submitting = false;
-    showDeployNotice('failed', '查询部署状态失败');
-    $error('查询部署状态失败');
-  }
-};
-
 const confirmDeploy = async () => {
   const userAccount = getCurrentUserAccount();
   if (!userAccount) {
     $warning('未获取到当前用户账号');
     return;
   }
+
   deployModal.submitting = true;
   deployModal.statusText = '';
-  if (deployPollingTimer.value) {
-    window.clearTimeout(deployPollingTimer.value);
-    deployPollingTimer.value = null;
-  }
+
   try {
     const response = await projectsApi.deploy({
       appName: deployForm.appName,
@@ -431,30 +337,37 @@ const confirmDeploy = async () => {
     });
     const payload = response?.data ?? response ?? {};
     const status = String(payload?.status || '').trim().toLowerCase();
+
     if (status === 'locked') {
       deployModal.submitting = false;
       $warning('有其他人正在部署');
       return;
     }
-    if (status === 'deploying') {
+
+    if (DEPLOY_PROCESSING_STATUSES.has(status)) {
       deployModal.submitting = false;
       deployModal.show = false;
-      showDeployNotice('processing', '部署进行中，请稍候...');
-      deployPollingTimer.value = window.setTimeout(pollDeployStatus, 20000);
+      appStore.startDeployPolling({ appName: deployForm.appName, appVersion: deployForm.appVersion });
       return;
     }
+
     deployModal.submitting = false;
     deployModal.show = false;
+
     if (status === 'success') {
-      showDeployNotice('success', '部署成功', 5000);
+      appStore.showDeployNotice('success', '部署成功', { appName: deployForm.appName, appVersion: deployForm.appVersion, autoHideMs: 5000 });
       $success('部署成功');
       return;
     }
+
     if (status === 'failed') {
-      showDeployNotice('failed', '部署失败');
+      appStore.showDeployNotice('failed', '部署失败', { appName: deployForm.appName, appVersion: deployForm.appVersion });
       $error('部署失败');
       return;
     }
+
+    appStore.showDeployNotice('failed', String(payload?.status || '部署状态未知'), { appName: deployForm.appName, appVersion: deployForm.appVersion });
+    $error('部署状态未知');
   } catch {
     deployModal.submitting = false;
     $error('发起部署失败');
@@ -468,15 +381,19 @@ const goPublish = async () => {
     $warning('当前项目缺少工程名');
     return;
   }
+
   clearDeployForm();
   deployModal.show = true;
   deployModal.loading = true;
+
   try {
     const response = await projectsApi.queryDeployableInfo({ appName });
     const payload = response?.data ?? response ?? {};
     deployForm.appName = String(payload?.appName || appName).trim();
     deployForm.appVersion = String(payload?.appVersion || '').trim();
-    deployForm.envNames = Array.isArray(payload?.envNames) ? payload.envNames.map((item) => String(item || '').trim()).filter(Boolean) : [];
+    deployForm.envNames = Array.isArray(payload?.envNames)
+      ? payload.envNames.map((item) => String(item || '').trim()).filter(Boolean)
+      : [];
   } catch {
     deployModal.show = false;
     $error('查询可部署信息失败');
@@ -636,76 +553,4 @@ const goEntrance = () => router.push('/');
   color: var(--text-secondary);
   line-height: 1.5;
 }
-
-.deploy-notice {
-  position: fixed;
-  top: 84px;
-  right: 24px;
-  z-index: 120;
-  min-width: 280px;
-  max-width: 420px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.14);
-  border: 1px solid transparent;
-  background: #fff;
-}
-
-.deploy-notice-processing {
-  border-color: rgba(24, 121, 184, 0.18);
-  background: #f5fbff;
-  color: #1879b8;
-}
-
-.deploy-notice-success {
-  border-color: rgba(47, 125, 58, 0.18);
-  background: #f6fff7;
-  color: #2f7d3a;
-}
-
-.deploy-notice-failed {
-  border-color: rgba(214, 69, 69, 0.18);
-  background: #fff7f7;
-  color: #c53a3a;
-}
-
-.deploy-notice-content {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.deploy-notice-close {
-  width: 28px;
-  height: 28px;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  border-radius: 6px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.deploy-notice-close:hover {
-  background: rgba(0, 0, 0, 0.06);
-}
-
-.deploy-notice-spinning {
-  animation: deploy-notice-spin 1.2s linear infinite;
-}
-
-@keyframes deploy-notice-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
 </style>

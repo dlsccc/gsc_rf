@@ -499,9 +499,7 @@ const REVERSE_OPERATOR_MAP = {
   not_equal: 'not_equals',
   contains: 'contains',
   is_empty: 'is_empty',
-  is_not_empty: 'is_not_empty',
-  greater_than: 'greater_than',
-  less_than: 'less_than'
+  is_not_empty: 'is_not_empty'
 };
 
 const REVERSE_TRANSFORM_TYPE_MAP = {
@@ -521,8 +519,7 @@ const REVERSE_TRANSFORM_TYPE_MAP = {
   round_decimal: 'round_decimal',
   set_value: 'set_value',
   concat: 'concat',
-  replace: 'replace',
-  formula: 'formula'
+  replace: 'replace'
 };
 
 const TIME_ORIGIN_TO_MODE_MAP = {
@@ -624,15 +621,13 @@ const parseConditionExpression = (conditionExpr) => {
     return { operator: 'is_not_empty', value: '', inputIndex: Number(notEmptyMatch[1]) || 0 };
   }
 
-  const compareMatch = expr.match(/^\s*\$rule_input\[(\d+)\]\.key_columns\[0\]\s*(==|!=|<>|>|<)\s*(.+)\s*$/);
+  const compareMatch = expr.match(/^\s*\$rule_input\[(\d+)\]\.key_columns\[0\]\s*(==|!=|<>)\s*(.+)\s*$/);
   if (!compareMatch) return null;
 
   const operatorMap = {
     '==': 'equals',
     '!=': 'not_equals',
-    '<>': 'not_equals',
-    '>': 'greater_than',
-    '<': 'less_than'
+    '<>': 'not_equals'
   };
 
   return {
@@ -866,10 +861,51 @@ const parseMappingsAndConfigsFromRules = (rules = [], sourceAliasMap = {}) => {
           };
 
           if (!transforms[outputField] || !Array.isArray(transforms[outputField].rules)) {
-            transforms[outputField] = { rules: [] };
+            transforms[outputField] = { rules: [], elseRule: { actionMode: TRANSFORM_ACTION_MODES.KEEP_SOURCE, actionSourceKey: '' } };
           }
           transforms[outputField].rules.push(nextRule);
         }
+      }
+
+      const elseList = toArrayValue(ruleItem?.else);
+      const elseRuleObj = (elseList[0] && typeof elseList[0] === 'object') ? elseList[0]?.rule : {};
+      const elseAbility = pickValue(elseRuleObj?.abilityName, elseRuleObj?.ability_name);
+      const elseParams = toParamMap(elseRuleObj?.params || []);
+      if (elseAbility === 'transform') {
+        const elseActionInputIndex = parseRuleInputRef(pickValue(elseParams.column));
+        const elseActionSourceKey = resolveSourceKeyByRuleInputIndex(
+          inputs,
+          elseActionInputIndex !== null ? elseActionInputIndex : 0,
+          sourceAliasMap
+        );
+        const elseKeepSource = isKeepSourceTransform(elseParams);
+        const elseTransformConfig = parseTransformParamsToConfig(elseParams);
+        if (!transforms[outputField]) {
+          transforms[outputField] = { rules: [] };
+        }
+        transforms[outputField].elseRule = {
+          actionSourceKey: elseActionSourceKey,
+          actionMode: elseKeepSource ? TRANSFORM_ACTION_MODES.KEEP_SOURCE : TRANSFORM_ACTION_MODES.TRANSFORM,
+          type: elseTransformConfig?.type || '',
+          delimiter: elseTransformConfig?.delimiter ?? '',
+          fixedValue: elseTransformConfig?.fixedValue ?? '',
+          start: elseTransformConfig?.start ?? '',
+          end: elseTransformConfig?.end ?? '',
+          search: elseTransformConfig?.search ?? '',
+          replace: elseTransformConfig?.replace ?? '',
+          formula: elseKeepSource ? '' : (elseTransformConfig?.formula ?? ''),
+          precision: elseTransformConfig?.precision ?? '',
+          timeFormatMode: elseTransformConfig?.timeFormatMode ?? '',
+          originType: elseTransformConfig?.originType ?? ''
+        };
+      } else if (!transforms[outputField]?.elseRule) {
+        if (!transforms[outputField]) {
+          transforms[outputField] = { rules: [] };
+        }
+        transforms[outputField].elseRule = {
+          actionSourceKey: '',
+          actionMode: TRANSFORM_ACTION_MODES.KEEP_SOURCE
+        };
       }
     }
 

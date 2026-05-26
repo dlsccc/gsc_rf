@@ -115,9 +115,7 @@ const OPERATOR_MAP = {
   not_equals: 'not_equal',
   contains: 'contains',
   is_empty: 'is_empty',
-  is_not_empty: 'is_not_empty',
-  greater_than: 'greater_than',
-  less_than: 'less_than'
+  is_not_empty: 'is_not_empty'
 };
 
 const toDslOperator = (operator) => OPERATOR_MAP[operator] || operator || '';
@@ -240,13 +238,16 @@ const buildConditionExpression = (rule = {}, columnRef = '$rule_input[0].key_col
 
   if (operator === 'equals') return `${columnRef} == ${valueText}`;
   if (operator === 'not_equals') return `${columnRef} <> ${valueText}`;
-  if (operator === 'greater_than') return `${columnRef} > ${valueText}`;
-  if (operator === 'less_than') return `${columnRef} < ${valueText}`;
   if (operator === 'contains') return `contains(${columnRef}, ${valueText})`;
   if (operator === 'is_empty') return `${columnRef} == null || ${columnRef} == ""`;
   if (operator === 'is_not_empty') return `${columnRef} <> null && ${columnRef} <> ""`;
   return '';
 };
+
+const createDefaultElseRuleConfig = () => ({
+  actionSourceKey: '',
+  actionMode: TRANSFORM_ACTION_MODES.KEEP_SOURCE
+});
 
 const TRANSFORM_ACTION_MODES = {
   KEEP_SOURCE: 'keep_source',
@@ -480,9 +481,34 @@ const buildTransformDsl = (config, targetType = '', sourceAliasToId = {}, fallba
 
     if (branches.length === 0) return undefined;
 
+    const normalizedElseRule = config?.elseRule ? { ...createDefaultElseRuleConfig(), ...config.elseRule } : createDefaultElseRuleConfig();
+    const elseActionSourceKey = trimText(normalizedElseRule.actionSourceKey || normalizedElseRule.action_source_key || fallbackSourceKeys[0]);
+    const elseActionColumnRef = `$rule_input[${resolveRuleInputIndex(toRuleInputsByRawSources(fallbackSourceKeys, sourceAliasToId), elseActionSourceKey, sourceAliasToId)}].key_columns[0]`;
+    const elseSubRule = normalizedElseRule
+      ? buildTransformStep({
+        actionMode: normalizedElseRule.actionMode || normalizedElseRule.action_mode,
+        type: normalizedElseRule.type,
+        delimiter: normalizedElseRule.delimiter,
+        fixedValue: normalizedElseRule.fixedValue,
+        start: normalizedElseRule.start,
+        end: normalizedElseRule.end,
+        search: normalizedElseRule.search,
+        replace: normalizedElseRule.replace,
+        formula: normalizedElseRule.formula,
+        precision: normalizedElseRule.precision,
+        timeFormatMode: normalizedElseRule.timeFormatMode,
+        originType: normalizedElseRule.originType
+      }, elseActionColumnRef, targetType)
+      : null;
+
     return {
       kind: 'if_branch',
-      branches
+      branches,
+      elseRule: {
+        ...normalizedElseRule,
+        actionSourceKey: elseActionSourceKey,
+        rule: elseSubRule
+      }
     };
   }
 
@@ -799,7 +825,15 @@ const buildDataProcessingDsl = ({
               index: branch.index,
               rule: branch.rule
             }
-          ]
+          ],
+          ...(transform.elseRule?.rule ? {
+            else: [
+              {
+                index: `sub_rule_else_${normalizeIndexPart(fieldName)}`,
+                rule: transform.elseRule.rule
+              }
+            ]
+          } : {})
         };
 
         if (filter) {

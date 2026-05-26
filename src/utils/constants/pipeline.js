@@ -39,7 +39,6 @@ export const TRANSFORM_TYPES = {
   SET_VALUE: 'set_value',
   SUBSTR: 'substr',
   CONCAT: 'concat',
-  REPLACE: 'replace',
-  FORMULA: 'formula'
+  REPLACE: 'replace'
 };
 

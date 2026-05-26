@@ -237,8 +237,6 @@
           <option value="contains">包含</option>
           <option value="is_empty">为空</option>
           <option value="is_not_empty">不为空</option>
-          <option value="greater_than">大于</option>
-          <option value="less_than">小于</option>
         </select>
         <input
           v-if="!['is_empty', 'is_not_empty'].includes(filterConfigs[columnPopover.field].operator)"
@@ -272,8 +270,6 @@
                 <option value="contains">包含</option>
                 <option value="is_empty">为空</option>
                 <option value="is_not_empty">不为空</option>
-                <option value="greater_than">大于</option>
-                <option value="less_than">小于</option>
               </select>
               <input
                 v-if="!['is_empty', 'is_not_empty'].includes(cond.operator)"
@@ -372,7 +368,6 @@
                 <option :value="TRANSFORM_TYPES.SUBSTR">截取字符串</option>
                 <option :value="TRANSFORM_TYPES.CONCAT">多字段拼接</option>
                 <option :value="TRANSFORM_TYPES.REPLACE">替换内容</option>
-                <option :value="TRANSFORM_TYPES.FORMULA">自定义公式</option>
               </select>
               <div v-if="step.type === TRANSFORM_TYPES.FORMAT_TIME" style="margin-top: 8px;">
                 <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">数据原始格式</div>
@@ -462,9 +457,6 @@
                 <input v-model="step.search" class="form-input" placeholder="查找内容" style="margin-bottom: 4px; font-size: 13px;" />
                 <input v-model="step.replace" class="form-input" placeholder="替换为" style="font-size: 13px;" />
               </div>
-              <div v-if="step.type === 'formula'" style="margin-top: 8px;">
-                <input v-model="step.formula" class="form-input" placeholder="公式，例如：=value*2" style="font-size: 13px;" />
-              </div>
             </div>
           </div>
           <div v-else style="text-align: center; padding: 15px; color: var(--text-secondary); background: #fafafa; border-radius: 8px; border: 1px dashed var(--border);">
@@ -510,8 +502,6 @@
                 <option value="contains">包含</option>
                 <option value="is_empty">为空</option>
                 <option value="is_not_empty">不为空</option>
-                <option value="greater_than">大于</option>
-                <option value="less_than">小于</option>
               </select>
               <input v-if="!['is_empty', 'is_not_empty'].includes(rule.operator)" v-model="rule.value" class="form-input" placeholder="请输入条件值" style="margin-top: 8px;" />
             </div>
@@ -548,7 +538,6 @@
                 <option :value="TRANSFORM_TYPES.SUBSTR">截取字符串</option>
                 <option :value="TRANSFORM_TYPES.CONCAT">多字段拼接</option>
                 <option :value="TRANSFORM_TYPES.REPLACE">替换内容</option>
-                <option :value="TRANSFORM_TYPES.FORMULA">自定义公式</option>
               </select>
             </div>
             <div v-if="rule.actionMode !== TRANSFORM_ACTION_MODES.KEEP_SOURCE && rule.type === TRANSFORM_TYPES.FORMAT_TIME" class="form-group">
@@ -648,10 +637,6 @@
               <input v-model="rule.replace" class="form-input" placeholder="替换为" />
             </div>
 
-            <div v-if="rule.actionMode !== TRANSFORM_ACTION_MODES.KEEP_SOURCE && rule.type === 'formula'" class="form-group">
-              <label class="form-label" style="font-size: 12px;">公式</label>
-              <input v-model="rule.formula" class="form-input" placeholder="例如：=value*2" />
-            </div>
 
             <button class="btn btn-danger btn-sm" @click="removeTransformRule(index)">
               <span class="material-icons" style="font-size: 14px;">delete</span> 删除此条件转换
@@ -661,6 +646,102 @@
           <button class="btn btn-default btn-sm" @click="addTransformRule">
             <span class="material-icons" style="font-size: 14px;">add</span> 添加条件转换
           </button>
+
+          <div style="border: 1px solid var(--border); padding: 14px; border-radius: 8px; margin-top: 12px; background: #fafafa;">
+            <div class="form-group">
+              <label class="form-label" style="font-size: 12px;">Else 结果字段</label>
+              <select v-model="transformModal.elseRule.actionSourceKey" class="form-select">
+                <option value="">默认当前值</option>
+                <option
+                  v-for="source in transformModalSourceOptions"
+                  :key="`else-action-${source.key}`"
+                  :value="source.key"
+                >
+                  {{ source.sourceId }}.{{ source.name }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" style="font-size: 12px;">Else 结果处理</label>
+              <select v-model="transformModal.elseRule.actionMode" class="form-select">
+                <option :value="TRANSFORM_ACTION_MODES.KEEP_SOURCE">保持原值</option>
+                <option :value="TRANSFORM_ACTION_MODES.TRANSFORM">按转换规则处理</option>
+              </select>
+            </div>
+
+            <div v-if="transformModal.elseRule.actionMode !== TRANSFORM_ACTION_MODES.KEEP_SOURCE" class="form-group">
+              <label class="form-label" style="font-size: 12px;">Else 转换类型</label>
+              <select v-model="transformModal.elseRule.type" class="form-select" @change="onTransformTypeChange(transformModal.elseRule)">
+                <option :value="TRANSFORM_TYPES.FORMAT_TIME">格式化时间</option>
+                <option :value="TRANSFORM_TYPES.CALC_WEEK">计算星期数</option>
+                <option :value="TRANSFORM_TYPES.CALC_WEEKDAY">计算星期几</option>
+                <option :value="TRANSFORM_TYPES.SET_VALUE">固定赋值</option>
+                <option :value="TRANSFORM_TYPES.SUBSTR">截取字符串</option>
+                <option :value="TRANSFORM_TYPES.CONCAT">多字段拼接</option>
+                <option :value="TRANSFORM_TYPES.REPLACE">替换内容</option>
+              </select>
+            </div>
+
+            <div v-if="transformModal.elseRule.actionMode !== TRANSFORM_ACTION_MODES.KEEP_SOURCE && transformModal.elseRule.type === TRANSFORM_TYPES.FORMAT_TIME" class="form-group">
+              <label class="form-label" style="font-size: 12px;">格式类型</label>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">数据原始格式</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                <div style="display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px;">
+                  <button type="button" class="btn btn-sm" :class="transformModal.elseRule.timeFormatMode === TIME_FORMAT_MODE.DATE ? 'btn-primary' : 'btn-default'" @click="setTimeFormatMode(transformModal.elseRule, TIME_FORMAT_MODE.DATE)">yyyy-MM-dd</button>
+                  <span style="font-size: 12px; color: var(--text-secondary);">示例：2026-03-28</span>
+                </div>
+                <div style="display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px;">
+                  <button type="button" class="btn btn-sm" :class="transformModal.elseRule.timeFormatMode === TIME_FORMAT_MODE.DATETIME ? 'btn-primary' : 'btn-default'" @click="setTimeFormatMode(transformModal.elseRule, TIME_FORMAT_MODE.DATETIME)">yyyy-MM-dd HH:mm:ss</button>
+                  <span style="font-size: 12px; color: var(--text-secondary);">示例：2026-03-28 14:30:59</span>
+                </div>
+                <div style="display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px;">
+                  <button type="button" class="btn btn-sm" :class="transformModal.elseRule.timeFormatMode === TIME_FORMAT_MODE.YEAR ? 'btn-primary' : 'btn-default'" @click="setTimeFormatMode(transformModal.elseRule, TIME_FORMAT_MODE.YEAR)">yyyy</button>
+                  <span style="font-size: 12px; color: var(--text-secondary);">示例：2026</span>
+                </div>
+                <div style="display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px;">
+                  <button type="button" class="btn btn-sm" :class="transformModal.elseRule.timeFormatMode === TIME_FORMAT_MODE.MONTH ? 'btn-primary' : 'btn-default'" @click="setTimeFormatMode(transformModal.elseRule, TIME_FORMAT_MODE.MONTH)">yyyy-MM</button>
+                  <span style="font-size: 12px; color: var(--text-secondary);">示例：2026-03</span>
+                </div>
+                <div style="display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px;">
+                  <button type="button" class="btn btn-sm" :class="transformModal.elseRule.timeFormatMode === TIME_FORMAT_MODE.TIME ? 'btn-primary' : 'btn-default'" @click="setTimeFormatMode(transformModal.elseRule, TIME_FORMAT_MODE.TIME)">HH:mm:ss</button>
+                  <span style="font-size: 12px; color: var(--text-secondary);">示例：14:30:59</span>
+                </div>
+              </div>
+              <div style="margin-top: 8px;">
+                <input
+                  v-model="transformModal.elseRule.customOriginType"
+                  class="form-input"
+                  placeholder="其他原始格式请手动输入，例如 yyyy/MM/dd"
+                  @input="onCustomOriginTypeInput(transformModal.elseRule)"
+                />
+              </div>
+            </div>
+
+            <div v-if="transformModal.elseRule.actionMode !== TRANSFORM_ACTION_MODES.KEEP_SOURCE && transformModal.elseRule.type === 'concat'" class="form-group">
+              <label class="form-label" style="font-size: 12px;">拼接分隔符</label>
+              <input v-model="transformModal.elseRule.delimiter" class="form-input" placeholder="例如：/ 或 留空" />
+            </div>
+
+            <div v-if="transformModal.elseRule.actionMode !== TRANSFORM_ACTION_MODES.KEEP_SOURCE && transformModal.elseRule.type === 'set_value'" class="form-group">
+              <label class="form-label" style="font-size: 12px;">固定值</label>
+              <input v-model="transformModal.elseRule.fixedValue" class="form-input" placeholder="例如：100" />
+            </div>
+
+            <div v-if="transformModal.elseRule.actionMode !== TRANSFORM_ACTION_MODES.KEEP_SOURCE && transformModal.elseRule.type === 'substr'" class="form-group">
+              <label class="form-label" style="font-size: 12px;">截取位置</label>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <input v-model="transformModal.elseRule.start" class="form-input" placeholder="开始位置" />
+                <input v-model="transformModal.elseRule.end" class="form-input" placeholder="结束位置" />
+              </div>
+            </div>
+
+            <div v-if="transformModal.elseRule.actionMode !== TRANSFORM_ACTION_MODES.KEEP_SOURCE && transformModal.elseRule.type === 'replace'" class="form-group">
+              <label class="form-label" style="font-size: 12px;">替换内容</label>
+              <input v-model="transformModal.elseRule.search" class="form-input" placeholder="查找内容" style="margin-bottom: 8px;" />
+              <input v-model="transformModal.elseRule.replace" class="form-input" placeholder="替换为" />
+            </div>
+          </div>
         </div>
       </div>
       <div class="modal-footer">
@@ -869,9 +950,7 @@ const FILTER_OPERATOR_LABELS = Object.freeze({
   not_equals: '不等于',
   contains: '包含',
   is_empty: '为空',
-  is_not_empty: '不为空',
-  greater_than: '大于',
-  less_than: '小于'
+  is_not_empty: '不为空'
 });
 
 const FILTER_LOGIC_LABELS = Object.freeze({
@@ -896,8 +975,7 @@ const TRANSFORM_TYPE_LABELS = Object.freeze({
   [TRANSFORM_TYPES.SET_VALUE]: '固定赋值',
   [TRANSFORM_TYPES.SUBSTR]: '截取字符串',
   [TRANSFORM_TYPES.CONCAT]: '多字段拼接',
-  [TRANSFORM_TYPES.REPLACE]: '替换内容',
-  [TRANSFORM_TYPES.FORMULA]: '自定义公式'
+  [TRANSFORM_TYPES.REPLACE]: '替换内容'
 });
 
 const getFilterOperatorLabel = (operator) => FILTER_OPERATOR_LABELS[operator] || operator || '';
@@ -916,7 +994,20 @@ const transformModal = reactive({
   show: false,
   field: '',
   rules: [],
-  chain: []
+  chain: [],
+  elseRule: {
+    actionSourceKey: '',
+    actionMode: TRANSFORM_ACTION_MODES.KEEP_SOURCE,
+    type: TRANSFORM_TYPES.SET_VALUE,
+    delimiter: '',
+    fixedValue: '',
+    start: '',
+    end: '',
+    search: '',
+    replace: '',
+    timeFormatMode: '',
+    customOriginType: ''
+  }
 });
 
 const copiedConfig = ref(null);
@@ -1190,6 +1281,13 @@ const remapTransformConfigForTargetField = (sourceFieldName, targetFieldName, tr
       conditionSourceKey: remapSourceKeyForTargetField(sourceField, targetField, rule?.conditionSourceKey),
       actionSourceKey: remapSourceKeyForTargetField(sourceField, targetField, rule?.actionSourceKey)
     }));
+  }
+
+  if (next?.elseRule) {
+    next.elseRule = {
+      ...next.elseRule,
+      actionSourceKey: remapSourceKeyForTargetField(sourceField, targetField, next.elseRule?.actionSourceKey)
+    };
   }
 
   return next;
@@ -1574,10 +1672,6 @@ const passesTransformRule = (row, fieldName, rule) => {
       return value === null || value === undefined || String(value).trim() === '';
     case 'is_not_empty':
       return !(value === null || value === undefined || String(value).trim() === '');
-    case 'greater_than':
-      return Number(value) > Number(rule.value);
-    case 'less_than':
-      return Number(value) < Number(rule.value);
     default:
       return false;
   }
@@ -1650,19 +1744,25 @@ const applyTransformByConfig = (row, field, base, cfg) => {
     }
     case TRANSFORM_TYPES.REPLACE:
       return String(base).replace(cfg.search || '', cfg.replace || '');
-    case TRANSFORM_TYPES.FORMULA: {
-      const context = {
-        value: base,
-        row,
-        S: (name) => getSourceValue(row, name),
-        T: (name) => getBaseValue(name, row)
-      };
-      return evalFormula(cfg.formula, context);
-    }
     default:
       return base;
   }
 };
+
+const createDefaultElseRule = () => ({
+  actionSourceKey: '',
+  actionMode: TRANSFORM_ACTION_MODES.KEEP_SOURCE,
+  type: TRANSFORM_TYPES.SET_VALUE,
+  delimiter: '',
+  fixedValue: '',
+  start: '',
+  end: '',
+  search: '',
+  replace: '',
+  formula: '',
+  timeFormatMode: '',
+  customOriginType: ''
+});
 
 const getFieldValue = (row, field) => {
   if (row?.__remoteDebugRow) {
@@ -1689,7 +1789,9 @@ const getFieldValue = (row, field) => {
         return applyTransformByConfig(row, field, ruleBase, rule);
       }
     }
-    return base;
+    const elseRule = t.elseRule || createDefaultElseRule();
+    const elseBase = resolveRuleActionBaseValue(row, base, elseRule);
+    return applyTransformByConfig(row, field, elseBase, elseRule);
   }
 
   if (t.type) {
@@ -1731,10 +1833,6 @@ const passesFilter = (row, fieldName) => {
           return value === null || value === undefined || String(value).trim() === '';
         case 'is_not_empty':
           return !(value === null || value === undefined || String(value).trim() === '');
-        case 'greater_than':
-          return Number(value) > Number(cond.value);
-        case 'less_than':
-          return Number(value) < Number(cond.value);
         default:
           return true;
       }
@@ -1756,10 +1854,6 @@ const passesFilter = (row, fieldName) => {
       return value === null || value === undefined || String(value).trim() === '';
     case 'is_not_empty':
       return !(value === null || value === undefined || String(value).trim() === '');
-    case 'greater_than':
-      return Number(value) > Number(conf.value);
-    case 'less_than':
-      return Number(value) < Number(conf.value);
     default:
       return true;
   }
@@ -1911,7 +2005,7 @@ const deepCamelize = (value) => {
 const PROCESS_DSL_DEFINITIONS = Object.freeze({
   filter: {
     modes: ['simple', 'compound'],
-    operators: ['equals', 'not_equals', 'contains', 'is_empty', 'is_not_empty', 'greater_than', 'less_than'],
+    operators: ['equals', 'not_equals', 'contains', 'is_empty', 'is_not_empty'],
     logic: ['AND', 'OR']
   },
   transform: {
@@ -1965,7 +2059,6 @@ const normalizeTransformType = (value) => {
     substr: TRANSFORM_TYPES.SUBSTR,
     concat: TRANSFORM_TYPES.CONCAT,
     replace: TRANSFORM_TYPES.REPLACE,
-    formula: TRANSFORM_TYPES.FORMULA
   };
   if (typeMap[type]) return typeMap[type];
   if (Object.values(TRANSFORM_TYPES).includes(type)) return type;
@@ -2577,6 +2670,9 @@ const openTransformModal = (field) => {
   transformModal.rules = transforms[field]?.rules
     ? JSON.parse(JSON.stringify(transforms[field].rules)).map((rule) => toModalTransformItem(rule))
     : [];
+  transformModal.elseRule = transforms[field]?.elseRule
+    ? toModalTransformItem(JSON.parse(JSON.stringify(transforms[field].elseRule)))
+    : createDefaultElseRule();
 
   if (Array.isArray(transforms[field]?.chain) && transforms[field].chain.length > 0) {
     transformModal.chain = JSON.parse(JSON.stringify(transforms[field].chain)).map((step) => toModalTransformItem(step));
@@ -2615,9 +2711,11 @@ const closeTransformModal = () => {
 const confirmTransform = () => {
   const storedRules = transformModal.rules.map((rule) => toStoredTransformItem(rule));
   const storedChain = transformModal.chain.map((step) => toStoredTransformItem(step));
+  const storedElseRule = toStoredTransformItem(transformModal.elseRule || createDefaultElseRule());
   transforms[transformModal.field] = {
     rules: storedRules,
-    chain: storedChain
+    chain: storedChain,
+    elseRule: storedElseRule
   };
   const chainDesc = storedChain.length > 0 ? ' [链:' + storedChain.map((step) => getTransformTypeLabel(step.type)).join('→') + ']' : '';
   notifyOperationApplied('transform', transformModal.field);
