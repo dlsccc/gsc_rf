@@ -715,32 +715,6 @@ const buildJoinDsl = (uploadedFiles = [], joinConfig = {}, sourceAliasToId = {})
   return joinList.length > 0 ? joinList : undefined;
 };
 
-const buildDedupDsl = (dedupConfig = {}) => {
-  if (!dedupConfig.enabled || !Array.isArray(dedupConfig.fields) || dedupConfig.fields.length === 0) {
-    return undefined;
-  }
-
-  const value = dedupConfig.fields.length === 1
-    ? '$rule_input[0].key_columns[0]'
-    : '$rule_input[0].key_columns';
-  const type = dedupConfig.fields.length === 1 ? 'string' : 'array';
-
-  return {
-    index: 'deduplicate_data',
-    rule_input: [
-      makeRuleInput('table_mapped', [...dedupConfig.fields])
-    ],
-    rule_output: makeRuleOutput('table_mapped'),
-    rule: {
-      ability_name: 'deduplicate',
-      params: [
-        makeParam('dedup_keys', type, value),
-        makeParam('keep', 'enum', dedupConfig.keep || 'first')
-      ]
-    }
-  };
-};
-
 const resolveTargetFieldNames = (selectedModel = {}, mappings = {}) => {
   const fromModel = (selectedModel?.fields || [])
     .map((field) => trimText(field?.name))
@@ -928,8 +902,6 @@ export const buildPipelineDsl = ({
   const hasJoin = Array.isArray(joinDslList) && joinDslList.length > 0;
 
   const modelCode = getModelCode(selectedModel);
-  const dedupDsl = buildDedupDsl(dedupConfig);
-
   return {
     meta: {
       version: '1.0',
@@ -946,8 +918,7 @@ export const buildPipelineDsl = ({
       data_sources: {
         tables: tablesDsl
       },
-      ...(hasJoin ? { join_config: joinDslList } : {}),
-      ...(dedupDsl ? { deduplicate: dedupDsl } : {})
+      ...(hasJoin ? { join_config: joinDslList } : {})
     },
     data_processing: buildDataProcessingDsl({
       selectedModel,

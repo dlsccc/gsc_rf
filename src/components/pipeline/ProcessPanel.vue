@@ -31,61 +31,6 @@
         </div>
       </div>
 
-      <div class="dedup-config">
-        <div class="dedup-config-header">
-          <div class="dedup-title">
-            <span class="material-icons" style="color: var(--purple);">delete_sweep</span>
-            <span>全局去重</span>
-            <span class="tag tag-primary">全局</span>
-          </div>
-          <label class="dedup-toggle">
-            <input type="checkbox" v-model="dedupConfig.enabled" @change="applyDedupConfig" />
-            <span>启用</span>
-          </label>
-        </div>
-
-        <div class="dedup-config-row">
-          <div>
-            <label class="form-label" style="font-size: 13px; margin-bottom: 8px;">去重字段</label>
-            <div class="dedup-field-row">
-              <select class="form-select dedup-select" v-model="dedupFieldSelect" @change="addDedupField">
-                <option value="">选择字段...</option>
-                <option
-                  v-for="field in targetModelFields"
-                  :key="field.name"
-                  :value="field.name"
-                  :disabled="dedupConfig.fields.includes(field.name)"
-                >
-                  {{ field.name }}
-                </option>
-              </select>
-
-              <div class="dedup-tags">
-                <span v-for="f in dedupConfig.fields" :key="f" class="dedup-tag">
-                  {{ f }}
-                  <span class="dedup-tag-close" @click="removeDedupField(f)">×</span>
-                </span>
-                <span v-if="dedupConfig.fields.length === 0" style="font-size: 12px; color: #bfbfbf;">未选择字段</span>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label class="form-label" style="font-size: 13px; margin-bottom: 8px;">保留</label>
-            <select class="form-select" v-model="dedupConfig.keep" @change="applyDedupConfig">
-              <option value="first">保留第一行</option>
-              <option value="last">保留最后一行</option>
-              <option value="any">保留任意一行</option>
-            </select>
-          </div>
-        </div>
-
-        <div style="margin-top: 12px; font-size: 12px; color: var(--text-secondary);">
-          <span class="material-icons" style="font-size: 14px; vertical-align: middle; margin-right: 4px;">info</span>
-          选择去重字段后，将根据这些字段的组合键去重
-        </div>
-      </div>
-
       <div class="data-grid-container" ref="processGridContainer" style="margin-top: 14px; max-height: 560px;">
         <table class="data-grid">
           <thead>
@@ -196,7 +141,6 @@
         <div class="field-info">
           <span><span class="material-icons" style="font-size: 16px; vertical-align: middle;">table_rows</span> 共 {{ processedData.length }} 条数据</span>
           <span v-if="hasActiveFilters" style="color: var(--warning);">，已筛选 {{ filteredOutCount }} 条</span>
-          <span v-if="dedupRemovedCount > 0" style="color: var(--purple);">，去重移除 {{ dedupRemovedCount }} 条</span>
         </div>
       </div>
     </div>
@@ -862,7 +806,7 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
-import { DEDUP_KEEP, SORT_ORDER, TRANSFORM_TYPES } from '@/utils/constants/pipeline.js';
+import { SORT_ORDER, TRANSFORM_TYPES } from '@/utils/constants/pipeline.js';
 import { apiSystemService } from '@/api/index.js';
 import { useModelStore } from '@/store/model.store.js';
 import { $confirm, $error, $success, $warning } from '@/utils/message.js';
@@ -882,7 +826,6 @@ const hoverTarget = ref(null);
 const filterConfigs = props.store.filters;
 const transforms = props.store.transforms;
 const sortConfig = props.store.sortConfig;
-const dedupConfig = props.store.dedupConfig;
 
 const normalizeSortOrder = (value) => {
   return String(value || '').toLowerCase() === SORT_ORDER.DESC ? SORT_ORDER.DESC : SORT_ORDER.ASC;
@@ -1060,7 +1003,6 @@ const transformSuggestionModal = reactive({
 
 const pendingTransformSuggestions = ref({});
 const suggestionLoading = ref(false);
-const dedupFieldSelect = ref('');
 
 const targetModelFields = computed(() => props.store.targetFields || []);
 
@@ -1911,29 +1853,8 @@ const filteredData = computed(() => {
   return previewData.value.filter((row) => targetModelFields.value.every((field) => passesFilter(row, field.name)));
 });
 
-const dedupedData = computed(() => {
-  if (!dedupConfig.enabled || !Array.isArray(dedupConfig.fields) || dedupConfig.fields.length === 0) {
-    return filteredData.value;
-  }
-
-  const map = new Map();
-  filteredData.value.forEach((row, index) => {
-    const key = dedupConfig.fields.map((field) => getFieldValue(row, field)).join('||');
-    const existing = map.get(key);
-    if (!existing) {
-      map.set(key, { row, index });
-    } else if (dedupConfig.keep === DEDUP_KEEP.LAST) {
-      map.set(key, { row, index });
-    }
-  });
-
-  return Array.from(map.values())
-    .sort((a, b) => a.index - b.index)
-    .map((item) => item.row);
-});
-
 const localProcessedData = computed(() => {
-  const data = dedupedData.value;
+  const data = filteredData.value;
   const sortItems = getSortItems();
   if (sortItems.length === 0) return data;
 
@@ -1970,7 +1891,6 @@ const hasActiveFilters = computed(() => {
 });
 
 const filteredOutCount = computed(() => (usingRemoteDebugData.value ? 0 : (previewData.value.length - filteredData.value.length)));
-const dedupRemovedCount = computed(() => (usingRemoteDebugData.value ? 0 : (filteredData.value.length - dedupedData.value.length)));
 
 const filteredApplyTargets = computed(() => {
   const keyword = applyModal.search.trim().toLowerCase();
@@ -2009,24 +1929,6 @@ const notifyOperationApplied = (type, field = '') => {
     field: String(field || '').trim(),
     timestamp: Date.now()
   });
-};
-
-const applyDedupConfig = () => {
-  notifyOperationApplied('dedup', 'GLOBAL');
-};
-
-const addDedupField = () => {
-  const value = dedupFieldSelect.value;
-  if (value && !dedupConfig.fields.includes(value)) {
-    dedupConfig.fields.push(value);
-    applyDedupConfig();
-  }
-  dedupFieldSelect.value = '';
-};
-
-const removeDedupField = (field) => {
-  dedupConfig.fields = dedupConfig.fields.filter((item) => item !== field);
-  applyDedupConfig();
 };
 
 const trimText = (value) => String(value ?? "").trim();

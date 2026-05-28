@@ -1,4 +1,4 @@
-﻿import { DEDUP_KEEP, SORT_ORDER, TRANSFORM_TYPES } from '@/utils/constants/pipeline.js';
+import { SORT_ORDER, TRANSFORM_TYPES } from '@/utils/constants/pipeline.js';
 
 const toText = (value) => (value === null || value === undefined ? '' : String(value));
 
@@ -110,7 +110,7 @@ export const buildPreviewRows = ({ sourceRows, mappings, targetFields }) => {
   });
 };
 
-export const buildProcessedRows = ({ previewRows, filters, transforms, sortConfig, dedupConfig }) => {
+export const buildProcessedRows = ({ previewRows, filters, transforms, sortConfig }) => {
   let rows = [...previewRows];
 
   rows = rows.filter((row) => {
@@ -171,22 +171,5 @@ export const buildProcessedRows = ({ previewRows, filters, transforms, sortConfi
     });
   }
 
-  if (dedupConfig?.enabled && dedupConfig.fields?.length) {
-    const keyMap = new Map();
-    const seq = dedupConfig.keep === DEDUP_KEEP.LAST ? [...rows].reverse() : rows;
-    seq.forEach((row) => {
-      const key = dedupConfig.fields.map((field) => toText(row[field])).join('||');
-      if (!keyMap.has(key)) {
-        keyMap.set(key, row);
-      }
-    });
-    rows = Array.from(keyMap.values());
-    if (dedupConfig.keep === DEDUP_KEEP.LAST) {
-      rows = rows.reverse();
-    }
-  }
-
   return rows;
 };
-
-
