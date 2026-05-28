@@ -3,6 +3,7 @@
     <div class="form-group">
       <label class="form-label"><span class="material-icons">upload_file</span>上传原始数据 (支持多个文件)</label>
       <FileUploadPanelBase
+        :key="uploadPanelKey"
         :project-id="projectId"
         class="w-p-100 common-upload-component"
         :isShowList="false"
@@ -37,7 +38,7 @@
           </button>
         </div>
 
-        <button class="btn btn-default btn-sm" @click="store.removeFile(file.id)" :disabled="uploading">
+        <button class="btn btn-default btn-sm" @click="handleRemoveFile(file.id)" :disabled="uploading">
           <span class="material-icons" style="font-size: 16px;">delete</span>
         </button>
       </div>
@@ -57,6 +58,7 @@ const props = defineProps({
 });
 
 const uploading = ref(false);
+const uploadPanelKey = ref(0);
 
 const projectId = computed(() => {
   return userStore.state.curTenant?.frmProjectId || userStore.state.zoneId || '';
@@ -109,5 +111,16 @@ const handleUploadSuccess = async (uploadId, fileDetail) => {
   }
 };
 
-const deleteCallback = () => '';
+const resetUploadPanel = () => {
+  uploadPanelKey.value += 1;
+};
+
+const handleRemoveFile = (fileId) => {
+  props.store.removeFile(fileId);
+  resetUploadPanel();
+};
+
+const deleteCallback = () => {
+  resetUploadPanel();
+};
 </script>
