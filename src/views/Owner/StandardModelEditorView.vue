@@ -148,6 +148,7 @@ import { nowText } from '@/utils/date.js';
 import { createId } from '@/utils/id.js';
 import { $error, $success, $warning } from '@/utils/message.js';
 import { downloadFile } from '@/utils/fileUtils.js';
+import { getReservedFieldNameError } from '@/utils/model-field-name.js';
 import { normalizeStandardModel, resolveModelCode, toModelSavePayload, unwrapApiData, unwrapApiList, useModelStore } from '@/store/model.store.js';
 import { useAppStore } from '@/store/app.store.js';
 
@@ -343,6 +344,10 @@ const getFieldNameError = (field) => {
   if (!FIELD_NAME_PATTERN.test(name)) {
     return '\u547d\u540d\u4e0d\u5408\u89c4';
   }
+  const reservedError = getReservedFieldNameError(name);
+  if (reservedError) {
+    return reservedError;
+  }
   return '';
 };
 
@@ -365,7 +370,7 @@ const validate = () => {
 
   const invalidNameField = form.fields.find((field) => !!getFieldNameError(field));
   if (invalidNameField) {
-    $warning('\u5b57\u6bb5\u540d\u79f0\u547d\u540d\u4e0d\u5408\u89c4\uff0c\u8bf7\u6309\u63d0\u793a\u4fee\u6539');
+    $warning(getFieldNameError(invalidNameField) || '\u5b57\u6bb5\u540d\u79f0\u547d\u540d\u4e0d\u5408\u89c4\uff0c\u8bf7\u6309\u63d0\u793a\u4fee\u6539');
     return false;
   }
 

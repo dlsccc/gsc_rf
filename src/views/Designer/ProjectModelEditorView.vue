@@ -354,6 +354,7 @@ import { createId } from '@/utils/id.js';
 import { $error, $success, $warning } from '@/utils/message.js';
 import { useAppStore } from '@/store/app.store.js';
 import { downloadFile } from '@/utils/fileUtils.js';
+import { getReservedFieldNameError } from '@/utils/model-field-name.js';
 import { normalizeProjectModel, normalizeStandardModel, resolveModelCode, toBusinessTypeLabel, toModelSavePayload, unwrapApiData, unwrapApiList, useModelStore } from '@/store/model.store.js';
 
 const vendorOptions = ['华为', '中兴', '爱立信', '诺基亚西门子'];
@@ -764,6 +765,10 @@ const getFieldNameError = (field) => {
   if (!FIELD_NAME_PATTERN.test(name)) {
     return '命名不合规';
   }
+  const reservedError = getReservedFieldNameError(name);
+  if (reservedError) {
+    return reservedError;
+  }
   return '';
 };
 
@@ -783,7 +788,7 @@ const validateBase = () => {
 
   const invalidNameField = form.fields.find((field) => !!getFieldNameError(field));
   if (invalidNameField) {
-    $warning('字段名称命名不合规，请按提示修改');
+    $warning(getFieldNameError(invalidNameField) || '字段名称命名不合规，请按提示修改');
     return false;
   }
   return true;
