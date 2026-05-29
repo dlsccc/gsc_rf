@@ -562,5 +562,5 @@ export const getReservedFieldNameError = (value) => {
   const name = String(value ?? '').trim();
   if (!name) return '';
   if (!isReservedFieldName(name)) return '';
-  return `不允许使用${name}字段名称`;
+  return `字段名${name}非法，属于flink sql关键字`;
 };
