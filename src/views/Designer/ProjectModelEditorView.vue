@@ -898,13 +898,17 @@ const persistModel = async (status) => {
     // Ignore backend save failure in local-only mode.
   }
 
+  const existingCode = toText(form.code || form.modelCode || (isEdit.value ? form.id : ''));
   const localCode = toText(resolveModelCode(entity));
   const responseCode = extractModelCodeFromSaveResponse(saveResponse);
-  const queriedCode = (!isValidModelCode(localCode) && !isValidModelCode(responseCode))
+  const trustedLocalCode = isValidModelCode(existingCode)
+    ? existingCode
+    : (isEdit.value && isValidModelCode(localCode) ? localCode : '');
+  const queriedCode = (!isValidModelCode(trustedLocalCode) && !isValidModelCode(responseCode))
     ? await queryModelCodeByName(entity.name, projectCode)
     : '';
-  const finalModelCode = isValidModelCode(localCode)
-    ? localCode
+  const finalModelCode = isValidModelCode(trustedLocalCode)
+    ? trustedLocalCode
     : (isValidModelCode(responseCode) ? responseCode : queriedCode);
 
   entity = syncEntityWithModelCode(entity, finalModelCode, saveStatus, projectCode);
