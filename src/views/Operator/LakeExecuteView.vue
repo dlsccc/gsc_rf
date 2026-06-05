@@ -404,13 +404,17 @@ const getTaskFileByTable = (tableId) => {
 
 const createLakeTask = () => {
   lakeTaskDraft.id = Date.now();
-  lakeTaskDraft.name = `入湖任务_${new Date().toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).replace(/\//g, '-').replace(/\s/g, '_').replace(/:/g, '')}`;
+  lakeTaskDraft.name = `入湖任务_${new Date()
+    .toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+    .replace(/\//g, '-')
+    .replace(/\s/g, '_')
+    .replace(/:/g, '')}`;
   lakeTaskDraft.ruleId = '';
   lakeTaskDraft.files = [];
   taskUploadingTableId.value = '';
