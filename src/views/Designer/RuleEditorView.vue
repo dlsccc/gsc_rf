@@ -1329,7 +1329,12 @@ const normalizeAutoMappings = (rawMappings = {}) => {
     if (!targetName || !validTargets.has(targetName)) { return; }
 
     const rawValue = mappingObject[targetName];
-    const sourceList = Array.isArray(rawValue) ? rawValue : (rawValue ? [rawValue] : []);
+    let sourceList = [];
+    if (Array.isArray(rawValue)) {
+      sourceList = rawValue;
+    } else if (rawValue) {
+      sourceList = [rawValue];
+    }
     const filtered = [...new Set(sourceList.map((item) => toText(item)).filter((item) => validSources.has(item)))];
 
     if (filtered.length > 0) {

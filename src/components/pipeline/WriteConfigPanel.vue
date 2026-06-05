@@ -162,9 +162,12 @@ const hasEffectiveTransform = (config) => {
 const processStepCount = computed(() => {
   const filterCount = Object.values(props.store.filters || {}).filter((config) => isFilterActive(config)).length;
   const transformCount = Object.values(props.store.transforms || {}).filter((config) => hasEffectiveTransform(config)).length;
-  const sortCount = Array.isArray(props.store.sortConfig?.items)
-    ? props.store.sortConfig.items.length
-    : (props.store.sortConfig?.field ? 1 : 0);
+  let sortCount = 0;
+  if (Array.isArray(props.store.sortConfig?.items)) {
+    sortCount = props.store.sortConfig.items.length;
+  } else if (props.store.sortConfig?.field) {
+    sortCount = 1;
+  }
   const dedupCount = props.store.dedupConfig?.enabled && (props.store.dedupConfig?.fields || []).length > 0 ? 1 : 0;
   return filterCount + transformCount + sortCount + dedupCount;
 });

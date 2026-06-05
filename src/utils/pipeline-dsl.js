@@ -86,9 +86,12 @@ const normalizeFieldInfoItem = (item = {}) => {
 };
 
 const toFieldInfoList = (file = {}) => {
-  const source = Array.isArray(file?.fieldInfoList)
-    ? file.fieldInfoList
-    : (Array.isArray(file?.field_info_list) ? file.field_info_list : []);
+  let source = [];
+  if (Array.isArray(file?.fieldInfoList)) {
+    source = file.fieldInfoList;
+  } else if (Array.isArray(file?.field_info_list)) {
+    source = file.field_info_list;
+  }
 
   return source
     .map((item) => normalizeFieldInfoItem(item))
@@ -279,7 +282,12 @@ const buildConditionalRuleInputs = (rule = {}, sourceAliasToId = {}, fallbackSou
     trimText(rule.conditionSourceKey || rule.condition_source_key),
     trimText(rule.actionSourceKey || rule.action_source_key)
   ].filter(Boolean);
-  const sourceKeys = preferredSourceKeys.length > 0 ? preferredSourceKeys : (Array.isArray(fallbackSourceKeys) ? fallbackSourceKeys : []);
+  let sourceKeys = [];
+  if (preferredSourceKeys.length > 0) {
+    sourceKeys = preferredSourceKeys;
+  } else if (Array.isArray(fallbackSourceKeys)) {
+    sourceKeys = fallbackSourceKeys;
+  }
 
   return sourceKeys.reduce((acc, sourceKey) => {
     const ruleInput = toRuleInputBySourceKey(sourceKey, sourceAliasToId);
@@ -643,9 +651,10 @@ const normalizeJoinLinks = (joinConfig = {}, sourceFiles = []) => {
 
   return secondaryFiles.map((rightFile, index) => {
     const fallbackPairs = defaultJoinFields(mainFile?.fields || [], rightFile?.fields || []);
-    const configuredPairs = index === 0
-      ? (Array.isArray(joinConfig?.fields) ? joinConfig.fields.filter((item) => item?.leftField || item?.rightField) : [])
-      : [];
+    let configuredPairs = [];
+    if (index === 0 && Array.isArray(joinConfig?.fields)) {
+      configuredPairs = joinConfig.fields.filter((item) => item?.leftField || item?.rightField);
+    }
 
     return {
       leftSource: trimText(mainFile?.source) || 'table_a',
@@ -743,11 +752,12 @@ const buildDataProcessingDsl = ({
     acc[name] = trimText(field?.format || field?.dataFormat);
     return acc;
   }, {});
-  const sortItems = Array.isArray(sortConfig?.items) && sortConfig.items.length > 0
-    ? sortConfig.items
-    : (sortConfig?.field
-      ? [{ field: sortConfig.field, order: sortConfig.order || 'asc', priority: 1 }]
-      : []);
+  let sortItems = [];
+  if (Array.isArray(sortConfig?.items) && sortConfig.items.length > 0) {
+    sortItems = sortConfig.items;
+  } else if (sortConfig?.field) {
+    sortItems = [{ field: sortConfig.field, order: sortConfig.order || 'asc', priority: 1 }];
+  }
   const sortMap = sortItems.reduce((acc, item, index) => {
     const field = trimText(item?.field);
     if (!field) { return acc; }

@@ -145,9 +145,12 @@ export const buildProcessedRows = ({ previewRows, filters, transforms, sortConfi
     return next;
   });
 
-  const sortItems = Array.isArray(sortConfig?.items) && sortConfig.items.length > 0
-    ? [...sortConfig.items]
-    : (sortConfig?.field ? [{ field: sortConfig.field, order: sortConfig.order || SORT_ORDER.ASC, priority: 1 }] : []);
+  let sortItems = [];
+  if (Array.isArray(sortConfig?.items) && sortConfig.items.length > 0) {
+    sortItems = [...sortConfig.items];
+  } else if (sortConfig?.field) {
+    sortItems = [{ field: sortConfig.field, order: sortConfig.order || SORT_ORDER.ASC, priority: 1 }];
+  }
 
   if (sortItems.length > 0) {
     const normalizedSortItems = sortItems

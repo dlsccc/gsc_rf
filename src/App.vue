@@ -3,7 +3,7 @@
     <div v-if="appStore.deployNotice.show" class="deploy-notice" :class="`deploy-notice-${appStore.deployNotice.status}`">
       <div class="deploy-notice-content">
         <span class="material-icons" :class="{ 'deploy-notice-spinning': appStore.deployNotice.status === 'processing' }">
-          {{ appStore.deployNotice.status === 'processing' ? 'autorenew' : (appStore.deployNotice.status === 'success' ? 'check_circle' : 'error') }}
+          {{ deployNoticeIcon }}
         </span>
         <span>{{ appStore.deployNotice.text }}</span>
       </div>
@@ -28,9 +28,19 @@
 import ItscReLoginDlg from '@hw-itsc/common/src/components/login/login-dlg.vue';
 // 当前登录状态账号等相关数据
 import { loginState } from '@hw-itsc/common/src/utils/login-util.js';
+import { computed } from 'vue';
 import { useAppStore } from '@/store/app.store.js';
 
 const appStore = useAppStore();
+const deployNoticeIcon = computed(() => {
+  if (appStore.deployNotice.status === 'processing') {
+    return 'autorenew';
+  }
+  if (appStore.deployNotice.status === 'success') {
+    return 'check_circle';
+  }
+  return 'error';
+});
 
 
 </script>

@@ -856,9 +856,12 @@ const normalizeSortItems = (items = []) => {
 };
 
 const getSortItems = () => {
-  const list = Array.isArray(sortConfig?.items) && sortConfig.items.length > 0
-    ? sortConfig.items
-    : (sortConfig?.field ? [{ field: sortConfig.field, order: sortConfig.order || SORT_ORDER.ASC, priority: 1 }] : []);
+  let list = [];
+  if (Array.isArray(sortConfig?.items) && sortConfig.items.length > 0) {
+    list = sortConfig.items;
+  } else if (sortConfig?.field) {
+    list = [{ field: sortConfig.field, order: sortConfig.order || SORT_ORDER.ASC, priority: 1 }];
+  }
   return normalizeSortItems(list);
 };
 
@@ -1347,7 +1350,8 @@ const normalizeParsedTime = (parsed = {}) => {
   const h = pad2(parsed.h);
   const min = pad2(parsed.min);
   const s = pad2(parsed.s);
-  const t = h && min ? `${h}:${min}${s ? `:${s}` : ''}` : '';
+  const secondText = s ? `:${s}` : '';
+  const t = h && min ? `${h}:${min}${secondText}` : '';
   return { y, m, d, h, min, s, t };
 };
 
@@ -1864,7 +1868,10 @@ const localProcessedData = computed(() => {
       const aVal = getFieldValue(a, sortItem.field);
       const bVal = getFieldValue(b, sortItem.field);
       if (aVal === bVal) { continue; }
-      return sortItem.order === SORT_ORDER.ASC ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
+      if (sortItem.order === SORT_ORDER.ASC) {
+        return aVal > bVal ? 1 : -1;
+      }
+      return aVal < bVal ? 1 : -1;
     }
     return 0;
   });
@@ -2029,7 +2036,12 @@ const inferSampleType = (value) => {
 const resolveFieldTypeFromInfo = (file = {}, fieldName = "") => {
   const target = trimText(fieldName);
   if (!target) { return ''; }
-  const fieldInfoList = Array.isArray(file?.fieldInfoList) ? file.fieldInfoList : (Array.isArray(file?.field_info_list) ? file.field_info_list : []);
+  let fieldInfoList = [];
+  if (Array.isArray(file?.fieldInfoList)) {
+    fieldInfoList = file.fieldInfoList;
+  } else if (Array.isArray(file?.field_info_list)) {
+    fieldInfoList = file.field_info_list;
+  }
   const matched = fieldInfoList.find((item) => {
     const name = trimText(item?.fieldName || item?.field_name || item?.name);
     const alias = trimText(item?.fieldAlias || item?.field_alias || item?.alias);
@@ -2152,7 +2164,12 @@ const normalizeFilterConfig = (rawFilter) => {
 const normalizeTransformItem = (rawItem) => {
   if (!rawItem) { return null; }
   const item = deepCamelize(rawItem);
-  const paramValueList = Array.isArray(item.paramValue) ? item.paramValue : (Array.isArray(item.paramvalue) ? item.paramvalue : []);
+  let paramValueList = [];
+  if (Array.isArray(item.paramValue)) {
+    paramValueList = item.paramValue;
+  } else if (Array.isArray(item.paramvalue)) {
+    paramValueList = item.paramvalue;
+  }
   const paramValue = isPlainObject(paramValueList[0]) ? deepCamelize(paramValueList[0]) : {};
   const merged = { ...item, ...paramValue };
   const type = normalizeTransformType(merged.type || merged.transformType || merged.transform || merged.abilityName);
@@ -2179,7 +2196,12 @@ const normalizeTransformItem = (rawItem) => {
 const normalizeTransformConfig = (rawTransform) => {
   if (!rawTransform) { return null; }
   const transform = deepCamelize(rawTransform);
-  const chainItems = Array.isArray(transform.chain) ? transform.chain : (Array.isArray(transform.steps) ? transform.steps : []);
+  let chainItems = [];
+  if (Array.isArray(transform.chain)) {
+    chainItems = transform.chain;
+  } else if (Array.isArray(transform.steps)) {
+    chainItems = transform.steps;
+  }
   if (chainItems.length > 0) {
     const chain = chainItems.map((item) => normalizeTransformItem(item)).filter(Boolean);
     if (chain.length > 0) { return { chain }; }

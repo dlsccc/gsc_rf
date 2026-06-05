@@ -906,15 +906,21 @@ const persistModel = async (status) => {
   const existingCode = toText(form.code || form.modelCode || (isEdit.value ? form.id : ''));
   const localCode = toText(resolveModelCode(entity));
   const responseCode = extractModelCodeFromSaveResponse(saveResponse);
-  const trustedLocalCode = isValidModelCode(existingCode)
-    ? existingCode
-    : (isEdit.value && isValidModelCode(localCode) ? localCode : '');
+  let trustedLocalCode = '';
+  if (isValidModelCode(existingCode)) {
+    trustedLocalCode = existingCode;
+  } else if (isEdit.value && isValidModelCode(localCode)) {
+    trustedLocalCode = localCode;
+  }
   const queriedCode = (!isValidModelCode(trustedLocalCode) && !isValidModelCode(responseCode))
     ? await queryModelCodeByName(entity.name, projectCode)
     : '';
-  const finalModelCode = isValidModelCode(trustedLocalCode)
-    ? trustedLocalCode
-    : (isValidModelCode(responseCode) ? responseCode : queriedCode);
+  let finalModelCode = queriedCode;
+  if (isValidModelCode(trustedLocalCode)) {
+    finalModelCode = trustedLocalCode;
+  } else if (isValidModelCode(responseCode)) {
+    finalModelCode = responseCode;
+  }
 
   entity = syncEntityWithModelCode(entity, finalModelCode, saveStatus, projectCode);
 

@@ -2,7 +2,7 @@
   <div class="model-edit-container" style="margin-top: 64px; background: linear-gradient(135deg, #f0f5ff 0%, #fafafa 100%);">
     <div class="model-edit-header">
       <div class="back-btn" @click="router.push('/owner/standard-models')"><span class="material-icons">arrow_back</span></div>
-      <div class="model-edit-title">{{ isViewOnly ? '查看标准数据模型' : (isEdit ? '编辑标准数据模型' : '新建标准数据模型') }}</div>
+      <div class="model-edit-title">{{ modelEditTitle }}</div>
     </div>
 
     <div class="model-form-section" :style="isViewOnly ? { opacity: 0.9 } : null">
@@ -242,6 +242,15 @@ const appStore = useAppStore();
 const editId = computed(() => route.params.id || '');
 const isEdit = computed(() => !!editId.value);
 const isViewOnly = computed(() => String(route.query.mode || '').toLowerCase() === 'view');
+const modelEditTitle = computed(() => {
+  if (isViewOnly.value) {
+    return '查看标准数据模型';
+  }
+  if (isEdit.value) {
+    return '编辑标准数据模型';
+  }
+  return '新建标准数据模型';
+});
 
 const form = reactive(emptyModel());
 const importInputRef = ref(null);
@@ -460,9 +469,12 @@ const persistModel = async () => {
   const queriedCode = (!isValidModelCode(localCode) && !isValidModelCode(responseCode))
     ? await queryModelCodeByName(entity.name)
     : '';
-  const finalModelCode = isValidModelCode(localCode)
-    ? localCode
-    : (isValidModelCode(responseCode) ? responseCode : queriedCode);
+  let finalModelCode = queriedCode;
+  if (isValidModelCode(localCode)) {
+    finalModelCode = localCode;
+  } else if (isValidModelCode(responseCode)) {
+    finalModelCode = responseCode;
+  }
 
   entity = syncEntityWithModelCode(entity, finalModelCode);
   form.id = entity.id || form.id;
