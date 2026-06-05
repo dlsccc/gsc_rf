@@ -836,7 +836,7 @@ const normalizeSortItems = (items = []) => {
   const dedupMap = new Map();
   list.forEach((item, index) => {
     const field = String(item?.field || '').trim();
-    if (!field) return;
+    if (!field) { return; }
     const rawPriority = Number(item?.priority);
     const priority = Number.isFinite(rawPriority) ? rawPriority : index + 1;
     dedupMap.set(field, {
@@ -879,7 +879,7 @@ const setSortItems = (items = []) => {
 
 const getSortItem = (fieldName) => {
   const key = String(fieldName || '').trim();
-  if (!key) return null;
+  if (!key) { return null; }
   return getSortItems().find((item) => item.field === key) || null;
 };
 
@@ -889,7 +889,7 @@ const getSortOrder = (fieldName) => getSortItem(fieldName)?.order || SORT_ORDER.
 
 const applySortForField = (fieldName, order, historySuffix = '', withHistory = true) => {
   const field = String(fieldName || '').trim();
-  if (!field) return;
+  if (!field) { return; }
   const nextOrder = normalizeSortOrder(order);
   const items = getSortItems();
   const index = items.findIndex((item) => item.field === field);
@@ -905,7 +905,7 @@ const applySortForField = (fieldName, order, historySuffix = '', withHistory = t
 
 const removeSortForField = (fieldName) => {
   const field = String(fieldName || '').trim();
-  if (!field) return;
+  if (!field) { return; }
   const items = getSortItems().filter((item) => item.field !== field);
   setSortItems(items);
 };
@@ -1054,7 +1054,7 @@ const sourceFiles = computed(() => {
 const fileRowsBySource = computed(() => {
   return sourceFiles.value.reduce((acc, file) => {
     const source = String(file?.source || '').trim();
-    if (!source) return acc;
+    if (!source) { return acc; }
 
     const rows = (file?.rows || []).map((row) => {
       const next = {};
@@ -1106,7 +1106,7 @@ const isJoinMatch = (leftRow, rightRow, link) => {
   const pairs = normalizeJoinFields(link?.fields);
 
   return pairs.every((pair) => {
-    if (!pair.leftField || !pair.rightField) return true;
+    if (!pair.leftField || !pair.rightField) { return true; }
     return leftRow?.[`${leftSource}.${pair.leftField}`] === rightRow?.[`${rightSource}.${pair.rightField}`];
   });
 };
@@ -1119,7 +1119,7 @@ const buildBlankRow = (keys = []) => {
 };
 
 const applyJoin = (leftRows = [], rightRows = [], link) => {
-  if (leftRows.length === 0) return [];
+  if (leftRows.length === 0) { return []; }
 
   const joinType = normalizeJoinType(link?.type);
   const rightMatched = new Set();
@@ -1147,7 +1147,7 @@ const applyJoin = (leftRows = [], rightRows = [], link) => {
 
   if (joinType === 'full') {
     rightRows.forEach((rightRow, index) => {
-      if (rightMatched.has(index)) return;
+      if (rightMatched.has(index)) { return; }
       result.push({ ...leftBlank, ...rightRow });
     });
   }
@@ -1176,7 +1176,7 @@ const previewData = computed(() => {
 
   joinLinks.value.forEach((link) => {
     const rightSource = String(link?.rightSource || '').trim();
-    if (!rightSource) return;
+    if (!rightSource) { return; }
     const rightRows = fileRowsBySource.value[rightSource] || [];
     result = applyJoin(result, rightRows, link);
   });
@@ -1185,21 +1185,21 @@ const previewData = computed(() => {
 });
 
 const isMultiMapped = (targetField) => {
-  if (usingRemoteDebugData.value) return false;
+  if (usingRemoteDebugData.value) { return false; }
   const sources = props.store.mappings[targetField];
   return Array.isArray(sources) && sources.length > 1;
 };
 
 const getDisplayFieldName = (value) => {
   const text = String(value || '').trim();
-  if (!text) return '';
+  if (!text) { return ''; }
   const parts = text.split('.');
   return parts.length > 1 ? parts.slice(1).join('.') : text;
 };
 
 const inferSourceIdFromKey = (key) => {
   const text = String(key || '').trim();
-  if (!text) return '';
+  if (!text) { return ''; }
   const dotIndex = text.indexOf('.');
   if (dotIndex > 0) {
     return text.slice(0, dotIndex);
@@ -1215,7 +1215,7 @@ const getMappedSources = (targetField) => {
   const keys = props.store.mappings[targetField] || [];
   return keys.map((key) => {
     const field = allSourceFields.value.find((item) => item.key === key);
-    if (field) return field;
+    if (field) { return field; }
     return { key, name: getDisplayFieldName(key), sourceId: inferSourceIdFromKey(key) };
   });
 };
@@ -1265,7 +1265,7 @@ const remapTransformConfigForTargetField = (sourceFieldName, targetFieldName, tr
 
 const getMappingSource = (targetField) => {
   const keys = props.store.mappings[targetField] || [];
-  if (keys.length === 0) return '';
+  if (keys.length === 0) { return ''; }
   if (keys.length > 1) {
     return keys
       .map((key) => {
@@ -1291,7 +1291,7 @@ const getSubHeaderText = (targetField) => {
 };
 
 const parseDateTime = (val) => {
-  if (!val) return { y: '', m: '', d: '', h: '', min: '', s: '', t: '' };
+  if (!val) { return { y: '', m: '', d: '', h: '', min: '', s: '', t: '' }; }
   const str = String(val).trim();
   const parts = str.split(' ');
   const datePart = parts[0] || '';
@@ -1308,8 +1308,8 @@ const parseDateTime = (val) => {
     [y, m, d] = datePart.split('/');
   }
 
-  if (m) m = m.padStart(2, '0');
-  if (d) d = d.padStart(2, '0');
+  if (m) { m = m.padStart(2, '0'); }
+  if (d) { d = d.padStart(2, '0'); }
 
   let h = '';
   let min = '';
@@ -1326,8 +1326,8 @@ const parseDateTime = (val) => {
 
 const formatDateTime = (val) => {
   const { y, m, d, t } = parseDateTime(val);
-  if (!y) return val || '';
-  if (!t) return `${y}-${m}-${d}`;
+  if (!y) { return val || ''; }
+  if (!t) { return `${y}-${m}-${d}`; }
   return `${y}-${m}-${d} ${t}`;
 };
 
@@ -1336,7 +1336,7 @@ const normalizeTimeFormat = (format) => {
 };
 
 const pad2 = (value) => {
-  if (value === null || value === undefined || String(value).trim() === '') return '';
+  if (value === null || value === undefined || String(value).trim() === '') { return ''; }
   return String(value).trim().padStart(2, '0');
 };
 
@@ -1353,54 +1353,54 @@ const normalizeParsedTime = (parsed = {}) => {
 
 const resolveOriginFormatByConfig = (cfg = {}) => {
   const explicit = normalizeTimeFormat(cfg.originType || cfg.origin_type);
-  if (explicit && explicit !== '-') return explicit;
+  if (explicit && explicit !== '-') { return explicit; }
 
   const mode = String(cfg.timeFormatMode || '').trim().toLowerCase();
-  if (mode === 'date') return 'yyyy-MM-dd';
-  if (mode === 'datetime') return 'yyyy-MM-dd HH:mm:ss';
-  if (mode === 'year') return 'yyyy';
-  if (mode === 'month') return 'yyyy-MM';
-  if (mode === 'time') return 'HH:mm:ss';
+  if (mode === 'date') { return 'yyyy-MM-dd'; }
+  if (mode === 'datetime') { return 'yyyy-MM-dd HH:mm:ss'; }
+  if (mode === 'year') { return 'yyyy'; }
+  if (mode === 'month') { return 'yyyy-MM'; }
+  if (mode === 'time') { return 'HH:mm:ss'; }
 
-  if (cfg.type === TRANSFORM_TYPES.EXTRACT_YEAR) return 'yyyy';
-  if (cfg.type === TRANSFORM_TYPES.EXTRACT_MONTH) return 'yyyy-MM';
-  if (cfg.type === TRANSFORM_TYPES.EXTRACT_TIME || cfg.type === TRANSFORM_TYPES.FORMAT_TIME) return 'HH:mm:ss';
+  if (cfg.type === TRANSFORM_TYPES.EXTRACT_YEAR) { return 'yyyy'; }
+  if (cfg.type === TRANSFORM_TYPES.EXTRACT_MONTH) { return 'yyyy-MM'; }
+  if (cfg.type === TRANSFORM_TYPES.EXTRACT_TIME || cfg.type === TRANSFORM_TYPES.FORMAT_TIME) { return 'HH:mm:ss'; }
   return 'yyyy-MM-dd';
 };
 
 const resolveTargetFormatByField = (field, cfg = {}) => {
   const explicit = normalizeTimeFormat(cfg.targetType || cfg.target_type);
-  if (explicit && explicit !== '-') return explicit;
+  if (explicit && explicit !== '-') { return explicit; }
 
   const targetField = targetModelFields.value.find((item) => String(item?.name || '').trim() === String(field || '').trim());
   const modelFormat = normalizeTimeFormat(targetField?.format || targetField?.dataFormat);
-  if (modelFormat && modelFormat !== '-') return modelFormat;
+  if (modelFormat && modelFormat !== '-') { return modelFormat; }
 
-  if (cfg.type === TRANSFORM_TYPES.EXTRACT_YEAR) return 'yyyy';
-  if (cfg.type === TRANSFORM_TYPES.EXTRACT_MONTH) return 'yyyy-MM';
-  if (cfg.type === TRANSFORM_TYPES.EXTRACT_TIME || cfg.type === TRANSFORM_TYPES.FORMAT_TIME) return 'HH:mm:ss';
+  if (cfg.type === TRANSFORM_TYPES.EXTRACT_YEAR) { return 'yyyy'; }
+  if (cfg.type === TRANSFORM_TYPES.EXTRACT_MONTH) { return 'yyyy-MM'; }
+  if (cfg.type === TRANSFORM_TYPES.EXTRACT_TIME || cfg.type === TRANSFORM_TYPES.FORMAT_TIME) { return 'HH:mm:ss'; }
   return 'yyyy-MM-dd';
 };
 
 const parseByFormat = (value, format = '') => {
   const text = String(value ?? '').trim();
-  if (!text) return normalizeParsedTime();
+  if (!text) { return normalizeParsedTime(); }
 
   const upper = normalizeTimeFormat(format).toUpperCase();
 
   if (upper === 'YYYY') {
     const match = text.match(/^(\d{4})$/);
-    if (match) return normalizeParsedTime({ y: match[1] });
+    if (match) { return normalizeParsedTime({ y: match[1] }); }
   }
 
   if (upper === 'YYYY-MM' || upper === 'YYYY/MM') {
     const match = text.match(/^(\d{4})[-/.](\d{1,2})$/);
-    if (match) return normalizeParsedTime({ y: match[1], m: match[2] });
+    if (match) { return normalizeParsedTime({ y: match[1], m: match[2] }); }
   }
 
   if (upper === 'YYYY-MM-DD' || upper === 'YYYY/MM/DD') {
     const match = text.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
-    if (match) return normalizeParsedTime({ y: match[1], m: match[2], d: match[3] });
+    if (match) { return normalizeParsedTime({ y: match[1], m: match[2], d: match[3] }); }
   }
 
   if (upper === 'YYYY-MM-DD HH:MM:SS' || upper === 'YYYY/MM/DD HH:MM:SS') {
@@ -1419,12 +1419,12 @@ const parseByFormat = (value, format = '') => {
 
   if (upper === 'HH:MM:SS') {
     const match = text.match(/^(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/);
-    if (match) return normalizeParsedTime({ h: match[1], min: match[2], s: match[3] || '00' });
+    if (match) { return normalizeParsedTime({ h: match[1], min: match[2], s: match[3] || '00' }); }
   }
 
   if (upper === 'HH:MM') {
     const match = text.match(/^(\d{1,2}):(\d{1,2})$/);
-    if (match) return normalizeParsedTime({ h: match[1], min: match[2], s: '00' });
+    if (match) { return normalizeParsedTime({ h: match[1], min: match[2], s: '00' }); }
   }
 
   return normalizeParsedTime(parseDateTime(text));
@@ -1432,13 +1432,13 @@ const parseByFormat = (value, format = '') => {
 
 const formatByFormat = (parsed, format = '') => {
   const upper = normalizeTimeFormat(format).toUpperCase();
-  if (!upper) return '';
+  if (!upper) { return ''; }
 
-  if (upper === 'YYYY') return parsed.y || '';
-  if (upper === 'YYYY-MM') return parsed.y && parsed.m ? `${parsed.y}-${parsed.m}` : '';
-  if (upper === 'YYYY/MM') return parsed.y && parsed.m ? `${parsed.y}/${parsed.m}` : '';
-  if (upper === 'YYYY-MM-DD') return parsed.y && parsed.m && parsed.d ? `${parsed.y}-${parsed.m}-${parsed.d}` : '';
-  if (upper === 'YYYY/MM/DD') return parsed.y && parsed.m && parsed.d ? `${parsed.y}/${parsed.m}/${parsed.d}` : '';
+  if (upper === 'YYYY') { return parsed.y || ''; }
+  if (upper === 'YYYY-MM') { return parsed.y && parsed.m ? `${parsed.y}-${parsed.m}` : ''; }
+  if (upper === 'YYYY/MM') { return parsed.y && parsed.m ? `${parsed.y}/${parsed.m}` : ''; }
+  if (upper === 'YYYY-MM-DD') { return parsed.y && parsed.m && parsed.d ? `${parsed.y}-${parsed.m}-${parsed.d}` : ''; }
+  if (upper === 'YYYY/MM/DD') { return parsed.y && parsed.m && parsed.d ? `${parsed.y}/${parsed.m}/${parsed.d}` : ''; }
   if (upper === 'YYYY-MM-DD HH:MM:SS') {
     return parsed.y && parsed.m && parsed.d && parsed.h && parsed.min && parsed.s
       ? `${parsed.y}-${parsed.m}-${parsed.d} ${parsed.h}:${parsed.min}:${parsed.s}`
@@ -1449,8 +1449,8 @@ const formatByFormat = (parsed, format = '') => {
       ? `${parsed.y}/${parsed.m}/${parsed.d} ${parsed.h}:${parsed.min}:${parsed.s}`
       : '';
   }
-  if (upper === 'HH:MM:SS') return parsed.h && parsed.min && parsed.s ? `${parsed.h}:${parsed.min}:${parsed.s}` : '';
-  if (upper === 'HH:MM') return parsed.h && parsed.min ? `${parsed.h}:${parsed.min}` : '';
+  if (upper === 'HH:MM:SS') { return parsed.h && parsed.min && parsed.s ? `${parsed.h}:${parsed.min}:${parsed.s}` : ''; }
+  if (upper === 'HH:MM') { return parsed.h && parsed.min ? `${parsed.h}:${parsed.min}` : ''; }
   return '';
 };
 
@@ -1459,24 +1459,24 @@ const applyTimeTransformByConfig = (field, base, cfg = {}) => {
   const targetFormat = resolveTargetFormatByField(field, cfg);
   const parsed = parseByFormat(base, originFormat);
   const converted = formatByFormat(parsed, targetFormat);
-  if (converted !== '') return converted;
+  if (converted !== '') { return converted; }
 
-  if (cfg.type === TRANSFORM_TYPES.EXTRACT_YEAR) return parsed.y || '';
-  if (cfg.type === TRANSFORM_TYPES.EXTRACT_MONTH) return parsed.y && parsed.m ? `${parsed.y}-${parsed.m}` : '';
-  if (cfg.type === TRANSFORM_TYPES.EXTRACT_TIME || cfg.type === TRANSFORM_TYPES.FORMAT_TIME) return parsed.h && parsed.min && parsed.s ? `${parsed.h}:${parsed.min}:${parsed.s}` : '';
+  if (cfg.type === TRANSFORM_TYPES.EXTRACT_YEAR) { return parsed.y || ''; }
+  if (cfg.type === TRANSFORM_TYPES.EXTRACT_MONTH) { return parsed.y && parsed.m ? `${parsed.y}-${parsed.m}` : ''; }
+  if (cfg.type === TRANSFORM_TYPES.EXTRACT_TIME || cfg.type === TRANSFORM_TYPES.FORMAT_TIME) { return parsed.h && parsed.min && parsed.s ? `${parsed.h}:${parsed.min}:${parsed.s}` : ''; }
   return formatDateTime(base);
 };
 
 const getSourceValue = (row, name) => {
-  if (!name) return '';
-  if (row[name] !== undefined) return row[name];
+  if (!name) { return ''; }
+  if (row[name] !== undefined) { return row[name]; }
 
   const field = allSourceFields.value.find((item) => item.name === name);
-  if (field && row[field.key] !== undefined) return row[field.key];
+  if (field && row[field.key] !== undefined) { return row[field.key]; }
 
   for (const file of sourceFiles.value) {
     const source = String(file?.source || '').trim();
-    if (!source) continue;
+    if (!source) { continue; }
     const sourceKey = `${source}.${name}`;
     if (row[sourceKey] !== undefined) {
       return row[sourceKey];
@@ -1487,32 +1487,32 @@ const getSourceValue = (row, name) => {
 
 const getSourceValueByKey = (row, key) => {
   const sourceKey = trimText(key);
-  if (!sourceKey) return '';
+  if (!sourceKey) { return ''; }
   return row?.[sourceKey] ?? '';
 };
 
 const getBaseValue = (field, row) => {
   const keys = props.store.mappings[field] || [];
-  if (keys.length === 0) return '';
-  if (keys.length === 1) return row[keys[0]] ?? '';
+  if (keys.length === 0) { return ''; }
+  if (keys.length === 1) { return row[keys[0]] ?? ''; }
   return keys.map((key) => row[key] ?? '').join('');
 };
 
 const evalFormula = (formula, ctx) => {
-  if (!formula) return ctx.value;
+  if (!formula) { return ctx.value; }
   let expr = String(formula).trim();
-  if (expr.startsWith('=')) expr = expr.slice(1);
+  if (expr.startsWith('=')) { expr = expr.slice(1); }
 
   const resolveColumnValue = (name, row) => {
-    if (!name) return '';
+    if (!name) { return ''; }
     const sourceField = allSourceFields.value.find((item) => item.name === name);
     if (sourceField) {
       return row[sourceField.key] ?? '';
     }
-    if (row[name] !== undefined) return row[name];
+    if (row[name] !== undefined) { return row[name]; }
     for (const file of sourceFiles.value) {
       const source = String(file?.source || '').trim();
-      if (!source) continue;
+      if (!source) { continue; }
       const sourceKey = `${source}.${name}`;
       if (row[sourceKey] !== undefined) {
         return row[sourceKey];
@@ -1543,7 +1543,7 @@ const evalFormula = (formula, ctx) => {
         .map((arg) => {
           if (typeof arg === 'string') {
             const val = resolveColumnValue(arg, ctx.row);
-            if (val !== '') return val;
+            if (val !== '') { return val; }
           }
           return arg;
         })
@@ -1551,7 +1551,7 @@ const evalFormula = (formula, ctx) => {
     },
     time_format: (format, datetimeStr) => {
       const parsed = parseDateTime(String(datetimeStr));
-      if (!parsed.y) return datetimeStr;
+      if (!parsed.y) { return datetimeStr; }
 
       let result = format;
       result = result.replace(/YYYY/g, parsed.y || '');
@@ -1601,9 +1601,9 @@ const evalFormula = (formula, ctx) => {
     ];
 
     processedExpr = processedExpr.replace(/(["'])((?:\\.|(?!\1)[^\\])*?)\1|([A-Z][a-zA-Z0-9_]*)/g, (match, quote, _str, identifier) => {
-      if (quote) return match;
+      if (quote) { return match; }
       if (identifier) {
-        if (knownHelpers.includes(identifier)) return match;
+        if (knownHelpers.includes(identifier)) { return match; }
         if (sourceFieldNames.includes(identifier)) {
           return `resolveColumnValue(\"${identifier}\", row)`;
         }
@@ -1679,7 +1679,7 @@ const applyTransformByConfig = (row, field, base, cfg) => {
       return applyTimeTransformByConfig(field, base, cfg);
     case TRANSFORM_TYPES.CALC_WEEK: {
       const parsed = parseDateTime(base);
-      if (!parsed.y || !parsed.m || !parsed.d) return '';
+      if (!parsed.y || !parsed.m || !parsed.d) { return ''; }
       const date = new Date(parseInt(parsed.y, 10), parseInt(parsed.m, 10) - 1, parseInt(parsed.d, 10));
       const startOfYear = new Date(parseInt(parsed.y, 10), 0, 1);
       const days = Math.floor((date - startOfYear) / (24 * 60 * 60 * 1000)) + 1;
@@ -1687,7 +1687,7 @@ const applyTransformByConfig = (row, field, base, cfg) => {
     }
     case TRANSFORM_TYPES.CALC_WEEKDAY: {
       const parsed = parseDateTime(base);
-      if (!parsed.y || !parsed.m || !parsed.d) return '';
+      if (!parsed.y || !parsed.m || !parsed.d) { return ''; }
       const date = new Date(parseInt(parsed.y, 10), parseInt(parsed.m, 10) - 1, parseInt(parsed.d, 10));
       const day = date.getDay();
       return day === 0 ? '7' : String(day);
@@ -1704,7 +1704,7 @@ const applyTransformByConfig = (row, field, base, cfg) => {
       const text = String(base ?? '');
       const start = Number(cfg.start);
       const end = Number(cfg.end);
-      if (!Number.isFinite(start) || !Number.isFinite(end)) return text;
+      if (!Number.isFinite(start) || !Number.isFinite(end)) { return text; }
       return text.slice(start, end);
     }
     case TRANSFORM_TYPES.CONCAT: {
@@ -1761,7 +1761,7 @@ const getFieldValue = (row, field) => {
 
   const base = getBaseValue(field, row);
   const t = transforms[field];
-  if (!t) return base;
+  if (!t) { return base; }
 
   if (Array.isArray(t.chain) && t.chain.length > 0) {
     let result = base;
@@ -1773,7 +1773,7 @@ const getFieldValue = (row, field) => {
 
   if (Array.isArray(t.rules) && t.rules.length > 0) {
     for (const rule of t.rules) {
-      if (!rule.operator) continue;
+      if (!rule.operator) { continue; }
       if (passesTransformRule(row, field, rule)) {
         const ruleBase = resolveRuleActionBaseValue(row, base, rule);
         return applyTransformByConfig(row, field, ruleBase, rule);
@@ -1793,12 +1793,12 @@ const getFieldValue = (row, field) => {
 
 const passesFilter = (row, fieldName) => {
   const conf = filterConfigs[fieldName];
-  if (!conf) return true;
+  if (!conf) { return true; }
 
   const value = getFieldValue(row, fieldName);
 
   if (conf.mode === 'formula') {
-    if (!conf.formula) return true;
+    if (!conf.formula) { return true; }
     const context = {
       value,
       row,
@@ -1809,9 +1809,9 @@ const passesFilter = (row, fieldName) => {
   }
 
   if (conf.mode === 'compound') {
-    if (!conf.conditions || conf.conditions.length === 0) return true;
+    if (!conf.conditions || conf.conditions.length === 0) { return true; }
     const results = conf.conditions.map((cond) => {
-      if (!cond.operator) return true;
+      if (!cond.operator) { return true; }
       switch (cond.operator) {
         case 'equals':
           return String(value) === String(cond.value);
@@ -1831,7 +1831,7 @@ const passesFilter = (row, fieldName) => {
     return (conf.logic || 'AND') === 'AND' ? results.every(Boolean) : results.some(Boolean);
   }
 
-  if (!conf.operator) return true;
+  if (!conf.operator) { return true; }
 
   switch (conf.operator) {
     case 'equals':
@@ -1856,14 +1856,14 @@ const filteredData = computed(() => {
 const localProcessedData = computed(() => {
   const data = filteredData.value;
   const sortItems = getSortItems();
-  if (sortItems.length === 0) return data;
+  if (sortItems.length === 0) { return data; }
 
   const sorted = [...data];
   sorted.sort((a, b) => {
     for (const sortItem of sortItems) {
       const aVal = getFieldValue(a, sortItem.field);
       const bVal = getFieldValue(b, sortItem.field);
-      if (aVal === bVal) continue;
+      if (aVal === bVal) { continue; }
       return sortItem.order === SORT_ORDER.ASC ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
     }
     return 0;
@@ -1882,10 +1882,10 @@ const displayData = computed(() => (showRawPreview.value ? previewData.value : p
 
 const hasActiveFilters = computed(() => {
   return Object.values(filterConfigs).some((f) => {
-    if (!f) return false;
-    if (f.mode === 'simple' && !!f.operator) return true;
-    if (f.mode === 'formula' && !!f.formula) return true;
-    if (f.mode === 'compound' && Array.isArray(f.conditions) && f.conditions.some((c) => c.operator)) return true;
+    if (!f) { return false; }
+    if (f.mode === 'simple' && !!f.operator) { return true; }
+    if (f.mode === 'formula' && !!f.formula) { return true; }
+    if (f.mode === 'compound' && Array.isArray(f.conditions) && f.conditions.some((c) => c.operator)) { return true; }
     return false;
   });
 });
@@ -1901,9 +1901,9 @@ const filteredApplyTargets = computed(() => {
 });
 
 const updateHeaderStickyOffset = () => {
-  if (!processGridContainer.value) return;
+  if (!processGridContainer.value) { return; }
   const firstRow = processGridContainer.value.querySelector('thead tr:first-child');
-  if (!firstRow) return;
+  if (!firstRow) { return; }
   const height = firstRow.getBoundingClientRect().height;
   processGridContainer.value.style.setProperty('--header-row-1-height', `${height}px`);
 };
@@ -1934,8 +1934,8 @@ const notifyOperationApplied = (type, field = '') => {
 const trimText = (value) => String(value ?? "").trim();
 const getFieldDesc = (field) => trimText(field?.description || field?.fieldDesc || field?.desc);
 const toArray = (value) => {
-  if (Array.isArray(value)) return value;
-  if (value === null || value === undefined) return [];
+  if (Array.isArray(value)) { return value; }
+  if (value === null || value === undefined) { return []; }
   return [value];
 };
 
@@ -1944,8 +1944,8 @@ const isPlainObject = (value) => Object.prototype.toString.call(value) === '[obj
 const toCamelKey = (key) => String(key ?? '').replace(/_([a-zA-Z0-9])/g, (_, char) => char.toUpperCase());
 
 const deepCamelize = (value) => {
-  if (Array.isArray(value)) return value.map((item) => deepCamelize(item));
-  if (!isPlainObject(value)) return value;
+  if (Array.isArray(value)) { return value.map((item) => deepCamelize(item)); }
+  if (!isPlainObject(value)) { return value; }
   return Object.entries(value).reduce((acc, [key, next]) => {
     acc[toCamelKey(key)] = deepCamelize(next);
     return acc;
@@ -2010,25 +2010,25 @@ const normalizeTransformType = (value) => {
     concat: TRANSFORM_TYPES.CONCAT,
     replace: TRANSFORM_TYPES.REPLACE,
   };
-  if (typeMap[type]) return typeMap[type];
-  if (Object.values(TRANSFORM_TYPES).includes(type)) return type;
+  if (typeMap[type]) { return typeMap[type]; }
+  if (Object.values(TRANSFORM_TYPES).includes(type)) { return type; }
   return type;
 };
 
 const inferSampleType = (value) => {
-  if (value === null || value === undefined || value === '') return '';
-  if (typeof value === 'boolean') return 'boolean';
-  if (typeof value === 'number') return Number.isInteger(value) ? 'integer' : 'double';
+  if (value === null || value === undefined || value === '') { return ''; }
+  if (typeof value === 'boolean') { return 'boolean'; }
+  if (typeof value === 'number') { return Number.isInteger(value) ? 'integer' : 'double'; }
   const text = trimText(value);
-  if (!text) return '';
-  if (!Number.isNaN(Number(text))) return text.includes('.') ? 'double' : 'integer';
-  if (!Number.isNaN(Date.parse(text))) return 'datetime';
+  if (!text) { return ''; }
+  if (!Number.isNaN(Number(text))) { return text.includes('.') ? 'double' : 'integer'; }
+  if (!Number.isNaN(Date.parse(text))) { return 'datetime'; }
   return 'string';
 };
 
 const resolveFieldTypeFromInfo = (file = {}, fieldName = "") => {
   const target = trimText(fieldName);
-  if (!target) return '';
+  if (!target) { return ''; }
   const fieldInfoList = Array.isArray(file?.fieldInfoList) ? file.fieldInfoList : (Array.isArray(file?.field_info_list) ? file.field_info_list : []);
   const matched = fieldInfoList.find((item) => {
     const name = trimText(item?.fieldName || item?.field_name || item?.name);
@@ -2040,7 +2040,7 @@ const resolveFieldTypeFromInfo = (file = {}, fieldName = "") => {
 
 const pickSampleValue = (rows = [], fieldName = "") => {
   const target = trimText(fieldName);
-  if (!target) return '';
+  if (!target) { return ''; }
   const matched = (Array.isArray(rows) ? rows : []).find((row) => {
     const value = row?.[target];
     return value !== null && value !== undefined && String(value).trim() !== '';
@@ -2050,7 +2050,7 @@ const pickSampleValue = (rows = [], fieldName = "") => {
 };
 
 const toModelFieldListPayload = (model = null) => {
-  if (!model) return [];
+  if (!model) { return []; }
   const modelCode = trimText(model?.code || model?.modelCode);
   const fields = Array.isArray(model?.fields) ? model.fields : [];
   return fields.map((field, index) => {
@@ -2073,7 +2073,7 @@ const toModelFieldListPayload = (model = null) => {
 const toSourceFieldsPayload = () => {
   const fileMap = (Array.isArray(props.store.uploadedFiles) ? props.store.uploadedFiles : []).reduce((acc, file) => {
     const source = trimText(file?.source);
-    if (source) acc[source] = file;
+    if (source) { acc[source] = file; }
     return acc;
   }, {});
 
@@ -2081,7 +2081,7 @@ const toSourceFieldsPayload = () => {
     const sourceTable = trimText(field?.sourceId || field?.source);
     const fieldName = trimText(field?.name);
     const fieldKey = trimText(field?.key);
-    if (!sourceTable || !fieldName || !fieldKey) return null;
+    if (!sourceTable || !fieldName || !fieldKey) { return null; }
     const sourceFile = fileMap[sourceTable] || {};
     const sampleValue = pickSampleValue(sourceFile?.rows || [], fieldName);
     const fieldType = resolveFieldTypeFromInfo(sourceFile, fieldName) || inferSampleType(sampleValue);
@@ -2093,7 +2093,7 @@ const toSourceDataPayload = () => {
   const sourceData = {};
   (Array.isArray(props.store.uploadedFiles) ? props.store.uploadedFiles : []).forEach((file) => {
     const sourceTable = trimText(file?.source);
-    if (!sourceTable) return;
+    if (!sourceTable) { return; }
     sourceData[sourceTable] = (Array.isArray(file?.rows) ? file.rows : []).slice(0, 50).map((row) => (isPlainObject(row) ? row : {}));
   });
   return sourceData;
@@ -2103,16 +2103,16 @@ const toMappingsPayload = () => {
   const mappings = {};
   Object.entries(props.store.mappings || {}).forEach(([targetField, sourceKeys]) => {
     const target = trimText(targetField);
-    if (!target) return;
+    if (!target) { return; }
     const keys = toArray(sourceKeys).map((item) => trimText(item)).filter(Boolean);
-    if (keys.length > 0) mappings[target] = keys;
+    if (keys.length > 0) { mappings[target] = keys; }
   });
   return mappings;
 };
 
 const buildGenerateSuggestionPayload = () => {
   const model = selectedModel.value;
-  if (!model) return null;
+  if (!model) { return null; }
   return {
     code: trimText(model?.code || model?.modelCode),
     modelName: trimText(model?.name || model?.modelName),
@@ -2133,7 +2133,7 @@ const buildGenerateSuggestionPayload = () => {
 };
 
 const normalizeFilterConfig = (rawFilter) => {
-  if (!rawFilter) return null;
+  if (!rawFilter) { return null; }
   const filter = deepCamelize(rawFilter);
   if (trimText(filter.mode).toLowerCase() === 'formula' || trimText(filter.formula)) {
     return { mode: 'formula', operator: '', value: '', formula: trimText(filter.formula), conditions: [], logic: 'AND' };
@@ -2145,63 +2145,63 @@ const normalizeFilterConfig = (rawFilter) => {
     return { mode: 'compound', operator: '', value: '', formula: '', conditions, logic: trimText(filter.logic).toUpperCase() === 'OR' ? 'OR' : 'AND' };
   }
   const operator = trimText(filter.operator);
-  if (!operator) return null;
+  if (!operator) { return null; }
   return { mode: 'simple', operator, value: trimText(filter.value), formula: '', conditions: [], logic: 'AND' };
 };
 
 const normalizeTransformItem = (rawItem) => {
-  if (!rawItem) return null;
+  if (!rawItem) { return null; }
   const item = deepCamelize(rawItem);
   const paramValueList = Array.isArray(item.paramValue) ? item.paramValue : (Array.isArray(item.paramvalue) ? item.paramvalue : []);
   const paramValue = isPlainObject(paramValueList[0]) ? deepCamelize(paramValueList[0]) : {};
   const merged = { ...item, ...paramValue };
   const type = normalizeTransformType(merged.type || merged.transformType || merged.transform || merged.abilityName);
-  if (!type) return null;
+  if (!type) { return null; }
   const normalized = { type };
-  if (merged.conditionSourceKey !== undefined) normalized.conditionSourceKey = trimText(merged.conditionSourceKey);
-  if (merged.actionSourceKey !== undefined) normalized.actionSourceKey = trimText(merged.actionSourceKey);
-  if (merged.actionMode !== undefined) normalized.actionMode = trimText(merged.actionMode);
-  if (merged.delimiter !== undefined) normalized.delimiter = trimText(merged.delimiter);
-  if (merged.fixedValue !== undefined || merged.value !== undefined) normalized.fixedValue = trimText(merged.fixedValue ?? merged.value);
-  if (merged.start !== undefined && merged.start !== null && merged.start !== '') normalized.start = trimText(merged.start);
-  if (merged.end !== undefined && merged.end !== null && merged.end !== '') normalized.end = trimText(merged.end);
-  if (merged.search !== undefined || merged.searchValue !== undefined) normalized.search = trimText(merged.search ?? merged.searchValue);
-  if (merged.replace !== undefined || merged.replaceValue !== undefined) normalized.replace = trimText(merged.replace ?? merged.replaceValue);
-  if (merged.formula !== undefined) normalized.formula = trimText(merged.formula);
-  if (merged.originType !== undefined) normalized.originType = trimText(merged.originType);
-  if (merged.targetType !== undefined) normalized.targetType = trimText(merged.targetType);
-  if (merged.inputFormat !== undefined) normalized.inputFormat = trimText(merged.inputFormat);
-  if (merged.outputFormat !== undefined) normalized.outputFormat = trimText(merged.outputFormat);
-  if (merged.precision !== undefined && merged.precision !== null && merged.precision !== "") normalized.precision = Number(merged.precision);
+  if (merged.conditionSourceKey !== undefined) { normalized.conditionSourceKey = trimText(merged.conditionSourceKey); }
+  if (merged.actionSourceKey !== undefined) { normalized.actionSourceKey = trimText(merged.actionSourceKey); }
+  if (merged.actionMode !== undefined) { normalized.actionMode = trimText(merged.actionMode); }
+  if (merged.delimiter !== undefined) { normalized.delimiter = trimText(merged.delimiter); }
+  if (merged.fixedValue !== undefined || merged.value !== undefined) { normalized.fixedValue = trimText(merged.fixedValue ?? merged.value); }
+  if (merged.start !== undefined && merged.start !== null && merged.start !== '') { normalized.start = trimText(merged.start); }
+  if (merged.end !== undefined && merged.end !== null && merged.end !== '') { normalized.end = trimText(merged.end); }
+  if (merged.search !== undefined || merged.searchValue !== undefined) { normalized.search = trimText(merged.search ?? merged.searchValue); }
+  if (merged.replace !== undefined || merged.replaceValue !== undefined) { normalized.replace = trimText(merged.replace ?? merged.replaceValue); }
+  if (merged.formula !== undefined) { normalized.formula = trimText(merged.formula); }
+  if (merged.originType !== undefined) { normalized.originType = trimText(merged.originType); }
+  if (merged.targetType !== undefined) { normalized.targetType = trimText(merged.targetType); }
+  if (merged.inputFormat !== undefined) { normalized.inputFormat = trimText(merged.inputFormat); }
+  if (merged.outputFormat !== undefined) { normalized.outputFormat = trimText(merged.outputFormat); }
+  if (merged.precision !== undefined && merged.precision !== null && merged.precision !== "") { normalized.precision = Number(merged.precision); }
   return normalized;
 };
 
 const normalizeTransformConfig = (rawTransform) => {
-  if (!rawTransform) return null;
+  if (!rawTransform) { return null; }
   const transform = deepCamelize(rawTransform);
   const chainItems = Array.isArray(transform.chain) ? transform.chain : (Array.isArray(transform.steps) ? transform.steps : []);
   if (chainItems.length > 0) {
     const chain = chainItems.map((item) => normalizeTransformItem(item)).filter(Boolean);
-    if (chain.length > 0) return { chain };
+    if (chain.length > 0) { return { chain }; }
   }
   if (Array.isArray(transform.rules) && transform.rules.length > 0) {
     const rules = transform.rules.map((rule) => {
       const base = normalizeTransformItem(rule);
-      if (!base) return null;
+      if (!base) { return null; }
       const operator = trimText(rule?.operator);
-      if (!operator) return null;
+      if (!operator) { return null; }
       return { operator, value: trimText(rule?.value), ...base };
     }).filter(Boolean);
-    if (rules.length > 0) return { rules };
+    if (rules.length > 0) { return { rules }; }
   }
   return normalizeTransformItem(transform);
 };
 
 const normalizeSortConfig = (rawSort) => {
-  if (!rawSort) return null;
+  if (!rawSort) { return null; }
   const sort = deepCamelize(rawSort);
   const order = trimText(sort.order || sort.direction || sort.directions).toLowerCase();
-  if (!['asc', 'desc'].includes(order)) return null;
+  if (!['asc', 'desc'].includes(order)) { return null; }
   const priorityRaw = Number(sort.priority);
   return {
     order,
@@ -2236,10 +2236,10 @@ const toPendingSuggestions = (rawSuggestions = {}) => {
   Object.entries(suggestions).forEach(([rawField, rawItem]) => {
     const item = deepCamelize(rawItem || {});
     const fieldName = trimText(rawField);
-    if (!fieldName || !targetFieldSet.has(fieldName)) return;
-    if (hasFieldOperationConfigured(fieldName)) return;
+    if (!fieldName || !targetFieldSet.has(fieldName)) { return; }
+    if (hasFieldOperationConfigured(fieldName)) { return; }
     const operations = normalizeSuggestionOperations(item?.operations || item?.operation || {});
-    if (!hasMeaningfulOperations(operations)) return;
+    if (!hasMeaningfulOperations(operations)) { return; }
     next[fieldName] = { suggestion: trimText(item?.hint || item?.message || '\u5efa\u8bae\u68c0\u67e5\u8be5\u5b57\u6bb5\u5904\u7406\u914d\u7f6e'), operations };
   });
   return next;
@@ -2249,7 +2249,7 @@ const hasPendingSuggestion = (fieldName) => pendingTransformSuggestions.value[fi
 
 const openSuggestionModal = (fieldName) => {
   const suggestion = pendingTransformSuggestions.value[fieldName];
-  if (!suggestion) return;
+  if (!suggestion) { return; }
   transformSuggestionModal.show = true;
   transformSuggestionModal.field = fieldName;
   transformSuggestionModal.suggestion = suggestion.suggestion;
@@ -2277,7 +2277,7 @@ const applySuggestionForField = (fieldName, operations = {}, withHistory = true)
     applySortForField(fieldName, operations.sort.order, '(智能推荐)', withHistory);
     applied = true;
   }
-  if (applied) notifyOperationApplied('smart_recommend', fieldName);
+  if (applied) { notifyOperationApplied('smart_recommend', fieldName); }
   return applied;
 };
 
@@ -2286,7 +2286,7 @@ const confirmSuggestion = () => {
   const operations = transformSuggestionModal.config;
   if (fieldName && operations) {
     const applied = applySuggestionForField(fieldName, operations, true);
-    if (applied) delete pendingTransformSuggestions.value[fieldName];
+    if (applied) { delete pendingTransformSuggestions.value[fieldName]; }
   }
   closeSuggestionModal();
 };
@@ -2304,7 +2304,7 @@ const applyAllSuggestions = () => {
   let appliedCount = 0;
   entries.forEach(([fieldName, item]) => {
     const applied = applySuggestionForField(fieldName, item?.operations || {}, true);
-    if (applied) appliedCount += 1;
+    if (applied) { appliedCount += 1; }
   });
   pendingTransformSuggestions.value = {};
   closeSuggestionModal();
@@ -2316,7 +2316,7 @@ const applyAllSuggestions = () => {
 };
 
 const generateSmartSuggestions = async () => {
-  if (suggestionLoading.value) return;
+  if (suggestionLoading.value) { return; }
   if (!canGenerateSuggestions.value) {
     $warning('\u8bf7\u5148\u5b8c\u6210\u6a21\u578b\u9009\u62e9\u3001\u4e0a\u4f20\u6570\u636e\u548c\u5b57\u6bb5\u6620\u5c04\uff0c\u518d\u6267\u884c\u667a\u80fd\u63a8\u8350');
     return;
@@ -2348,10 +2348,10 @@ const generateSmartSuggestions = async () => {
 
 const isFilterActive = (field) => {
   const conf = filterConfigs[field];
-  if (!conf) return false;
-  if (conf.mode === 'simple' && conf.operator) return true;
-  if (conf.mode === 'formula' && conf.formula) return true;
-  if (conf.mode === 'compound' && Array.isArray(conf.conditions) && conf.conditions.some((item) => item.operator)) return true;
+  if (!conf) { return false; }
+  if (conf.mode === 'simple' && conf.operator) { return true; }
+  if (conf.mode === 'formula' && conf.formula) { return true; }
+  if (conf.mode === 'compound' && Array.isArray(conf.conditions) && conf.conditions.some((item) => item.operator)) { return true; }
   return false;
 };
 
@@ -2365,8 +2365,8 @@ const openFilterPopover = (field, event) => {
   let y = event.clientY;
   const width = 280;
   const height = 320;
-  if (x + width > window.innerWidth) x = window.innerWidth - width - 10;
-  if (y + height > window.innerHeight) y = window.innerHeight - height - 10;
+  if (x + width > window.innerWidth) { x = window.innerWidth - width - 10; }
+  if (y + height > window.innerHeight) { y = window.innerHeight - height - 10; }
 
   columnPopover.show = true;
   columnPopover.field = field;
@@ -2382,8 +2382,8 @@ const openSortPopover = (field, event) => {
   let y = event.clientY;
   const width = 280;
   const height = 200;
-  if (x + width > window.innerWidth) x = window.innerWidth - width - 10;
-  if (y + height > window.innerHeight) y = window.innerHeight - height - 10;
+  if (x + width > window.innerWidth) { x = window.innerWidth - width - 10; }
+  if (y + height > window.innerHeight) { y = window.innerHeight - height - 10; }
 
   columnPopover.show = true;
   columnPopover.field = field;
@@ -2465,33 +2465,33 @@ const TIME_FORMAT_MODE = Object.freeze({
 const resolveTimeFormatModeByType = (type, originType = '') => {
   const normalizedOriginType = trimText(originType).toLowerCase();
   if (type === TRANSFORM_TYPES.FORMAT_DATETIME) {
-    if (normalizedOriginType === 'yyyy-mm-dd hh:mm:ss') return TIME_FORMAT_MODE.DATETIME;
-    if (normalizedOriginType === 'yyyy/mm/dd hh:mm:ss') return TIME_FORMAT_MODE.DATETIME;
-    if (normalizedOriginType === 'yyyy') return TIME_FORMAT_MODE.YEAR;
-    if (normalizedOriginType === 'yyyy-mm') return TIME_FORMAT_MODE.MONTH;
-    if (normalizedOriginType === 'hh:mm:ss') return TIME_FORMAT_MODE.TIME;
-    if (normalizedOriginType) return '';
+    if (normalizedOriginType === 'yyyy-mm-dd hh:mm:ss') { return TIME_FORMAT_MODE.DATETIME; }
+    if (normalizedOriginType === 'yyyy/mm/dd hh:mm:ss') { return TIME_FORMAT_MODE.DATETIME; }
+    if (normalizedOriginType === 'yyyy') { return TIME_FORMAT_MODE.YEAR; }
+    if (normalizedOriginType === 'yyyy-mm') { return TIME_FORMAT_MODE.MONTH; }
+    if (normalizedOriginType === 'hh:mm:ss') { return TIME_FORMAT_MODE.TIME; }
+    if (normalizedOriginType) { return ''; }
     return TIME_FORMAT_MODE.DATE;
   }
   if (type === TRANSFORM_TYPES.FORMAT_TIME && normalizedOriginType) {
     return '';
   }
-  if (type === TRANSFORM_TYPES.EXTRACT_YEAR) return TIME_FORMAT_MODE.YEAR;
-  if (type === TRANSFORM_TYPES.EXTRACT_MONTH) return TIME_FORMAT_MODE.MONTH;
-  if (type === TRANSFORM_TYPES.FORMAT_TIME || type === TRANSFORM_TYPES.EXTRACT_TIME) return TIME_FORMAT_MODE.TIME;
+  if (type === TRANSFORM_TYPES.EXTRACT_YEAR) { return TIME_FORMAT_MODE.YEAR; }
+  if (type === TRANSFORM_TYPES.EXTRACT_MONTH) { return TIME_FORMAT_MODE.MONTH; }
+  if (type === TRANSFORM_TYPES.FORMAT_TIME || type === TRANSFORM_TYPES.EXTRACT_TIME) { return TIME_FORMAT_MODE.TIME; }
   return '';
 };
 
 const resolveOriginTypeByTimeFormatMode = (mode) => {
-  if (mode === TIME_FORMAT_MODE.DATETIME) return 'yyyy-MM-dd HH:mm:ss';
-  if (mode === TIME_FORMAT_MODE.DATE) return 'yyyy-MM-dd';
+  if (mode === TIME_FORMAT_MODE.DATETIME) { return 'yyyy-MM-dd HH:mm:ss'; }
+  if (mode === TIME_FORMAT_MODE.DATE) { return 'yyyy-MM-dd'; }
   return '';
 };
 
 const resolveStoredTypeByTimeFormatMode = (mode) => {
-  if (mode === TIME_FORMAT_MODE.YEAR) return TRANSFORM_TYPES.EXTRACT_YEAR;
-  if (mode === TIME_FORMAT_MODE.MONTH) return TRANSFORM_TYPES.EXTRACT_MONTH;
-  if (mode === TIME_FORMAT_MODE.TIME) return TRANSFORM_TYPES.FORMAT_TIME;
+  if (mode === TIME_FORMAT_MODE.YEAR) { return TRANSFORM_TYPES.EXTRACT_YEAR; }
+  if (mode === TIME_FORMAT_MODE.MONTH) { return TRANSFORM_TYPES.EXTRACT_MONTH; }
+  if (mode === TIME_FORMAT_MODE.TIME) { return TRANSFORM_TYPES.FORMAT_TIME; }
   return TRANSFORM_TYPES.FORMAT_DATETIME;
 };
 
@@ -2548,7 +2548,7 @@ const toStoredTransformItem = (item = {}) => {
 };
 
 const onTransformTypeChange = (item) => {
-  if (!item || typeof item !== 'object') return;
+  if (!item || typeof item !== 'object') { return; }
   if (item.type === TRANSFORM_TYPES.FORMAT_TIME) {
     item.timeFormatMode = trimText(item.timeFormatMode || '');
     item.customOriginType = trimText(item.customOriginType || '');
@@ -2559,14 +2559,14 @@ const onTransformTypeChange = (item) => {
 };
 
 const setTimeFormatMode = (item, mode) => {
-  if (!item || typeof item !== 'object') return;
+  if (!item || typeof item !== 'object') { return; }
   const current = trimText(item.timeFormatMode || '');
   const nextMode = trimText(mode || '');
   item.timeFormatMode = current === nextMode ? '' : nextMode;
 };
 
 const onCustomOriginTypeInput = (item) => {
-  if (!item || typeof item !== 'object') return;
+  if (!item || typeof item !== 'object') { return; }
   item.timeFormatMode = '';
 };
 
@@ -2595,18 +2595,18 @@ const removeTransformRule = (index) => {
 };
 
 const addChainStep = () => {
-  if (!Array.isArray(transformModal.chain)) transformModal.chain = [];
+  if (!Array.isArray(transformModal.chain)) { transformModal.chain = []; }
   transformModal.chain.push({ type: TRANSFORM_TYPES.SET_VALUE, delimiter: '', fixedValue: '', start: '', end: '', search: '', replace: '', formula: '', timeFormatMode: '', customOriginType: '' });
 };
 
 const removeChainStep = (index) => {
-  if (Array.isArray(transformModal.chain)) transformModal.chain.splice(index, 1);
+  if (Array.isArray(transformModal.chain)) { transformModal.chain.splice(index, 1); }
 };
 
 const moveChainStep = (index, direction) => {
-  if (!Array.isArray(transformModal.chain)) return;
+  if (!Array.isArray(transformModal.chain)) { return; }
   const newIndex = index + direction;
-  if (newIndex < 0 || newIndex >= transformModal.chain.length) return;
+  if (newIndex < 0 || newIndex >= transformModal.chain.length) { return; }
   const temp = transformModal.chain[index];
   transformModal.chain[index] = transformModal.chain[newIndex];
   transformModal.chain[newIndex] = temp;
@@ -2623,7 +2623,7 @@ const resetConditionalTransformConfig = () => {
 
 const switchTransformMode = (mode) => {
   const nextMode = trimText(mode);
-  if (!nextMode || transformModal.mode === nextMode) return;
+  if (!nextMode || transformModal.mode === nextMode) { return; }
 
   const hasCurrentContent = transformModal.mode === TRANSFORM_EDIT_MODES.CHAIN
     ? Array.isArray(transformModal.chain) && transformModal.chain.length > 0
@@ -2687,7 +2687,7 @@ const openTransformModal = (field) => {
 
   nextTick(() => {
     const modal = document.querySelector('.modal');
-    if (modal) modal.focus();
+    if (modal) { modal.focus(); }
   });
 };
 
@@ -2745,7 +2745,7 @@ const openApplyModal = (field) => {
 
   nextTick(() => {
     const modal = document.querySelector('.modal');
-    if (modal) modal.focus();
+    if (modal) { modal.focus(); }
   });
 };
 
@@ -2775,12 +2775,12 @@ const selectByPrefix = () => {
 
 const selectByType = () => {
   const source = targetModelFields.value.find((item) => item.name === applyModal.sourceField);
-  if (!source) return;
+  if (!source) { return; }
   applyModal.selected = filteredApplyTargets.value.filter((item) => item.type === source.type).map((item) => item.name);
 };
 
 const applyColumnConfig = () => {
-  if (!copiedConfig.value) return;
+  if (!copiedConfig.value) { return; }
 
   applyModal.selected.forEach((target) => {
     if (!hasMappedSources(target)) {
@@ -2806,7 +2806,7 @@ const applyColumnConfig = () => {
 
 const hasEffectiveTransform = (field) => {
   const t = transforms[field];
-  if (!t) return false;
+  if (!t) { return false; }
   const hasChain = Array.isArray(t.chain) && t.chain.length > 0;
   const hasRules = Array.isArray(t.rules) && t.rules.length > 0;
   const hasSingle = !!t.type;
@@ -2819,12 +2819,12 @@ const isMergedOutput = (field) => {
 
 const getRawValue = (field, row) => {
   const keys = props.store.mappings[field] || [];
-  if (keys.length === 0) return '';
+  if (keys.length === 0) { return ''; }
   return row[keys[0]] || '';
 };
 
 const handleKeyDown = (event) => {
-  if (event.key !== 'Escape') return;
+  if (event.key !== 'Escape') { return; }
   if (transformModal.show) {
     closeTransformModal();
     event.preventDefault();

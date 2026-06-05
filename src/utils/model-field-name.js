@@ -554,13 +554,13 @@ const RESERVED_FIELD_NAMES = new Set([
 
 export const isReservedFieldName = (value) => {
   const name = String(value ?? '').trim().toUpperCase();
-  if (!name) return false;
+  if (!name) { return false; }
   return RESERVED_FIELD_NAMES.has(name);
 };
 
 export const getReservedFieldNameError = (value) => {
   const name = String(value ?? '').trim();
-  if (!name) return '';
-  if (!isReservedFieldName(name)) return '';
+  if (!name) { return ''; }
+  if (!isReservedFieldName(name)) { return ''; }
   return `字段名${name}非法，属于flink sql关键字`;
 };

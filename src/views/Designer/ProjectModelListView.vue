@@ -180,22 +180,22 @@ const resolveCurrentProjectCode = () => {
 
 const resolveRatKey = (item) => {
   const rat = toText(item?.rat || item?.tags?.standard || item?.format).toUpperCase();
-  if (rat === '5G') return 'NR';
-  if (rat === '4G') return 'LTE';
-  if (rat === '3G') return 'UMTS';
-  if (rat === '2G') return 'GSM';
+  if (rat === '5G') { return 'NR'; }
+  if (rat === '4G') { return 'LTE'; }
+  if (rat === '3G') { return 'UMTS'; }
+  if (rat === '2G') { return 'GSM'; }
   return rat;
 };
 
 const resolveColumnKey = (item) => {
   const type = toText(item?.tags?.type || item?.businessModelType).toLowerCase();
-  if (type === 'ep' || type === '工参') return 'ep';
+  if (type === 'ep' || type === '工参') { return 'ep'; }
 
   const vendor = toText(item?.vendor || item?.factory || item?.tags?.vendor).toUpperCase();
-  if (vendor === 'HW') return 'HW';
-  if (vendor === 'ZTE') return 'ZTE';
-  if (['E', 'ERIC', 'ERICSSON', 'ERI'].includes(vendor)) return 'ERI';
-  if (vendor === 'NSN') return 'NSN';
+  if (vendor === 'HW') { return 'HW'; }
+  if (vendor === 'ZTE') { return 'ZTE'; }
+  if (['E', 'ERIC', 'ERICSSON', 'ERI'].includes(vendor)) { return 'ERI'; }
+  if (vendor === 'NSN') { return 'NSN'; }
   return '';
 };
 
@@ -216,14 +216,14 @@ const getProjectBoardRow = (ratKey) => {
 
 const getSlotDisplayModel = (slot) => {
   const models = Array.isArray(slot?.models) ? slot.models : [];
-  if (models.length === 0) return null;
+  if (models.length === 0) { return null; }
   const selectedId = String(slotSelectedModelMap.value?.[slot.slotKey] || '').trim();
   return models.find((item) => String(item.id) === selectedId) || models[0];
 };
 
 const resolveRefStandardModelName = (refStandardModel) => {
   const key = String(refStandardModel ?? '').trim();
-  if (!key) return '-';
+  if (!key) { return '-'; }
 
   const target = modelStore.standardModels.find((item) => {
     const id = String(item.id ?? '').trim();
@@ -241,7 +241,7 @@ const openProjectModel = (model) => {
 
 const deleteProjectModel = async (model) => {
   const target = model || null;
-  if (!target) return;
+  if (!target) { return; }
   const modelCode = String(target.modelCode || target.code || target.id || '').trim();
   if (!modelCode) {
     $error('删除失败：模型编码为空');
@@ -329,8 +329,8 @@ onBeforeUnmount(() => {
 
 const closeSlotMenuOnOutsideClick = (event) => {
   const target = event?.target;
-  if (!(target instanceof Element)) return;
-  if (target.closest('.board-card-switcher') || target.closest('.board-card-badge-btn')) return;
+  if (!(target instanceof Element)) { return; }
+  if (target.closest('.board-card-switcher') || target.closest('.board-card-badge-btn')) { return; }
   activeSlotMenu.value = '';
 };
 </script>

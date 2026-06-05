@@ -8,11 +8,11 @@ const DEPLOY_PROCESSING_STATUSES = new Set(['processing', 'deploying']);
 
 const toText = (value) => String(value ?? '').trim();
 const toBoolean = (value) => {
-  if (typeof value === 'boolean') return value;
+  if (typeof value === 'boolean') { return value; }
   const text = toText(value).toLowerCase();
-  if (!text) return false;
-  if (['true', '1', 'y', 'yes'].includes(text)) return true;
-  if (['false', '0', 'n', 'no'].includes(text)) return false;
+  if (!text) { return false; }
+  if (['true', '1', 'y', 'yes'].includes(text)) { return true; }
+  if (['false', '0', 'n', 'no'].includes(text)) { return false; }
   return Boolean(value);
 };
 
@@ -25,8 +25,8 @@ const unwrapApiData = (response) => {
 
 const unwrapProjectList = (response) => {
   const data = unwrapApiData(response);
-  if (Array.isArray(data?.list)) return data.list;
-  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.list)) { return data.list; }
+  if (Array.isArray(data)) { return data; }
   return [];
 };
 
@@ -76,7 +76,7 @@ export const useAppStore = defineStore('app', () => {
   });
 
   const currentRoleLabel = computed(() => {
-    if (!currentRole.value) return '未选择角色';
+    if (!currentRole.value) { return '未选择角色'; }
     return ROLE_LABEL[currentRole.value] || currentRole.value;
   });
 
@@ -196,11 +196,11 @@ export const useAppStore = defineStore('app', () => {
   const normalizeDeployStatus = (value) => toText(value).toLowerCase();
 
   const pollDeployStatus = async () => {
-    if (deployPollingInFlight) return;
+    if (deployPollingInFlight) { return; }
 
     const appName = toText(deployNotice.appName);
     const appVersion = toText(deployNotice.appVersion);
-    if (!appName || !appVersion) return;
+    if (!appName || !appVersion) { return; }
 
     deployPollingTimer = null;
     deployPollingInFlight = true;

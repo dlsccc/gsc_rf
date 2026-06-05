@@ -100,8 +100,8 @@ export const usePipelineStore = defineStore('pipeline', () => {
   });
 
   const canProceed = computed(() => {
-    if (currentStep.value === 0) return !!selectedModelId.value && uploadedFiles.value.length > 0;
-    if (currentStep.value === 1) return Object.keys(mappings.value).length > 0;
+    if (currentStep.value === 0) { return !!selectedModelId.value && uploadedFiles.value.length > 0; }
+    if (currentStep.value === 1) { return Object.keys(mappings.value).length > 0; }
     return true;
   });
 
@@ -201,14 +201,14 @@ export const usePipelineStore = defineStore('pipeline', () => {
 
   const appendUploadedFiles = (files = []) => {
     const incoming = Array.isArray(files) ? files.filter(Boolean) : [];
-    if (incoming.length === 0) return;
+    if (incoming.length === 0) { return; }
     uploadedFiles.value = [...uploadedFiles.value, ...incoming];
     refreshAfterFileChange();
   };
 
   const uploadLocalFiles = async (fileList) => {
     const files = Array.from(fileList || []);
-    if (files.length === 0) return;
+    if (files.length === 0) { return; }
 
     const parsed = await Promise.all(
       files.map((file, index) => {
@@ -227,7 +227,7 @@ export const usePipelineStore = defineStore('pipeline', () => {
   };
 
   const moveFileUp = (index) => {
-    if (index <= 0 || index >= uploadedFiles.value.length) return;
+    if (index <= 0 || index >= uploadedFiles.value.length) { return; }
     const next = [...uploadedFiles.value];
     [next[index - 1], next[index]] = [next[index], next[index - 1]];
     uploadedFiles.value = next;
@@ -235,7 +235,7 @@ export const usePipelineStore = defineStore('pipeline', () => {
   };
 
   const moveFileDown = (index) => {
-    if (index < 0 || index >= uploadedFiles.value.length - 1) return;
+    if (index < 0 || index >= uploadedFiles.value.length - 1) { return; }
     const next = [...uploadedFiles.value];
     [next[index], next[index + 1]] = [next[index + 1], next[index]];
     uploadedFiles.value = next;
@@ -243,8 +243,8 @@ export const usePipelineStore = defineStore('pipeline', () => {
   };
 
   const moveStep = (nextStep) => {
-    if (nextStep < 0 || nextStep > steps.length - 1) return;
-    if (nextStep > currentStep.value && !canProceed.value) return;
+    if (nextStep < 0 || nextStep > steps.length - 1) { return; }
+    if (nextStep > currentStep.value && !canProceed.value) { return; }
     currentStep.value = nextStep;
   };
 
@@ -290,7 +290,7 @@ export const usePipelineStore = defineStore('pipeline', () => {
       .sort((a, b) => {
         const aPriority = Number.isFinite(a.priority) ? a.priority : Number.MAX_SAFE_INTEGER;
         const bPriority = Number.isFinite(b.priority) ? b.priority : Number.MAX_SAFE_INTEGER;
-        if (aPriority !== bPriority) return aPriority - bPriority;
+        if (aPriority !== bPriority) { return aPriority - bPriority; }
         return a.field.localeCompare(b.field);
       })
       .map((item, index) => ({
@@ -316,7 +316,7 @@ export const usePipelineStore = defineStore('pipeline', () => {
 
   const setSort = (field, order) => {
     const nextField = String(field || '').trim();
-    if (!nextField) return;
+    if (!nextField) { return; }
     const nextOrder = String(order || SORT_ORDER.ASC).toLowerCase() === SORT_ORDER.DESC ? SORT_ORDER.DESC : SORT_ORDER.ASC;
     const existing = Array.isArray(sortConfig.items) ? [...sortConfig.items] : [];
     const index = existing.findIndex((item) => String(item?.field || '').trim() === nextField);

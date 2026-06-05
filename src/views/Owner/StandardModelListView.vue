@@ -103,22 +103,22 @@ const toText = (value) => String(value ?? '').trim();
 
 const resolveRatKey = (item) => {
   const rat = toText(item?.rat || item?.tags?.standard || item?.format).toUpperCase();
-  if (rat === '5G') return 'NR';
-  if (rat === '4G') return 'LTE';
-  if (rat === '3G') return 'UMTS';
-  if (rat === '2G') return 'GSM';
+  if (rat === '5G') { return 'NR'; }
+  if (rat === '4G') { return 'LTE'; }
+  if (rat === '3G') { return 'UMTS'; }
+  if (rat === '2G') { return 'GSM'; }
   return rat;
 };
 
 const resolveColumnKey = (item) => {
   const type = toText(item?.tags?.type || item?.businessModelType).toLowerCase();
-  if (type === 'ep' || type === '工参') return 'ep';
+  if (type === 'ep' || type === '工参') { return 'ep'; }
 
   const vendor = toText(item?.vendor || item?.factory || item?.tags?.vendor).toUpperCase();
-  if (vendor === 'HW') return 'HW';
-  if (vendor === 'ZTE') return 'ZTE';
-  if (['E', 'ERIC', 'ERICSSON', 'ERI'].includes(vendor)) return 'ERI';
-  if (vendor === 'NSN') return 'NSN';
+  if (vendor === 'HW') { return 'HW'; }
+  if (vendor === 'ZTE') { return 'ZTE'; }
+  if (['E', 'ERIC', 'ERICSSON', 'ERI'].includes(vendor)) { return 'ERI'; }
+  if (vendor === 'NSN') { return 'NSN'; }
   return '';
 };
 

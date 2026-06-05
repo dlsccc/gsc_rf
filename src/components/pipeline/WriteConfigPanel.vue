@@ -144,18 +144,18 @@ const mappedFieldCount = computed(() => {
 });
 
 const isFilterActive = (config) => {
-  if (!config) return false;
-  if (config.mode === 'simple' && config.operator) return true;
-  if (config.mode === 'formula' && config.formula) return true;
-  if (config.mode === 'compound' && Array.isArray(config.conditions) && config.conditions.some((item) => item.operator)) return true;
+  if (!config) { return false; }
+  if (config.mode === 'simple' && config.operator) { return true; }
+  if (config.mode === 'formula' && config.formula) { return true; }
+  if (config.mode === 'compound' && Array.isArray(config.conditions) && config.conditions.some((item) => item.operator)) { return true; }
   return false;
 };
 
 const hasEffectiveTransform = (config) => {
-  if (!config) return false;
-  if (Array.isArray(config.chain) && config.chain.length > 0) return true;
-  if (Array.isArray(config.rules) && config.rules.length > 0) return true;
-  if (config.type) return true;
+  if (!config) { return false; }
+  if (Array.isArray(config.chain) && config.chain.length > 0) { return true; }
+  if (Array.isArray(config.rules) && config.rules.length > 0) { return true; }
+  if (config.type) { return true; }
   return false;
 };
 

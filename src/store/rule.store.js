@@ -59,8 +59,8 @@ export const unwrapApiData = (response) => {
 
 export const unwrapApiList = (response) => {
   const data = unwrapApiData(response);
-  if (Array.isArray(data?.list)) return data.list;
-  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.list)) { return data.list; }
+  if (Array.isArray(data)) { return data; }
   return [];
 };
 
@@ -92,7 +92,7 @@ const ruleJsonToInputTables = (ruleJson = {}) => {
     || [])
     .map((item, index) => {
       const sourceId = toText(item?.sourceId || item?.source_id);
-      if (!sourceId) return null;
+      if (!sourceId) { return null; }
       const fallback = RULE_INPUT_TABLES[index] || { id: `table_${index + 1}`, label: `数据表${index + 1}` };
       return {
         id: sourceId,
@@ -109,8 +109,8 @@ const ruleJsonToInputTables = (ruleJson = {}) => {
 };
 
 const parseRuleInputString = (ruleInput) => {
-  if (!ruleInput) return null;
-  if (Array.isArray(ruleInput)) return ruleInput;
+  if (!ruleInput) { return null; }
+  if (Array.isArray(ruleInput)) { return ruleInput; }
 
   try {
     const parsed = JSON.parse(ruleInput);

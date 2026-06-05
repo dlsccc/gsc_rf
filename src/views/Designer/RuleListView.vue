@@ -136,7 +136,7 @@ const pageNumbers = computed(() => {
 
 const setPage = (page) => {
   const next = Number(page);
-  if (!Number.isFinite(next)) return;
+  if (!Number.isFinite(next)) { return; }
   currentPage.value = Math.min(Math.max(next, 1), totalPages.value);
 };
 

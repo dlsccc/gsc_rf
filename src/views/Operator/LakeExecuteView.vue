@@ -237,7 +237,7 @@ const extractRuleInputTablesFromRuleJson = (rule) => {
     .map((table, index) => {
       const sourceId = toText(table?.sourceId || table?.source_id || RULE_INPUT_TABLES[index]?.id || `table_${index + 1}`);
       const sourceName = toText(table?.sourceName || table?.source_name || sourceId);
-      if (!sourceId) return null;
+      if (!sourceId) { return null; }
       return {
         id: sourceId,
         label: sourceName || sourceId
@@ -302,9 +302,9 @@ const selectedLakeTaskRule = computed(() => {
 });
 
 const taskRequiredTables = computed(() => {
-  if (!selectedLakeTaskRule.value) return [];
+  if (!selectedLakeTaskRule.value) { return []; }
   const fromRuleJson = extractRuleInputTablesFromRuleJson(selectedLakeTaskRule.value);
-  if (fromRuleJson.length > 0) return fromRuleJson;
+  if (fromRuleJson.length > 0) { return fromRuleJson; }
   return normalizeRuleInputTables(selectedLakeTaskRule.value);
 });
 
@@ -346,7 +346,7 @@ const recordPageNumbers = computed(() => {
 
 const setRecordPage = (page) => {
   const next = Number(page);
-  if (!Number.isFinite(next)) return;
+  if (!Number.isFinite(next)) { return; }
   const safePage = Math.min(Math.max(next, 1), totalRecordPages.value);
   currentRecordPage.value = safePage;
 };
@@ -381,7 +381,7 @@ const formatTaskTime = () => {
 };
 
 const formatTaskFileSize = (bytes) => {
-  if (!Number.isFinite(bytes) || bytes < 0) return '0 B';
+  if (!Number.isFinite(bytes) || bytes < 0) { return '0 B'; }
   const units = ['B', 'KB', 'MB', 'GB'];
   let val = bytes;
   let idx = 0;

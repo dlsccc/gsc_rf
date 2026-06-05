@@ -43,9 +43,9 @@ const isEntrance = computed(() => route.name === 'entrance');
 const showStepper = computed(() => ['pipeline', 'rule-new', 'rule-edit'].includes(route.name));
 
 const currentUserInitial = computed(() => {
-  if (appStore.currentRole === 'owner') return 'O';
-  if (appStore.currentRole === 'designer') return 'D';
-  if (appStore.currentRole === 'operator') return 'P';
+  if (appStore.currentRole === 'owner') { return 'O'; }
+  if (appStore.currentRole === 'designer') { return 'D'; }
+  if (appStore.currentRole === 'operator') { return 'P'; }
   return 'U';
 });
 

@@ -170,7 +170,7 @@ const resolveTransformTypeForApi = (step = {}) => {
 
 const resolveOriginTypeForTimeTransform = (step = {}) => {
   const explicitOrigin = trimText(step.originType || step.origin_type);
-  if (explicitOrigin) return explicitOrigin;
+  if (explicitOrigin) { return explicitOrigin; }
 
   const mode = trimText(step.timeFormatMode || step.time_format_mode).toLowerCase();
   if (TIME_MODE_TO_ORIGIN_TYPE[mode]) {
@@ -182,9 +182,9 @@ const resolveOriginTypeForTimeTransform = (step = {}) => {
 };
 
 const hasEffectiveFilter = (config) => {
-  if (!config) return false;
-  if (config.mode === 'simple') return !!config.operator;
-  if (config.mode === 'formula') return !!trimText(config.formula);
+  if (!config) { return false; }
+  if (config.mode === 'simple') { return !!config.operator; }
+  if (config.mode === 'formula') { return !!trimText(config.formula); }
   if (config.mode === 'compound') {
     return Array.isArray(config.conditions) && config.conditions.some((item) => !!item.operator);
   }
@@ -192,15 +192,15 @@ const hasEffectiveFilter = (config) => {
 };
 
 const hasEffectiveTransform = (config) => {
-  if (!config) return false;
-  if (Array.isArray(config.chain) && config.chain.length > 0) return true;
-  if (Array.isArray(config.rules) && config.rules.length > 0) return true;
+  if (!config) { return false; }
+  if (Array.isArray(config.chain) && config.chain.length > 0) { return true; }
+  if (Array.isArray(config.rules) && config.rules.length > 0) { return true; }
   return !!config.type;
 };
 
 const parseSourceKey = (key) => {
   const text = trimText(key);
-  if (!text) return { sourceTable: 'raw', column: '', full: '' };
+  if (!text) { return { sourceTable: 'raw', column: '', full: '' }; }
 
   const parts = text.split('.');
   if (parts.length >= 2) {
@@ -225,7 +225,7 @@ const normalizeIndexPart = (value) => {
 };
 
 const formatConditionValue = (value) => {
-  if (value === null || value === undefined) return 'null';
+  if (value === null || value === undefined) { return 'null'; }
   const text = String(value);
   return `"${text.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 };
@@ -234,11 +234,11 @@ const buildConditionExpression = (rule = {}, columnRef = '$rule_input[0].key_col
   const operator = String(rule?.operator || '').toLowerCase();
   const valueText = formatConditionValue(rule?.value ?? '');
 
-  if (operator === 'equals') return `${columnRef} == ${valueText}`;
-  if (operator === 'not_equals') return `${columnRef} <> ${valueText}`;
-  if (operator === 'contains') return `${columnRef} contains ${valueText}`;
-  if (operator === 'is_empty') return `${columnRef} == null || ${columnRef} == ""`;
-  if (operator === 'is_not_empty') return `${columnRef} <> null && ${columnRef} <> ""`;
+  if (operator === 'equals') { return `${columnRef} == ${valueText}`; }
+  if (operator === 'not_equals') { return `${columnRef} <> ${valueText}`; }
+  if (operator === 'contains') { return `${columnRef} contains ${valueText}`; }
+  if (operator === 'is_empty') { return `${columnRef} == null || ${columnRef} == ""`; }
+  if (operator === 'is_not_empty') { return `${columnRef} <> null && ${columnRef} <> ""`; }
   return '';
 };
 
@@ -254,13 +254,13 @@ const TRANSFORM_ACTION_MODES = {
 
 const parseRuleInputRef = (value = '') => {
   const match = trimText(value).match(/^\$rule_input\[(\d+)\]\.key_columns\[0\]$/);
-  if (!match) return null;
+  if (!match) { return null; }
   return Number(match[1]);
 };
 
 const toRuleInputBySourceKey = (sourceKey = '', sourceAliasToId = {}) => {
   const parsed = parseSourceKey(sourceKey);
-  if (!parsed.column) return null;
+  if (!parsed.column) { return null; }
 
   const rawSourceTable = trimText(parsed.sourceTable);
   const resolvedSourceTable = trimText(
@@ -270,7 +270,7 @@ const toRuleInputBySourceKey = (sourceKey = '', sourceAliasToId = {}) => {
     || 'raw'
   );
 
-  if (!resolvedSourceTable) return null;
+  if (!resolvedSourceTable) { return null; }
   return makeRuleInput(resolvedSourceTable, [parsed.column]);
 };
 
@@ -283,7 +283,7 @@ const buildConditionalRuleInputs = (rule = {}, sourceAliasToId = {}, fallbackSou
 
   return sourceKeys.reduce((acc, sourceKey) => {
     const ruleInput = toRuleInputBySourceKey(sourceKey, sourceAliasToId);
-    if (!ruleInput) return acc;
+    if (!ruleInput) { return acc; }
     const signature = `${ruleInput.source_table}::${(ruleInput.key_columns || []).join(',')}`;
     if (acc.some((item) => `${item.source_table}::${(item.key_columns || []).join(',')}` === signature)) {
       return acc;
@@ -295,7 +295,7 @@ const buildConditionalRuleInputs = (rule = {}, sourceAliasToId = {}, fallbackSou
 
 const resolveRuleInputIndex = (ruleInputs = [], sourceKey = '', sourceAliasToId = {}) => {
   const ruleInput = toRuleInputBySourceKey(sourceKey, sourceAliasToId);
-  if (!ruleInput) return 0;
+  if (!ruleInput) { return 0; }
   const sourceTable = trimText(ruleInput.source_table);
   const column = trimText((ruleInput.key_columns || [])[0]);
   const index = ruleInputs.findIndex((item) => {
@@ -310,7 +310,7 @@ const toRuleInputsByRawSources = (sourceKeys = [], sourceAliasToId = {}) => {
 
   (Array.isArray(sourceKeys) ? sourceKeys : []).forEach((key) => {
     const parsed = parseSourceKey(key);
-    if (!parsed.column) return;
+    if (!parsed.column) { return; }
     const rawSourceTable = trimText(parsed.sourceTable);
     const resolvedSourceTable = trimText(
       sourceAliasToId?.[rawSourceTable]
@@ -331,7 +331,7 @@ const toRuleInputsByRawSources = (sourceKeys = [], sourceAliasToId = {}) => {
 };
 
 const buildFilterDsl = (config) => {
-  if (!hasEffectiveFilter(config)) return undefined;
+  if (!hasEffectiveFilter(config)) { return undefined; }
 
   const columnRef = '$rule_output.output_column';
 
@@ -351,7 +351,7 @@ const buildFilterDsl = (config) => {
         value: item.value ?? ''
       }));
 
-    if (conditions.length === 0) return undefined;
+    if (conditions.length === 0) { return undefined; }
 
     return [
       makeParam('operator', 'enum', 'compound'),
@@ -391,16 +391,16 @@ const buildTransformStep = (step = {}, columnRef = '$rule_input[0].key_columns[0
     params.push(makeParam('target_type', 'string', trimText(targetType)));
   }
 
-  if (step.fixedValue !== undefined) params.push(makeParam('value', 'string', step.fixedValue));
-  if (step.start !== undefined && step.start !== '') params.push(makeParam('start', 'int', Number(step.start)));
-  if (step.end !== undefined && step.end !== '') params.push(makeParam('end', 'int', Number(step.end)));
-  if (step.delimiter !== undefined) params.push(makeParam('delimiter', 'string', step.delimiter));
-  if (step.search !== undefined) params.push(makeParam('search_value', 'string', step.search));
-  if (step.replace !== undefined) params.push(makeParam('replace_value', 'string', step.replace));
-  if (step.formula !== undefined) params.push(makeParam('formula', 'string', step.formula));
-  if (step.inputFormat !== undefined) params.push(makeParam('input_format', 'string', step.inputFormat));
-  if (step.outputFormat !== undefined) params.push(makeParam('output_format', 'string', step.outputFormat));
-  if (step.precision !== undefined) params.push(makeParam('precision', 'integer', step.precision));
+  if (step.fixedValue !== undefined) { params.push(makeParam('value', 'string', step.fixedValue)); }
+  if (step.start !== undefined && step.start !== '') { params.push(makeParam('start', 'int', Number(step.start))); }
+  if (step.end !== undefined && step.end !== '') { params.push(makeParam('end', 'int', Number(step.end))); }
+  if (step.delimiter !== undefined) { params.push(makeParam('delimiter', 'string', step.delimiter)); }
+  if (step.search !== undefined) { params.push(makeParam('search_value', 'string', step.search)); }
+  if (step.replace !== undefined) { params.push(makeParam('replace_value', 'string', step.replace)); }
+  if (step.formula !== undefined) { params.push(makeParam('formula', 'string', step.formula)); }
+  if (step.inputFormat !== undefined) { params.push(makeParam('input_format', 'string', step.inputFormat)); }
+  if (step.outputFormat !== undefined) { params.push(makeParam('output_format', 'string', step.outputFormat)); }
+  if (step.precision !== undefined) { params.push(makeParam('precision', 'integer', step.precision)); }
 
   return {
     ability_name: 'transform',
@@ -409,7 +409,7 @@ const buildTransformStep = (step = {}, columnRef = '$rule_input[0].key_columns[0
 };
 
 const buildTransformDsl = (config, targetType = '', sourceAliasToId = {}, fallbackSourceKeys = []) => {
-  if (!hasEffectiveTransform(config)) return undefined;
+  if (!hasEffectiveTransform(config)) { return undefined; }
 
   if (Array.isArray(config.chain) && config.chain.length > 0) {
     return {
@@ -451,7 +451,7 @@ const buildTransformDsl = (config, targetType = '', sourceAliasToId = {}, fallba
         const conditionColumnRef = `$rule_input[${resolveRuleInputIndex(safeRuleInputs, conditionSourceKey, sourceAliasToId)}].key_columns[0]`;
         const actionColumnRef = `$rule_input[${resolveRuleInputIndex(safeRuleInputs, actionSourceKey, sourceAliasToId)}].key_columns[0]`;
         const condition = buildConditionExpression(rule, conditionColumnRef);
-        if (!condition) return null;
+        if (!condition) { return null; }
 
         const subRule = buildTransformStep({
           actionMode: rule.actionMode || rule.action_mode,
@@ -477,7 +477,7 @@ const buildTransformDsl = (config, targetType = '', sourceAliasToId = {}, fallba
       })
       .filter(Boolean);
 
-    if (branches.length === 0) return undefined;
+    if (branches.length === 0) { return undefined; }
 
     const normalizedElseRule = config?.elseRule ? { ...createDefaultElseRuleConfig(), ...config.elseRule } : createDefaultElseRuleConfig();
     const elseActionSourceKey = trimText(normalizedElseRule.actionSourceKey || normalizedElseRule.action_source_key || fallbackSourceKeys[0]);
@@ -570,7 +570,7 @@ const buildSourceAliasToIdMap = (sourceFiles = [], tablesDsl = []) => {
   const setAlias = (alias, sourceId) => {
     const normalizedAlias = trimText(alias);
     const normalizedSourceId = trimText(sourceId);
-    if (!normalizedAlias || !normalizedSourceId) return;
+    if (!normalizedAlias || !normalizedSourceId) { return; }
     aliasMap[normalizedAlias] = normalizedSourceId;
     aliasMap[normalizedAlias.toLowerCase()] = normalizedSourceId;
   };
@@ -592,7 +592,7 @@ const toTargetColumns = (selectedModel = {}) => {
   return fields
     .map((field) => {
       const name = trimText(field?.name || field?.fieldName);
-      if (!name) return null;
+      if (!name) { return null; }
       return {
         name,
         type: trimText(field?.type || field?.fieldType),
@@ -605,7 +605,7 @@ const toTargetColumns = (selectedModel = {}) => {
 
 const defaultJoinFields = (tableA = [], tableB = []) => {
   const common = tableA.filter((field) => tableB.includes(field));
-  if (common.length === 0) return [];
+  if (common.length === 0) { return []; }
   return [{ leftField: common[0], rightField: common[0] }];
 };
 
@@ -616,7 +616,7 @@ const normalizeJoinType = (type) => {
 };
 
 const normalizeJoinLinks = (joinConfig = {}, sourceFiles = []) => {
-  if (sourceFiles.length < 2) return [];
+  if (sourceFiles.length < 2) { return []; }
 
   const [mainFile, ...secondaryFiles] = sourceFiles;
   const configuredLinks = Array.isArray(joinConfig?.links) ? joinConfig.links : [];
@@ -625,7 +625,7 @@ const normalizeJoinLinks = (joinConfig = {}, sourceFiles = []) => {
     return configuredLinks
       .map((link, index) => {
         const rightSource = trimText(link?.rightSource) || trimText(secondaryFiles[index]?.source);
-        if (!rightSource) return null;
+        if (!rightSource) { return null; }
 
         const rightFile = sourceFiles.find((item) => trimText(item?.source) === rightSource) || secondaryFiles[index];
         const pairs = (Array.isArray(link?.fields) ? link.fields : []).filter((item) => item?.leftField || item?.rightField);
@@ -658,7 +658,7 @@ const normalizeJoinLinks = (joinConfig = {}, sourceFiles = []) => {
 
 const buildJoinDsl = (uploadedFiles = [], joinConfig = {}, sourceAliasToId = {}) => {
   const sourceFiles = toSourceFiles(uploadedFiles);
-  if (sourceFiles.length < 2) return undefined;
+  if (sourceFiles.length < 2) { return undefined; }
 
   const mainFile = sourceFiles[0];
   const resolveSourceTable = (source) => {
@@ -675,7 +675,7 @@ const buildJoinDsl = (uploadedFiles = [], joinConfig = {}, sourceAliasToId = {})
   const joinList = links
     .map((link, index) => {
       const rightFile = sourceFiles.find((item) => trimText(item?.source) === trimText(link?.rightSource)) || sourceFiles[index + 1];
-      if (!rightFile) return null;
+      if (!rightFile) { return null; }
 
       const pairs = (Array.isArray(link?.fields) ? link.fields : []).filter((item) => item.leftField || item.rightField);
       const finalPairs = pairs.length > 0
@@ -720,7 +720,7 @@ const resolveTargetFieldNames = (selectedModel = {}, mappings = {}) => {
     .map((field) => trimText(field?.name))
     .filter(Boolean);
 
-  if (fromModel.length > 0) return fromModel;
+  if (fromModel.length > 0) { return fromModel; }
 
   return Object.keys(mappings || {})
     .map((name) => trimText(name))
@@ -739,7 +739,7 @@ const buildDataProcessingDsl = ({
   const targetFields = resolveTargetFieldNames(selectedModel, mappings);
   const targetFieldFormatMap = (Array.isArray(selectedModel?.fields) ? selectedModel.fields : []).reduce((acc, field) => {
     const name = trimText(field?.name || field?.fieldName);
-    if (!name) return acc;
+    if (!name) { return acc; }
     acc[name] = trimText(field?.format || field?.dataFormat);
     return acc;
   }, {});
@@ -750,7 +750,7 @@ const buildDataProcessingDsl = ({
       : []);
   const sortMap = sortItems.reduce((acc, item, index) => {
     const field = trimText(item?.field);
-    if (!field) return acc;
+    if (!field) { return acc; }
     acc[field] = {
       order: trimText(item?.order).toLowerCase() === 'desc' ? 'desc' : 'asc',
       priority: Number.isFinite(Number(item?.priority)) ? Number(item.priority) : index + 1
@@ -933,7 +933,7 @@ export const buildPipelineDsl = ({
 };
 
 export const downloadDslFile = (dsl, fileName = 'pipeline_dsl.json') => {
-  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+  if (typeof window === 'undefined' || typeof document === 'undefined') { return; }
   const blob = new Blob([JSON.stringify(dsl, null, 2)], { type: 'application/json;charset=utf-8' });
   const url = window.URL.createObjectURL(blob);
 

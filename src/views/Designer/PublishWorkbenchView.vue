@@ -78,7 +78,7 @@ const imageLoadError = ref(false);
 const currentMode = computed(() => MODE_CONFIG[activeMode.value]);
 
 const switchMode = (mode) => {
-  if (!MODE_CONFIG[mode]) return;
+  if (!MODE_CONFIG[mode]) { return; }
   if (mode === 'runtime') {
     window.open(MODE_CONFIG.runtime.embedUrl, '_blank', 'noopener,noreferrer');
     return;

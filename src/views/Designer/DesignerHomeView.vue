@@ -202,7 +202,7 @@ const loadProjectList = async () => {
 };
 
 const closeProjectMenuOnOutsideClick = (event) => {
-  if (!projectMenuVisible.value) return;
+  if (!projectMenuVisible.value) { return; }
   if (projectDropdownRef.value && !projectDropdownRef.value.contains(event.target)) {
     projectMenuVisible.value = false;
   }
@@ -245,12 +245,12 @@ const openEditProjectModal = (project) => {
 };
 
 const closeProjectModal = () => {
-  if (projectModal.submitting) return;
+  if (projectModal.submitting) { return; }
   projectModal.show = false;
 };
 
 const closeDeployModal = () => {
-  if (deployModal.loading || deployModal.submitting) return;
+  if (deployModal.loading || deployModal.submitting) { return; }
   deployModal.show = false;
 };
 
@@ -287,7 +287,7 @@ const validateProjectForm = () => {
 };
 
 const saveProject = async () => {
-  if (!validateProjectForm()) return;
+  if (!validateProjectForm()) { return; }
   projectModal.submitting = true;
   const projectCode = String(projectForm.projectCode || '').trim();
   const payload = {

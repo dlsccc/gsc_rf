@@ -3,7 +3,7 @@ import { SORT_ORDER, TRANSFORM_TYPES } from '@/utils/constants/pipeline.js';
 const toText = (value) => (value === null || value === undefined ? '' : String(value));
 
 const applySingleTransform = (value, config) => {
-  if (!config?.type) return value;
+  if (!config?.type) { return value; }
   switch (config.type) {
     case TRANSFORM_TYPES.UPPERCASE:
       return toText(value).toUpperCase();
@@ -21,7 +21,7 @@ const applySingleTransform = (value, config) => {
       const text = toText(value);
       const start = Number(config.start);
       const end = Number(config.end);
-      if (!Number.isFinite(start) || !Number.isFinite(end)) return text;
+      if (!Number.isFinite(start) || !Number.isFinite(end)) { return text; }
       return text.slice(start, end);
     }
     default:
@@ -30,7 +30,7 @@ const applySingleTransform = (value, config) => {
 };
 
 const passFilter = (value, filter) => {
-  if (!filter || !filter.operator) return true;
+  if (!filter || !filter.operator) { return true; }
 
   const text = toText(value);
   const target = toText(filter.value);
@@ -53,7 +53,7 @@ const passFilter = (value, filter) => {
 
 const getSourceValueByKey = (row, sourceKey) => {
   const key = toText(sourceKey);
-  if (!key) return '';
+  if (!key) { return ''; }
   return row?.[key] ?? '';
 };
 
@@ -163,7 +163,7 @@ export const buildProcessedRows = ({ previewRows, filters, transforms, sortConfi
       for (const sortItem of normalizedSortItems) {
         const av = a[sortItem.field];
         const bv = b[sortItem.field];
-        if (av === bv) continue;
+        if (av === bv) { continue; }
         const result = av > bv ? 1 : -1;
         return sortItem.order === SORT_ORDER.DESC ? -result : result;
       }

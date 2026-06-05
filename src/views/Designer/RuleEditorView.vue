@@ -201,7 +201,7 @@ const ensureEngineeringParamVendorBehavior = () => {
   const vendorFieldName = (pipelineStore.targetFields || [])
     .map((field) => toText(field?.name))
     .find((name) => name.toUpperCase() === 'VENDOR');
-  if (!vendorFieldName) return;
+  if (!vendorFieldName) { return; }
 
   if (!selectedModelIsEngineeringParam.value) {
     return;
@@ -274,7 +274,7 @@ const extractRuleIdFromSaveResponse = (saveResponse) => {
 
   for (const item of candidates) {
     const value = toText(item);
-    if (value) return value;
+    if (value) { return value; }
   }
 
   return '';
@@ -318,7 +318,7 @@ const normalizeSqlList = (value) => {
   }
 
   const text = toText(value);
-  if (!text) return [];
+  if (!text) { return []; }
 
   if (text.startsWith('[') && text.endsWith(']')) {
     try {
@@ -456,7 +456,7 @@ const extractDebugResultRows = (debugResponse) => {
   ];
 
   for (const candidate of candidates) {
-    if (!Array.isArray(candidate)) continue;
+    if (!Array.isArray(candidate)) { continue; }
     return candidate.map((item) => {
       if (item && typeof item === 'object' && !Array.isArray(item)) {
         return item;
@@ -471,7 +471,7 @@ const extractDebugResultRows = (debugResponse) => {
 const pickValue = (...values) => {
   for (const value of values) {
     const text = toText(value);
-    if (text) return text;
+    if (text) { return text; }
   }
   return '';
 };
@@ -479,7 +479,7 @@ const pickValue = (...values) => {
 const toParamMap = (params = []) => {
   return toArrayValue(params).reduce((acc, item) => {
     const name = pickValue(item?.paramName, item?.param_name);
-    if (!name) return acc;
+    if (!name) { return acc; }
     const value = item?.paramValue ?? item?.param_value;
     acc[name] = value;
     const camel = toCamelKey(name);
@@ -543,9 +543,9 @@ const resolveTimeFormatMode = (originType, transformType) => {
   }
 
   const normalizedType = toText(transformType).toLowerCase();
-  if (normalizedType === 'extract_year') return 'year';
-  if (normalizedType === 'extract_month') return 'month';
-  if (normalizedType === 'extract_time' || normalizedType === 'format_time') return 'time';
+  if (normalizedType === 'extract_year') { return 'year'; }
+  if (normalizedType === 'extract_month') { return 'month'; }
+  if (normalizedType === 'extract_time' || normalizedType === 'format_time') { return 'time'; }
   return 'date';
 };
 
@@ -582,7 +582,7 @@ const TRANSFORM_ACTION_MODES = {
 
 const stripQuotedText = (value) => {
   const text = toText(value);
-  if (!text) return '';
+  if (!text) { return ''; }
   if (
     (text.startsWith('"') && text.endsWith('"'))
     || (text.startsWith('\'') && text.endsWith('\''))
@@ -594,13 +594,13 @@ const stripQuotedText = (value) => {
 
 const parseRuleInputRef = (value = '') => {
   const match = toText(value).match(/^\$rule_input\[(\d+)\]\.key_columns\[0\]$/);
-  if (!match) return null;
+  if (!match) { return null; }
   return Number(match[1]);
 };
 
 const parseConditionExpression = (conditionExpr) => {
   const expr = toText(conditionExpr);
-  if (!expr) return null;
+  if (!expr) { return null; }
 
   const infixContainsMatch = expr.match(/^\s*\$rule_input\[(\d+)\]\.key_columns\[0\]\s+contains\s+(.+)\s*$/i);
   if (infixContainsMatch) {
@@ -631,7 +631,7 @@ const parseConditionExpression = (conditionExpr) => {
   }
 
   const compareMatch = expr.match(/^\s*\$rule_input\[(\d+)\]\.key_columns\[0\]\s*(==|!=|<>)\s*(.+)\s*$/);
-  if (!compareMatch) return null;
+  if (!compareMatch) { return null; }
 
   const operatorMap = {
     '==': 'equals',
@@ -648,7 +648,7 @@ const parseConditionExpression = (conditionExpr) => {
 
 const parseTransformParamsToConfig = (ruleParams = {}) => {
   const transformType = pickValue(ruleParams.transform_type, ruleParams.transformType).toLowerCase();
-  if (!transformType) return null;
+  if (!transformType) { return null; }
 
   if (transformType === 'chain') {
     return {
@@ -666,17 +666,17 @@ const resolveSourceKeyByRuleInputIndex = (inputs = [], inputIndex = 0, sourceAli
   const sourceRaw = pickValue(targetInput?.sourceTable, targetInput?.source_table);
   const source = pickValue(sourceAliasMap?.[toText(sourceRaw)], sourceRaw);
   const column = toText(toArrayValue(targetInput?.keyColumns || targetInput?.key_columns)[0]);
-  if (!source || !column) return '';
+  if (!source || !column) { return ''; }
   return `${source}.${column}`;
 };
 
 const isKeepSourceTransform = (ruleParams = {}) => {
   const transformType = pickValue(ruleParams.transform_type, ruleParams.transformType).toLowerCase();
-  if (transformType !== 'formula') return false;
+  if (transformType !== 'formula') { return false; }
 
   const columnRef = pickValue(ruleParams.column);
   const formula = pickValue(ruleParams.formula);
-  if (!columnRef || !formula) return false;
+  if (!columnRef || !formula) { return false; }
 
   return parseRuleInputRef(columnRef) !== null && columnRef === formula;
 };
@@ -713,7 +713,7 @@ const buildUploadedFilesFromTables = (tables = []) => {
     const normalizedColumns = columns
       .map((item) => {
         const name = pickValue(item?.name);
-        if (!name) return null;
+        if (!name) { return null; }
         return {
           columnId: pickValue(item?.columnId, item?.column_id),
           column_id: pickValue(item?.columnId, item?.column_id),
@@ -771,7 +771,7 @@ const parseMappingsAndConfigsFromRules = (rules = [], sourceAliasMap = {}) => {
   toArrayValue(rules).forEach((ruleItem) => {
     const ruleOutput = ruleItem?.ruleOutput || ruleItem?.rule_output || {};
     const outputField = pickValue(ruleOutput?.outputColumn, ruleOutput?.output_column);
-    if (!outputField) return;
+    if (!outputField) { return; }
 
     const inputs = toArrayValue(ruleItem?.ruleInput || ruleItem?.rule_input);
     const sourceKeys = [];
@@ -934,7 +934,7 @@ const parseMappingsAndConfigsFromRules = (rules = [], sourceAliasMap = {}) => {
   sortItems
     .sort((a, b) => a.priority - b.priority)
     .forEach((item, index) => {
-      if (dedupedMap.has(item.field)) return;
+      if (dedupedMap.has(item.field)) { return; }
       dedupedMap.set(item.field, {
         ...item,
         priority: Number.isFinite(item.priority) ? item.priority : index + 1
@@ -1008,7 +1008,7 @@ const parseJoinConfigFromDsl = (joinDsl, sourceAliasMap = {}) => {
 
 const parseDedupConfigFromDsl = (deduplicateDsl) => {
   const fallback = { enabled: true, fields: [], keep: 'first' };
-  if (!deduplicateDsl) return fallback;
+  if (!deduplicateDsl) { return fallback; }
 
   const input = toArrayValue(deduplicateDsl?.ruleInput || deduplicateDsl?.rule_input)[0] || {};
   const fields = toArrayValue(input?.keyColumns || input?.key_columns).map((item) => toText(item)).filter(Boolean);
@@ -1030,7 +1030,7 @@ const parseWriteConfigFromDsl = (writeConfigDsl) => {
     dedupFields: [],
     conflictStrategy: 'keep_old'
   };
-  if (!writeConfigDsl) return fallback;
+  if (!writeConfigDsl) { return fallback; }
 
   const params = toParamMap(writeConfigDsl?.rule?.params || []);
   const writeMode = pickValue(params.write_mode);
@@ -1047,7 +1047,7 @@ const parseWriteConfigFromDsl = (writeConfigDsl) => {
 };
 
 const applyRuleJsonToPipeline = (ruleJson = {}) => {
-  if (!ruleJson || typeof ruleJson !== 'object') return;
+  if (!ruleJson || typeof ruleJson !== 'object') { return; }
 
   const sections = readRuleJsonSections(ruleJson);
   const uploadedFiles = buildUploadedFilesFromTables(sections.tables);
@@ -1114,15 +1114,15 @@ const loadProjectModels = async () => {
 
 const loadProjectModelDetail = async (modelCodeOrId) => {
   const target = modelStore.getProjectModelById(modelCodeOrId);
-  if (!target) return null;
+  if (!target) { return null; }
 
   const code = resolveModelCode(target) || String(modelCodeOrId || '').trim();
-  if (!code) return target;
+  if (!code) { return target; }
 
   try {
     const response = await projectModelsApi.detail({ code });
     const detail = unwrapApiData(response);
-    if (!detail) return target;
+    if (!detail) { return target; }
 
     const merged = normalizeProjectModel({
       ...target,
@@ -1253,12 +1253,12 @@ onUnmounted(() => {
 });
 
 const inferSampleType = (value) => {
-  if (value === null || value === undefined || value === '') return '';
-  if (typeof value === 'boolean') return 'boolean';
-  if (typeof value === 'number') return Number.isInteger(value) ? 'integer' : 'double';
+  if (value === null || value === undefined || value === '') { return ''; }
+  if (typeof value === 'boolean') { return 'boolean'; }
+  if (typeof value === 'number') { return Number.isInteger(value) ? 'integer' : 'double'; }
 
   const text = toText(value);
-  if (!text) return '';
+  if (!text) { return ''; }
   if (!Number.isNaN(Number(text))) {
     return text.includes('.') ? 'double' : 'integer';
   }
@@ -1281,12 +1281,12 @@ const buildAutoMapPayload = () => {
   const sourceMetaByKey = {};
   (pipelineStore.uploadedFiles || []).forEach((file) => {
     const sourceTable = toText(file?.source);
-    if (!sourceTable) return;
+    if (!sourceTable) { return; }
 
     const sampleRow = Array.isArray(file?.rows) && file.rows.length > 0 ? file.rows[0] : {};
     (file?.fields || []).forEach((fieldName) => {
       const normalizedField = toText(fieldName);
-      if (!normalizedField) return;
+      if (!normalizedField) { return; }
 
       const key = `${sourceTable}.${normalizedField}`;
       const sampleValueRaw = sampleRow?.[normalizedField];
@@ -1300,7 +1300,7 @@ const buildAutoMapPayload = () => {
   const sourceFields = (pipelineStore.sourceFields || [])
     .map((source) => {
       const fieldKey = toText(source?.key);
-      if (!fieldKey) return null;
+      if (!fieldKey) { return null; }
       const meta = sourceMetaByKey[fieldKey] || {};
       return {
         fieldKey,
@@ -1326,7 +1326,7 @@ const normalizeAutoMappings = (rawMappings = {}) => {
 
   (pipelineStore.targetFields || []).forEach((field) => {
     const targetName = toText(field?.name);
-    if (!targetName || !validTargets.has(targetName)) return;
+    if (!targetName || !validTargets.has(targetName)) { return; }
 
     const rawValue = mappingObject[targetName];
     const sourceList = Array.isArray(rawValue) ? rawValue : (rawValue ? [rawValue] : []);
@@ -1341,10 +1341,10 @@ const normalizeAutoMappings = (rawMappings = {}) => {
 };
 
 const autoMap = async () => {
-  if (autoMapping.value) return;
+  if (autoMapping.value) { return; }
 
   const ready = await parseUploadedFilesForMapping();
-  if (!ready) return;
+  if (!ready) { return; }
 
   const payload = buildAutoMapPayload();
   if (payload.modelFields.length === 0) {
@@ -1380,10 +1380,10 @@ const autoMap = async () => {
 
 const parseUploadedFilesForMapping = async () => {
   const files = Array.isArray(pipelineStore.uploadedFiles) ? pipelineStore.uploadedFiles : [];
-  if (files.length === 0) return true;
+  if (files.length === 0) { return true; }
 
   const needsParse = files.some((file) => !file?.parsed);
-  if (!needsParse) return true;
+  if (!needsParse) { return true; }
 
   parsingForStep.value = true;
 
@@ -1426,11 +1426,11 @@ const parseUploadedFilesForMapping = async () => {
 };
 
 const goNextStep = async () => {
-  if (!pipelineStore.canProceed || parsingForStep.value) return;
+  if (!pipelineStore.canProceed || parsingForStep.value) { return; }
 
   if (pipelineStore.currentStep === 0) {
     const ready = await parseUploadedFilesForMapping();
-    if (!ready) return;
+    if (!ready) { return; }
   }
 
   pipelineStore.nextStep();
@@ -1460,7 +1460,7 @@ const clearSqlDebugTimer = () => {
 };
 
 const runSqlDebug = async () => {
-  if (Number(pipelineStore.currentStep) !== 2) return;
+  if (Number(pipelineStore.currentStep) !== 2) { return; }
   if (!ENABLE_SQL_DEBUG_API) {
     sqlDebugRows.value = [];
     return;
@@ -1517,7 +1517,7 @@ const runSqlDebug = async () => {
 };
 
 const scheduleSqlDebug = () => {
-  if (Number(pipelineStore.currentStep) !== 2) return;
+  if (Number(pipelineStore.currentStep) !== 2) { return; }
   clearSqlDebugTimer();
   sqlDebugTimer.value = window.setTimeout(() => {
     runSqlDebug();

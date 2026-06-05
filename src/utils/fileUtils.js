@@ -5,8 +5,8 @@ import { $t } from '@/i18n/index.js';
 const toText = (value) => String(value ?? '').trim();
 
 const toArray = (value) => {
-  if (Array.isArray(value)) return value;
-  if (value === null || value === undefined) return [];
+  if (Array.isArray(value)) { return value; }
+  if (value === null || value === undefined) { return []; }
   return [value];
 };
 
@@ -16,7 +16,7 @@ const normalizeEdmIdList = (value) => {
   }
 
   const text = toText(value);
-  if (!text) return [];
+  if (!text) { return []; }
 
   if (text.startsWith('[') && text.endsWith(']')) {
     try {
@@ -83,7 +83,7 @@ export const fileUtilUploadFile = async (params, config = {}) => {
 
 export const queryFileDetail = async (fileIds, config = {}) => {
   const ids = toArray(fileIds).map((item) => toText(item)).filter(Boolean);
-  if (ids.length === 0) return [];
+  if (ids.length === 0) { return []; }
 
   try {
     const { data = [] } = await apiSystemService.fileEdm3QueryDetails(ids, config);
@@ -100,7 +100,7 @@ export const queryFileDetail = async (fileIds, config = {}) => {
 
 export const parseEdmFile = async (edmId, config = {}) => {
   const ids = normalizeEdmIdList(edmId);
-  if (ids.length === 0) return [];
+  if (ids.length === 0) { return []; }
   const { data = [] } = await apiSystemService.parseEdmFile({ edmId: JSON.stringify(ids) }, config);
   return toArray(data);
 };
@@ -109,7 +109,7 @@ export const normalizeUploadResult = (uploadData) => {
   return toArray(uploadData)
     .map((item) => {
       const edmId = resolveEdmId(item);
-      if (!edmId) return null;
+      if (!edmId) { return null; }
       if (['string', 'number'].includes(typeof item)) {
         return {
           edmId,
@@ -126,7 +126,7 @@ export const normalizeUploadResult = (uploadData) => {
 
 export const findParsedDataSet = (parsedList, edmId) => {
   const list = toArray(parsedList);
-  if (list.length === 0) return [];
+  if (list.length === 0) { return []; }
 
   const id = toText(edmId);
   const matched = list.find((item) => resolveEdmId(item) === id) || list[0] || {};
@@ -135,7 +135,7 @@ export const findParsedDataSet = (parsedList, edmId) => {
 
 export const extractFieldInfoList = (parsedList, edmId) => {
   const list = toArray(parsedList);
-  if (list.length === 0) return [];
+  if (list.length === 0) { return []; }
 
   const id = toText(edmId);
   const matched = list.find((item) => resolveEdmId(item) === id) || list[0] || {};

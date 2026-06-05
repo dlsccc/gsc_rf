@@ -235,9 +235,9 @@ const toText = (value) => String(value ?? '').trim();
 const getFieldDesc = (field) => toText(field?.description || field?.fieldDesc || field?.desc);
 
 const updateHeaderStickyOffset = () => {
-  if (!fieldMappingGridContainer.value) return;
+  if (!fieldMappingGridContainer.value) { return; }
   const firstRow = fieldMappingGridContainer.value.querySelector('thead tr:first-child');
-  if (!firstRow) return;
+  if (!firstRow) { return; }
   const height = firstRow.getBoundingClientRect().height;
   fieldMappingGridContainer.value.style.setProperty('--header-row-1-height', `${height}px`);
 };
@@ -254,8 +254,8 @@ const getSourceBadgeClass = (sourceId) => {
 
 const getSourceBadgeText = (sourceId) => {
   const index = getSourceIndexById(sourceId);
-  if (index === 0) return '主';
-  if (index > 0) return `从${index}`;
+  if (index === 0) { return '主'; }
+  if (index > 0) { return `从${index}`; }
   return sourceId || '-';
 };
 
@@ -276,8 +276,8 @@ const joinLinks = computed(() => {
 });
 
 const ensureJoinLinks = () => {
-  if (sourceFiles.value.length < 2) return;
-  if (Array.isArray(props.store.joinConfig.links) && props.store.joinConfig.links.length > 0) return;
+  if (sourceFiles.value.length < 2) { return; }
+  if (Array.isArray(props.store.joinConfig.links) && props.store.joinConfig.links.length > 0) { return; }
 
   const main = sourceFiles.value[0];
   props.store.joinConfig.links = sourceFiles.value.slice(1).map((file) => ({
@@ -362,7 +362,7 @@ const getCurrentRightFileName = () => {
 };
 
 const setCurrentJoinType = (type) => {
-  if (!currentJoinLink.value) return;
+  if (!currentJoinLink.value) { return; }
   currentJoinLink.value.type = type;
   syncLegacyJoinState();
 };
@@ -399,7 +399,7 @@ watch(
     const next = {};
     groups.forEach((group) => {
       const key = toText(group?.source);
-      if (!key) return;
+      if (!key) { return; }
       next[key] = sourceGroupExpanded.value[key] !== false;
     });
     sourceGroupExpanded.value = next;
@@ -409,13 +409,13 @@ watch(
 
 const isSourceGroupExpanded = (source) => {
   const key = toText(source);
-  if (!key) return true;
+  if (!key) { return true; }
   return sourceGroupExpanded.value[key] !== false;
 };
 
 const toggleSourceGroup = (source) => {
   const key = toText(source);
-  if (!key) return;
+  if (!key) { return; }
   sourceGroupExpanded.value = {
     ...sourceGroupExpanded.value,
     [key]: !isSourceGroupExpanded(key)
@@ -444,7 +444,7 @@ const normalizeJoinType = (type) => {
 const isJoinMatch = (leftRow, rightRow, link, mainSource, rightSource) => {
   const pairs = normalizeJoinLinkFields(link?.fields || []);
   return pairs.every((pair) => {
-    if (!pair.leftField || !pair.rightField) return true;
+    if (!pair.leftField || !pair.rightField) { return true; }
     return leftRow?.[`${mainSource}.${pair.leftField}`] === rightRow?.[`${rightSource}.${pair.rightField}`];
   });
 };
@@ -457,7 +457,7 @@ const buildBlankRow = (keys = []) => {
 };
 
 const applyJoin = (leftRows = [], rightRows = [], link, mainSource, rightSource) => {
-  if (leftRows.length === 0) return [];
+  if (leftRows.length === 0) { return []; }
 
   const type = normalizeJoinType(link?.type);
   const rightMatched = new Set();
@@ -485,7 +485,7 @@ const applyJoin = (leftRows = [], rightRows = [], link, mainSource, rightSource)
 
   if (type === 'full') {
     rightRows.forEach((rightRow, index) => {
-      if (rightMatched.has(index)) return;
+      if (rightMatched.has(index)) { return; }
       result.push({ ...leftBlank, ...rightRow });
     });
   }
@@ -498,10 +498,10 @@ const applyJoin = (leftRows = [], rightRows = [], link, mainSource, rightSource)
 };
 
 const previewData = computed(() => {
-  if (sourceFiles.value.length === 0) return [];
+  if (sourceFiles.value.length === 0) { return []; }
 
   const main = getMainFile();
-  if (!main) return [];
+  if (!main) { return []; }
 
   let result = [...(fileRowsBySource.value[main.source] || [])];
 
@@ -511,7 +511,7 @@ const previewData = computed(() => {
 
   joinLinks.value.forEach((link) => {
     const rightSource = toText(link?.rightSource);
-    if (!rightSource) return;
+    if (!rightSource) { return; }
     const rightRows = fileRowsBySource.value[rightSource] || [];
     result = applyJoin(result, rightRows, link, main.source, rightSource);
   });
@@ -531,7 +531,7 @@ const toggleDropdown = (fieldName, event) => {
 
   activeDropdown.value = fieldName;
   const trigger = event?.currentTarget;
-  if (!trigger) return;
+  if (!trigger) { return; }
 
   const rect = trigger.getBoundingClientRect();
   dropdownPosition.value = {
@@ -548,14 +548,14 @@ const isMultiMapped = (targetField) => {
 
 const getDisplayFieldName = (value) => {
   const text = String(value || '').trim();
-  if (!text) return '';
+  if (!text) { return ''; }
   const parts = text.split('.');
   return parts.length > 1 ? parts.slice(1).join('.') : text;
 };
 
 const getSourceIdFromKey = (key) => {
   const text = toText(key);
-  if (!text) return '';
+  if (!text) { return ''; }
   const dotIndex = text.indexOf('.');
   return dotIndex > -1 ? text.slice(0, dotIndex) : '';
 };
@@ -589,7 +589,7 @@ const isSourceMappedToTarget = (sourceKey, targetFieldName) => {
 };
 
 const toggleFieldMapping = (targetFieldName, sourceField) => {
-  if (isVendorLockedField(targetFieldName)) return;
+  if (isVendorLockedField(targetFieldName)) { return; }
   const nextMappings = { ...(props.store.mappings || {}) };
   const sourceKeys = Array.isArray(nextMappings[targetFieldName]) ? [...nextMappings[targetFieldName]] : [];
   const index = sourceKeys.indexOf(sourceField.key);
@@ -610,7 +610,7 @@ const toggleFieldMapping = (targetFieldName, sourceField) => {
 };
 
 const removeMapping = (targetFieldName, sourceKey) => {
-  if (isVendorLockedField(targetFieldName)) return;
+  if (isVendorLockedField(targetFieldName)) { return; }
   const nextMappings = { ...(props.store.mappings || {}) };
   const sourceKeys = Array.isArray(nextMappings[targetFieldName]) ? [...nextMappings[targetFieldName]] : [];
   const filtered = sourceKeys.filter((key) => key !== sourceKey);
@@ -626,7 +626,7 @@ const removeMapping = (targetFieldName, sourceKey) => {
 
 const getMappedValue = (targetField, row) => {
   const keys = props.store.mappings[targetField] || [];
-  if (keys.length === 0) return '';
+  if (keys.length === 0) { return ''; }
   if (keys.length > 1) {
     return keys.map((key) => row[key] ?? '').join('');
   }
@@ -634,14 +634,14 @@ const getMappedValue = (targetField, row) => {
 };
 
 const addJoinField = () => {
-  if (!currentJoinLink.value) return;
+  if (!currentJoinLink.value) { return; }
   currentJoinLink.value.fields.push({ leftField: '', rightField: '' });
   syncLegacyJoinState();
 };
 
 const removeJoinField = (index) => {
-  if (!currentJoinLink.value) return;
-  if (currentJoinLink.value.fields.length <= 1) return;
+  if (!currentJoinLink.value) { return; }
+  if (currentJoinLink.value.fields.length <= 1) { return; }
   currentJoinLink.value.fields.splice(index, 1);
   syncLegacyJoinState();
 };

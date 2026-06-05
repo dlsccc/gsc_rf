@@ -193,19 +193,19 @@ const onFieldTypeChange = (field) => {
 
 const normalizeFieldType = (type) => {
   const text = String(type ?? '').trim().toUpperCase();
-  if (!text) return '';
-  if (text === 'INT64') return 'INT64';
-  if (text === 'FLOAT64') return 'FLOAT64';
-  if (['INT', 'INTEGER', 'BIGINT', 'INT32'].includes(text)) return 'INT64';
-  if (['FLOAT', 'DOUBLE', 'DECIMAL', 'NUMBER'].includes(text)) return 'FLOAT64';
-  if (['STRING', 'TEXT', 'VARCHAR', 'CHAR', 'DATE', 'DATETIME', 'TIMESTAMP', 'BOOLEAN'].includes(text)) return 'STRING';
+  if (!text) { return ''; }
+  if (text === 'INT64') { return 'INT64'; }
+  if (text === 'FLOAT64') { return 'FLOAT64'; }
+  if (['INT', 'INTEGER', 'BIGINT', 'INT32'].includes(text)) { return 'INT64'; }
+  if (['FLOAT', 'DOUBLE', 'DECIMAL', 'NUMBER'].includes(text)) { return 'FLOAT64'; }
+  if (['STRING', 'TEXT', 'VARCHAR', 'CHAR', 'DATE', 'DATETIME', 'TIMESTAMP', 'BOOLEAN'].includes(text)) { return 'STRING'; }
   return '';
 };
 
 const normalizeFieldFormat = (fieldType, format) => {
   const options = getFormatOptions(fieldType);
   const raw = String(format ?? '').trim();
-  if (!raw) return '';
+  if (!raw) { return ''; }
 
   const aliasMap = {
     PERCENT: '\u767e\u5206\u6570',
@@ -269,8 +269,8 @@ const standardModelVendorName = computed(() => {
 
 const isValidModelCode = (value) => {
   const code = toText(value);
-  if (!code) return false;
-  if (code === '0' || code === '1') return false;
+  if (!code) { return false; }
+  if (code === '0' || code === '1') { return false; }
   return /[a-zA-Z]/.test(code);
 };
 
@@ -320,19 +320,19 @@ const addField = () => {
 };
 
 const removeField = (index) => {
-  if (form.fields.length <= 1) return;
+  if (form.fields.length <= 1) { return; }
   form.fields.splice(index, 1);
 };
 
 const moveFieldUp = (index) => {
-  if (index <= 0) return;
+  if (index <= 0) { return; }
   const temp = form.fields[index];
   form.fields[index] = form.fields[index - 1];
   form.fields[index - 1] = temp;
 };
 
 const moveFieldDown = (index) => {
-  if (index >= form.fields.length - 1) return;
+  if (index >= form.fields.length - 1) { return; }
   const temp = form.fields[index];
   form.fields[index] = form.fields[index + 1];
   form.fields[index + 1] = temp;
@@ -340,7 +340,7 @@ const moveFieldDown = (index) => {
 
 const getFieldNameError = (field) => {
   const name = toText(field?.name);
-  if (!name) return '';
+  if (!name) { return ''; }
   if (!FIELD_NAME_PATTERN.test(name)) {
     return '\u547d\u540d\u4e0d\u5408\u89c4';
   }
@@ -400,7 +400,7 @@ const extractModelCodeFromSaveResponse = (response) => {
 
 const queryModelCodeByName = async (modelName) => {
   const name = toText(modelName);
-  if (!name) return '';
+  if (!name) { return ''; }
 
   try {
     const response = await standardModelsApi.list({ modelType: 'base', modelName: name });
@@ -439,7 +439,7 @@ const syncEntityWithModelCode = (entity, modelCode) => {
 };
 
 const persistModel = async () => {
-  if (!validate()) return null;
+  if (!validate()) { return null; }
 
   let entity = modelStore.upsertStandardModelLocal(normalizeStandardModel({
     ...JSON.parse(JSON.stringify(form)),
@@ -477,7 +477,7 @@ const persistModel = async () => {
 
 const saveModel = async () => {
   const result = await persistModel();
-  if (!result) return;
+  if (!result) { return; }
   router.push('/owner/standard-models');
 };
 
@@ -488,8 +488,8 @@ const triggerImportModel = () => {
 const onImportModelFileChange = async (event) => {
   const target = event?.target;
   const file = target?.files?.[0];
-  if (target) target.value = '';
-  if (!file) return;
+  if (target) { target.value = ''; }
+  if (!file) { return; }
 
   const formData = new FormData();
   formData.append('file', file);
@@ -530,14 +530,14 @@ const extractEdmIdFromExportResponse = (response) => {
   ];
   for (const item of candidates) {
     const edmId = toText(item);
-    if (edmId) return edmId;
+    if (edmId) { return edmId; }
   }
   return '';
 };
 
 const exportModel = async () => {
   const result = await persistModel();
-  if (!result) return;
+  if (!result) { return; }
 
   const modelCode = toText(result.modelCode);
   if (!isValidModelCode(modelCode)) {

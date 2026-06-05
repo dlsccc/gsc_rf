@@ -72,10 +72,10 @@ const loadProjectModels = async () => {
 
 const parseUploadedFilesForMapping = async () => {
   const files = Array.isArray(pipelineStore.uploadedFiles) ? pipelineStore.uploadedFiles : [];
-  if (files.length === 0) return true;
+  if (files.length === 0) { return true; }
 
   const needsParse = files.some((file) => !file?.parsed);
-  if (!needsParse) return true;
+  if (!needsParse) { return true; }
 
   parsingForStep.value = true;
 
@@ -117,11 +117,11 @@ const parseUploadedFilesForMapping = async () => {
 };
 
 const goNextStep = async () => {
-  if (!pipelineStore.canProceed || parsingForStep.value) return;
+  if (!pipelineStore.canProceed || parsingForStep.value) { return; }
 
   if (pipelineStore.currentStep === 0) {
     const ready = await parseUploadedFilesForMapping();
-    if (!ready) return;
+    if (!ready) { return; }
   }
 
   pipelineStore.nextStep();

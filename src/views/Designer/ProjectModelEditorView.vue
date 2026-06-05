@@ -402,19 +402,19 @@ const onFieldTypeChange = (field) => {
 
 const normalizeFieldType = (type) => {
   const text = String(type ?? '').trim().toUpperCase();
-  if (!text) return '';
-  if (text === 'INT64') return 'INT64';
-  if (text === 'FLOAT64') return 'FLOAT64';
-  if (['INT', 'INTEGER', 'BIGINT', 'INT32'].includes(text)) return 'INT64';
-  if (['FLOAT', 'DOUBLE', 'DECIMAL', 'NUMBER'].includes(text)) return 'FLOAT64';
-  if (['STRING', 'TEXT', 'VARCHAR', 'CHAR', 'DATE', 'DATETIME', 'TIMESTAMP', 'BOOLEAN'].includes(text)) return 'STRING';
+  if (!text) { return ''; }
+  if (text === 'INT64') { return 'INT64'; }
+  if (text === 'FLOAT64') { return 'FLOAT64'; }
+  if (['INT', 'INTEGER', 'BIGINT', 'INT32'].includes(text)) { return 'INT64'; }
+  if (['FLOAT', 'DOUBLE', 'DECIMAL', 'NUMBER'].includes(text)) { return 'FLOAT64'; }
+  if (['STRING', 'TEXT', 'VARCHAR', 'CHAR', 'DATE', 'DATETIME', 'TIMESTAMP', 'BOOLEAN'].includes(text)) { return 'STRING'; }
   return '';
 };
 
 const normalizeFieldFormat = (fieldType, format) => {
   const options = getFormatOptions(fieldType);
   const raw = String(format ?? '').trim();
-  if (!raw) return '';
+  if (!raw) { return ''; }
 
   const aliasMap = {
     PERCENT: '\u767e\u5206\u6570',
@@ -486,7 +486,7 @@ const spaceGranularityOptions = computed(() => {
 });
 const selectedSpaceGranularityText = computed(() => {
   const list = Array.isArray(form.tags.spaceGranularity) ? form.tags.spaceGranularity : [];
-  if (list.length === 0) return '请选择空间粒度';
+  if (list.length === 0) { return '请选择空间粒度'; }
   return list.join('、');
 });
 
@@ -575,15 +575,15 @@ const loadProjectModels = async () => {
 
 const loadStandardModelDetail = async (modelCodeOrId) => {
   const target = modelStore.getStandardModelById(modelCodeOrId);
-  if (!target) return null;
+  if (!target) { return null; }
 
   const code = resolveModelCode(target) || String(modelCodeOrId || '').trim();
-  if (!code) return target;
+  if (!code) { return target; }
 
   try {
     const response = await standardModelsApi.detail({ code });
     const detail = unwrapApiData(response);
-    if (!detail) return target;
+    if (!detail) { return target; }
 
     const merged = normalizeStandardModel({
       ...target,
@@ -599,7 +599,7 @@ const loadStandardModelDetail = async (modelCodeOrId) => {
 
 const resolveStandardModel = (value) => {
   const key = String(value ?? '').trim();
-  if (!key) return null;
+  if (!key) { return null; }
 
   return modelStore.standardModels.find((item) => {
     const id = String(item.id ?? '').trim();
@@ -695,7 +695,7 @@ watch(
 );
 
 const toggleSpaceGranularityOpen = () => {
-  if (spaceGranularityOptions.value.length === 0) return;
+  if (spaceGranularityOptions.value.length === 0) { return; }
   spaceGranularityOpen.value = !spaceGranularityOpen.value;
 };
 
@@ -712,15 +712,15 @@ const toggleSpaceGranularityValue = (value) => {
 
 const handleDocumentClick = (event) => {
   const target = event?.target;
-  if (!(target instanceof Element)) return;
-  if (target.closest('.multi-select-dropdown')) return;
+  if (!(target instanceof Element)) { return; }
+  if (target.closest('.multi-select-dropdown')) { return; }
   spaceGranularityOpen.value = false;
 };
 const onRefModelChange = async () => {
-  if (!form.refStandardModel) return;
+  if (!form.refStandardModel) { return; }
 
   const detail = await loadStandardModelDetail(form.refStandardModel);
-  if (!detail) return;
+  if (!detail) { return; }
 
   form.refStandardModel = detail.modelCode || detail.code || form.refStandardModel;
   inheritedStandardModelCode.value = toText(detail.modelCode || detail.code || form.refStandardModel);
@@ -741,19 +741,19 @@ const addField = () => {
 };
 
 const removeField = (index) => {
-  if (form.fields.length <= 1) return;
+  if (form.fields.length <= 1) { return; }
   form.fields.splice(index, 1);
 };
 
 const moveFieldUp = (index) => {
-  if (index <= 0) return;
+  if (index <= 0) { return; }
   const temp = form.fields[index];
   form.fields[index] = form.fields[index - 1];
   form.fields[index - 1] = temp;
 };
 
 const moveFieldDown = (index) => {
-  if (index >= form.fields.length - 1) return;
+  if (index >= form.fields.length - 1) { return; }
   const temp = form.fields[index];
   form.fields[index] = form.fields[index + 1];
   form.fields[index + 1] = temp;
@@ -761,7 +761,7 @@ const moveFieldDown = (index) => {
 
 const getFieldNameError = (field) => {
   const name = toText(field?.name);
-  if (!name) return '';
+  if (!name) { return ''; }
   if (!FIELD_NAME_PATTERN.test(name)) {
     return '命名不合规';
   }
@@ -796,8 +796,8 @@ const validateBase = () => {
 
 const isValidModelCode = (value) => {
   const code = toText(value);
-  if (!code) return false;
-  if (code === '0' || code === '1') return false;
+  if (!code) { return false; }
+  if (code === '0' || code === '1') { return false; }
   return /[a-zA-Z]/.test(code);
 };
 
@@ -864,7 +864,7 @@ const syncEntityWithModelCode = (entity, modelCode, status, projectCode, isRelea
 
 const queryModelCodeByName = async (modelName, projectCode) => {
   const name = toText(modelName);
-  if (!name) return '';
+  if (!name) { return ''; }
 
   try {
     const response = await projectModelsApi.list({ modelType: 'business', modelName: name, ...(projectCode ? { projectCode } : {}) });
@@ -878,7 +878,7 @@ const queryModelCodeByName = async (modelName, projectCode) => {
 };
 
 const persistModel = async (status) => {
-  if (!validateBase()) return null;
+  if (!validateBase()) { return null; }
 
   if (status === 'active') {
     const invalid = form.fields.filter((field) => !field.name?.trim() || !field.type?.trim());
@@ -937,8 +937,8 @@ const triggerImportModel = () => {
 const onImportModelFileChange = async (event) => {
   const target = event?.target;
   const file = target?.files?.[0];
-  if (target) target.value = '';
-  if (!file) return;
+  if (target) { target.value = ''; }
+  if (!file) { return; }
 
   const formData = new FormData();
   formData.append('file', file);
@@ -980,14 +980,14 @@ const extractEdmIdFromExportResponse = (response) => {
   ];
   for (const item of candidates) {
     const edmId = toText(item);
-    if (edmId) return edmId;
+    if (edmId) { return edmId; }
   }
   return '';
 };
 
 const exportProjectModel = async () => {
   const result = await persistModel('draft');
-  if (!result) return;
+  if (!result) { return; }
 
   const modelCode = toText(result.modelCode);
   if (!isValidModelCode(modelCode)) {
@@ -1011,13 +1011,13 @@ const exportProjectModel = async () => {
 
 const saveProjectModel = async () => {
   const result = await persistModel('draft');
-  if (!result) return;
+  if (!result) { return; }
   router.push('/designer/project-models');
 };
 
 const publishProjectModel = async () => {
   const result = await persistModel('active');
-  if (!result) return;
+  if (!result) { return; }
 
   const modelCode = toText(result.modelCode);
   if (!isValidModelCode(modelCode)) {

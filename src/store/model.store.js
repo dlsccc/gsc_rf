@@ -6,11 +6,11 @@ import { nowText } from '@/utils/date.js';
 const deepClone = (value) => JSON.parse(JSON.stringify(value));
 const toText = (value) => String(value ?? '').trim();
 const toBoolean = (value) => {
-  if (typeof value === 'boolean') return value;
+  if (typeof value === 'boolean') { return value; }
   const text = toText(value).toLowerCase();
-  if (!text) return false;
-  if (['true', '1', 'y', 'yes'].includes(text)) return true;
-  if (['false', '0', 'n', 'no'].includes(text)) return false;
+  if (!text) { return false; }
+  if (['true', '1', 'y', 'yes'].includes(text)) { return true; }
+  if (['false', '0', 'n', 'no'].includes(text)) { return false; }
   return Boolean(value);
 };
 
@@ -74,7 +74,7 @@ const MODEL_TYPE_API_TO_UI_LOWER = toLowerMap(MODEL_TYPE_API_TO_UI);
 
 const toUiEnumValue = (value, map, normalize = 'none') => {
   const text = toText(value);
-  if (!text) return '';
+  if (!text) { return ''; }
   if (Object.prototype.hasOwnProperty.call(map, text)) {
     return map[text];
   }
@@ -89,7 +89,7 @@ const toUiEnumValue = (value, map, normalize = 'none') => {
 
 const toApiEnumValue = (value, map) => {
   const text = toText(value);
-  if (!text) return '';
+  if (!text) { return ''; }
   return map[text] || text;
 };
 
@@ -101,7 +101,7 @@ const normalizeCommaSeparatedList = (value) => {
       .filter(Boolean);
   }
   const text = toText(value);
-  if (!text) return [];
+  if (!text) { return []; }
   return text.split(',').map((item) => toText(item)).filter(Boolean);
 };
 
@@ -322,7 +322,7 @@ export const unwrapApiData = (response) => {
 
 export const unwrapApiList = (response) => {
   const data = unwrapApiData(response);
-  if (Array.isArray(data?.list)) return data.list;
+  if (Array.isArray(data?.list)) { return data.list; }
   const groupedKeys = ['NR', 'LTE', 'UMTS', 'GSM'];
   if (data && typeof data === 'object') {
     const grouped = groupedKeys.flatMap((key) => {
@@ -332,9 +332,9 @@ export const unwrapApiList = (response) => {
         ...(item?.rat ? {} : { rat: key })
       }));
     });
-    if (grouped.length > 0) return grouped;
+    if (grouped.length > 0) { return grouped; }
   }
-  if (Array.isArray(data)) return data;
+  if (Array.isArray(data)) { return data; }
   return [];
 };
 
