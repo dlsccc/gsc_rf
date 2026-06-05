@@ -1311,6 +1311,8 @@ const parseDateTime = (val) => {
     [y, m, d] = datePart.split('-');
   } else if (datePart.includes('/')) {
     [y, m, d] = datePart.split('/');
+  } else {
+    // Keep empty date parts for unsupported date separators.
   }
 
   if (m) { m = m.padStart(2, '0'); }
@@ -1504,6 +1506,211 @@ const getBaseValue = (field, row) => {
   return keys.map((key) => row[key] ?? '').join('');
 };
 
+const tokenizeFormulaExpression = (expression) => {
+  const tokens = [];
+  let index = 0;
+
+  const pushToken = (type, value) => {
+    tokens.push({ type, value });
+  };
+
+  while (index < expression.length) {
+    const char = expression[index];
+    if (/\s/.test(char)) {
+      index += 1;
+      continue;
+    }
+
+    const twoChars = expression.slice(index, index + 2);
+    if (['>=', '<=', '==', '!=', '&&', '||'].includes(twoChars)) {
+      pushToken('operator', twoChars);
+      index += 2;
+      continue;
+    }
+
+    if ('+-*/%><!(),'.includes(char)) {
+      pushToken(char === ',' ? 'comma' : 'operator', char);
+      index += 1;
+      continue;
+    }
+
+    if (char === '"' || char === "'") {
+      const quote = char;
+      let value = '';
+      index += 1;
+      while (index < expression.length) {
+        const nextChar = expression[index];
+        if (nextChar === '\\') {
+          value += expression[index + 1] || '';
+          index += 2;
+          continue;
+        }
+        if (nextChar === quote) {
+          index += 1;
+          break;
+        }
+        value += nextChar;
+        index += 1;
+      }
+      pushToken('string', value);
+      continue;
+    }
+
+    if (/\d/.test(char) || (char === '.' && /\d/.test(expression[index + 1] || ''))) {
+      const start = index;
+      index += 1;
+      while (index < expression.length && /[\d.]/.test(expression[index])) {
+        index += 1;
+      }
+      pushToken('number', Number(expression.slice(start, index)));
+      continue;
+    }
+
+    if (/[A-Za-z_$\u4e00-\u9fa5]/.test(char)) {
+      const start = index;
+      index += 1;
+      while (index < expression.length && /[A-Za-z0-9_$.\u4e00-\u9fa5]/.test(expression[index])) {
+        index += 1;
+      }
+      pushToken('identifier', expression.slice(start, index));
+      continue;
+    }
+
+    throw new Error('Unsupported formula token');
+  }
+
+  tokens.push({ type: 'eof', value: '' });
+  return tokens;
+};
+
+const compareFormulaValues = (left, right, operator) => {
+  if (operator === '==') { return left == right; }
+  if (operator === '!=') { return left != right; }
+  if (operator === '>') { return left > right; }
+  if (operator === '>=') { return left >= right; }
+  if (operator === '<') { return left < right; }
+  if (operator === '<=') { return left <= right; }
+  return false;
+};
+
+const calculateFormulaValues = (left, right, operator) => {
+  if (operator === '+') { return Number(left) + Number(right); }
+  if (operator === '-') { return Number(left) - Number(right); }
+  if (operator === '*') { return Number(left) * Number(right); }
+  if (operator === '/') { return Number(left) / Number(right); }
+  if (operator === '%') { return Number(left) % Number(right); }
+  return right;
+};
+
+const evaluateFormulaExpression = (expression, scope) => {
+  const tokens = tokenizeFormulaExpression(expression);
+  let index = 0;
+
+  const peek = () => tokens[index] || { type: 'eof', value: '' };
+  const consume = () => tokens[index++] || { type: 'eof', value: '' };
+  const matchOperator = (operator) => {
+    if (peek().type === 'operator' && peek().value === operator) {
+      consume();
+      return true;
+    }
+    return false;
+  };
+
+  const parseExpression = () => parseLogicalOr();
+
+  const parsePrimary = () => {
+    const token = consume();
+    if (token.type === 'number' || token.type === 'string') { return token.value; }
+    if (token.type === 'identifier') {
+      if (token.value === 'true') { return true; }
+      if (token.value === 'false') { return false; }
+      if (token.value === 'null') { return null; }
+      if (peek().type === 'operator' && peek().value === '(') {
+        consume();
+        const args = [];
+        if (!(peek().type === 'operator' && peek().value === ')')) {
+          do {
+            args.push(parseExpression());
+          } while (peek().type === 'comma' && consume());
+        }
+        if (!matchOperator(')')) { throw new Error('Formula call missing closing parenthesis'); }
+        const fn = scope.functions[token.value];
+        if (typeof fn !== 'function') { throw new Error('Unknown formula function'); }
+        return fn(...args);
+      }
+      if (Object.prototype.hasOwnProperty.call(scope.values, token.value)) {
+        return scope.values[token.value];
+      }
+      return scope.resolveColumnValue(token.value, scope.values.row);
+    }
+    if (token.type === 'operator' && token.value === '(') {
+      const value = parseExpression();
+      if (!matchOperator(')')) { throw new Error('Formula group missing closing parenthesis'); }
+      return value;
+    }
+    throw new Error('Unsupported formula expression');
+  };
+
+  const parseUnary = () => {
+    if (matchOperator('!')) { return !parseUnary(); }
+    if (matchOperator('-')) { return -Number(parseUnary()); }
+    if (matchOperator('+')) { return Number(parseUnary()); }
+    return parsePrimary();
+  };
+
+  const parseMultiplicative = () => {
+    let value = parseUnary();
+    while (['*', '/', '%'].includes(peek().value)) {
+      const operator = consume().value;
+      value = calculateFormulaValues(value, parseUnary(), operator);
+    }
+    return value;
+  };
+
+  const parseAdditive = () => {
+    let value = parseMultiplicative();
+    while (['+', '-'].includes(peek().value)) {
+      const operator = consume().value;
+      const nextValue = parseMultiplicative();
+      if (operator === '+' && (typeof value === 'string' || typeof nextValue === 'string')) {
+        value = String(value) + String(nextValue);
+      } else {
+        value = calculateFormulaValues(value, nextValue, operator);
+      }
+    }
+    return value;
+  };
+
+  const parseComparison = () => {
+    let value = parseAdditive();
+    while (['>', '>=', '<', '<=', '==', '!='].includes(peek().value)) {
+      const operator = consume().value;
+      value = compareFormulaValues(value, parseAdditive(), operator);
+    }
+    return value;
+  };
+
+  const parseLogicalAnd = () => {
+    let value = parseComparison();
+    while (matchOperator('&&')) {
+      value = value && parseComparison();
+    }
+    return value;
+  };
+
+  const parseLogicalOr = () => {
+    let value = parseLogicalAnd();
+    while (matchOperator('||')) {
+      value = value || parseLogicalAnd();
+    }
+    return value;
+  };
+
+  const result = parseExpression();
+  if (peek().type !== 'eof') { throw new Error('Unexpected formula token'); }
+  return result;
+};
+
 const evalFormula = (formula, ctx) => {
   if (!formula) { return ctx.value; }
   let expr = String(formula).trim();
@@ -1617,17 +1824,20 @@ const evalFormula = (formula, ctx) => {
       return match;
     });
 
-    const fn = new Function(
-      'value',
-      'row',
-      'S',
-      'T',
-      'helpers',
-      'resolveColumnValue',
-      `with(helpers){ return (${processedExpr}); }`
-    );
-
-    return fn(ctx.value, ctx.row, ctx.S, ctx.T, helpers, resolveColumnValue);
+    return evaluateFormulaExpression(processedExpr, {
+      functions: {
+        ...helpers,
+        col: (name) => resolveColumnValue(name, ctx.row),
+        resolveColumnValue
+      },
+      values: {
+        value: ctx.value,
+        row: ctx.row,
+        S: ctx.S,
+        T: ctx.T
+      },
+      resolveColumnValue
+    });
   } catch {
     return ctx.value;
   }
@@ -2435,6 +2645,8 @@ const applyFilterConfig = (field) => {
         .join(` ${logicLabel} `);
     }
   } else if (conf.mode === 'formula' && conf.formula) {
+  } else {
+    // No additional description is needed for inactive filter configs.
   }
   columnPopover.show = false;
   notifyOperationApplied('filter', field);
@@ -2858,6 +3070,8 @@ const handleKeyDown = (event) => {
   } else if (columnPopover.show) {
     columnPopover.show = false;
     event.preventDefault();
+  } else {
+    // Escape has no modal or popover to close.
   }
 };
 
