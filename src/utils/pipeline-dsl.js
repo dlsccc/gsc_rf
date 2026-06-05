@@ -98,8 +98,9 @@ const toFieldInfoList = (file = {}) => {
     .filter((item) => item.seq !== '' || item.field_name || item.field_alias || item.field_type);
 };
 
-const pickSampleValue = (rows = [], field) => {
-  const sample = rows.find((row) => trimText(row?.[field]) !== '');
+const pickSampleValue = (rows, field) => {
+  const sourceRows = Array.isArray(rows) ? rows : [];
+  const sample = sourceRows.find((row) => trimText(row?.[field]) !== '');
   return sample?.[field] ?? '';
 };
 

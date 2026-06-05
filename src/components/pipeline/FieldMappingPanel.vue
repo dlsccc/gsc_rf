@@ -456,21 +456,23 @@ const buildBlankRow = (keys = []) => {
   }, {});
 };
 
-const applyJoin = (leftRows = [], rightRows = [], link, mainSource, rightSource) => {
-  if (leftRows.length === 0) { return []; }
+const applyJoin = (leftRows, rightRows, link, mainSource, rightSource) => {
+  const safeLeftRows = Array.isArray(leftRows) ? leftRows : [];
+  const safeRightRows = Array.isArray(rightRows) ? rightRows : [];
+  if (safeLeftRows.length === 0) { return []; }
 
   const type = normalizeJoinType(link?.type);
   const rightMatched = new Set();
-  const leftKeys = [...new Set(leftRows.flatMap((row) => Object.keys(row || {})))];
-  const rightKeys = [...new Set(rightRows.flatMap((row) => Object.keys(row || {})))];
+  const leftKeys = [...new Set(safeLeftRows.flatMap((row) => Object.keys(row || {})))];
+  const rightKeys = [...new Set(safeRightRows.flatMap((row) => Object.keys(row || {})))];
   const rightBlank = buildBlankRow(rightKeys);
   const leftBlank = buildBlankRow(leftKeys);
 
   const result = [];
 
-  leftRows.forEach((leftRow) => {
-    const matchIndex = rightRows.findIndex((rightRow) => isJoinMatch(leftRow, rightRow, link, mainSource, rightSource));
-    const matchedRow = matchIndex >= 0 ? rightRows[matchIndex] : null;
+  safeLeftRows.forEach((leftRow) => {
+    const matchIndex = safeRightRows.findIndex((rightRow) => isJoinMatch(leftRow, rightRow, link, mainSource, rightSource));
+    const matchedRow = matchIndex >= 0 ? safeRightRows[matchIndex] : null;
 
     if (matchedRow) {
       rightMatched.add(matchIndex);
@@ -484,7 +486,7 @@ const applyJoin = (leftRows = [], rightRows = [], link, mainSource, rightSource)
   });
 
   if (type === 'full') {
-    rightRows.forEach((rightRow, index) => {
+    safeRightRows.forEach((rightRow, index) => {
       if (rightMatched.has(index)) { return; }
       result.push({ ...leftBlank, ...rightRow });
     });

@@ -133,11 +133,12 @@ export const normalizeRule = (rule = {}) => ({
   ruleJson: rule.ruleJson || {}
 });
 
-export const mapApiRuleToEntity = (item = {}, projectId, projectCode = '') => {
-  const id = toText(item.ruleId || item.id || item.ruleCode || createId());
-  const ruleJson = normalizeRuleJsonForApi(parseRuleJson(item.ruleJson));
+export const mapApiRuleToEntity = (item, projectId, projectCode = '') => {
+  const sourceItem = item || {};
+  const id = toText(sourceItem.ruleId || sourceItem.id || sourceItem.ruleCode || createId());
+  const ruleJson = normalizeRuleJsonForApi(parseRuleJson(sourceItem.ruleJson));
 
-  const fromRuleInput = parseRuleInputString(item.ruleInput);
+  const fromRuleInput = parseRuleInputString(sourceItem.ruleInput);
   const parsedInputTables = Array.isArray(fromRuleInput)
     ? fromRuleInput.map((tableId, index) => ({
       id: toText(tableId),
@@ -149,37 +150,37 @@ export const mapApiRuleToEntity = (item = {}, projectId, projectCode = '') => {
     ? parsedInputTables
     : ruleJsonToInputTables(ruleJson);
 
-  const modelSelection = item.modelSelection || ruleJson?.modelSelection || ruleJson?.model_selection || {};
+  const modelSelection = sourceItem.modelSelection || ruleJson?.modelSelection || ruleJson?.model_selection || {};
   const targetModel = toText(
-    item.targetModel
-    || item.ruleOutput
+    sourceItem.targetModel
+    || sourceItem.ruleOutput
     || modelSelection?.modelId
     || modelSelection?.model_id
     || ruleJson?.modelSelection?.modelCode
     || ruleJson?.model_selection?.model_code
   );
   const targetModelName = toText(
-    item.targetModelName
+    sourceItem.targetModelName
     || modelSelection?.modelName
     || modelSelection?.model_name
     || targetModel
   );
-  const datacubeExecFlowId = toText(item.datacubeExecFlowId || item.datacube_exec_flow_id);
-  const status = datacubeExecFlowId ? 'active' : toText(item.status || 'draft');
+  const datacubeExecFlowId = toText(sourceItem.datacubeExecFlowId || sourceItem.datacube_exec_flow_id);
+  const status = datacubeExecFlowId ? 'active' : toText(sourceItem.status || 'draft');
 
   return normalizeRule({
     id,
     ruleCode: id,
-    name: toText(item.ruleName || item.name),
-    description: toText(item.ruleDesc || item.description),
+    name: toText(sourceItem.ruleName || sourceItem.name),
+    description: toText(sourceItem.ruleDesc || sourceItem.description),
     status,
     targetModel,
     targetModelName,
     datacubeExecFlowId,
-    projectId: item.projectId || projectId,
-    projectCode: toText(item.projectCode || item.project_code || projectCode),
+    projectId: sourceItem.projectId || projectId,
+    projectCode: toText(sourceItem.projectCode || sourceItem.project_code || projectCode),
     inputTables,
-    updateTime: toText(item.lastUpdatedDate || item.creationDate || item.updateTime || nowText()),
+    updateTime: toText(sourceItem.lastUpdatedDate || sourceItem.creationDate || sourceItem.updateTime || nowText()),
     ruleJson
   });
 };
