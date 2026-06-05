@@ -95,6 +95,75 @@ const createDefaultElseRule = () => ({
   actionMode: 'keep_source'
 });
 
+const rowPassesFilters = (row, filters = {}) => {
+  return Object.entries(filters).every(([field, filter]) => passFilter(row[field], filter));
+};
+
+const applyTransformChain = (value, chain = []) => {
+  return chain.reduce((result, step) => applySingleTransform(result, step), value);
+};
+
+const applyConditionalTransform = (row, field, transform = {}) => {
+  for (const rule of transform.rules) {
+    if (passesTransformRule(row, field, rule)) {
+      return applyTransformConfig(row, field, rule);
+    }
+  }
+  return applyTransformConfig(row, field, transform?.elseRule || createDefaultElseRule());
+};
+
+const applyFieldTransform = (row, field, transform) => {
+  if (Array.isArray(transform?.chain) && transform.chain.length > 0) {
+    return applyTransformChain(row[field], transform.chain);
+  }
+
+  if (Array.isArray(transform?.rules) && transform.rules.length > 0) {
+    return applyConditionalTransform(row, field, transform);
+  }
+
+  return applySingleTransform(row[field], transform);
+};
+
+const applyTransformsToRow = (row, transforms = {}) => {
+  const next = { ...row };
+  Object.entries(transforms).forEach(([field, transform]) => {
+    next[field] = applyFieldTransform(next, field, transform);
+  });
+  return next;
+};
+
+const resolveSortItems = (sortConfig = {}) => {
+  if (Array.isArray(sortConfig?.items) && sortConfig.items.length > 0) {
+    return [...sortConfig.items];
+  }
+  if (sortConfig?.field) {
+    return [{ field: sortConfig.field, order: sortConfig.order || SORT_ORDER.ASC, priority: 1 }];
+  }
+  return [];
+};
+
+const normalizeSortItems = (sortItems = []) => {
+  return sortItems
+    .map((item, index) => ({
+      field: item?.field,
+      order: item?.order === SORT_ORDER.DESC ? SORT_ORDER.DESC : SORT_ORDER.ASC,
+      priority: Number.isFinite(Number(item?.priority)) ? Number(item.priority) : index + 1
+    }))
+    .filter((item) => item.field)
+    .sort((a, b) => a.priority - b.priority);
+};
+
+const compareRowsBySortItems = (a, b, sortItems = []) => {
+  for (const sortItem of sortItems) {
+    const av = a[sortItem.field];
+    const bv = b[sortItem.field];
+    if (av === bv) { continue; }
+    const result = av > bv ? 1 : -1;
+    return sortItem.order === SORT_ORDER.DESC ? -result : result;
+  }
+  return 0;
+};
+
 export const buildPreviewRows = ({ sourceRows, mappings, targetFields }) => {
   return sourceRows.map((sourceRow) => {
     const row = { ...sourceRow };
@@ -111,68 +180,13 @@ export const buildPreviewRows = ({ sourceRows, mappings, targetFields }) => {
 };
 
 export const buildProcessedRows = ({ previewRows, filters, transforms, sortConfig }) => {
-  let rows = [...previewRows];
+  const rows = previewRows
+    .filter((row) => rowPassesFilters(row, filters))
+    .map((row) => applyTransformsToRow(row, transforms));
 
-  rows = rows.filter((row) => {
-    return Object.entries(filters).every(([field, filter]) => passFilter(row[field], filter));
-  });
-
-  rows = rows.map((row) => {
-    const next = { ...row };
-    Object.entries(transforms).forEach(([field, transform]) => {
-      if (Array.isArray(transform?.chain) && transform.chain.length > 0) {
-        let result = next[field];
-        transform.chain.forEach((step) => {
-          result = applySingleTransform(result, step);
-        });
-        next[field] = result;
-        return;
-      }
-
-      if (Array.isArray(transform?.rules) && transform.rules.length > 0) {
-        for (const rule of transform.rules) {
-          if (passesTransformRule(next, field, rule)) {
-            next[field] = applyTransformConfig(next, field, rule);
-            return;
-          }
-        }
-        next[field] = applyTransformConfig(next, field, transform?.elseRule || createDefaultElseRule());
-        return;
-      }
-
-      next[field] = applySingleTransform(next[field], transform);
-    });
-    return next;
-  });
-
-  let sortItems = [];
-  if (Array.isArray(sortConfig?.items) && sortConfig.items.length > 0) {
-    sortItems = [...sortConfig.items];
-  } else if (sortConfig?.field) {
-    sortItems = [{ field: sortConfig.field, order: sortConfig.order || SORT_ORDER.ASC, priority: 1 }];
+  const normalizedSortItems = normalizeSortItems(resolveSortItems(sortConfig));
+  if (normalizedSortItems.length > 0) {
+    rows.sort((a, b) => compareRowsBySortItems(a, b, normalizedSortItems));
   }
-
-  if (sortItems.length > 0) {
-    const normalizedSortItems = sortItems
-      .map((item, index) => ({
-        field: item?.field,
-        order: item?.order === SORT_ORDER.DESC ? SORT_ORDER.DESC : SORT_ORDER.ASC,
-        priority: Number.isFinite(Number(item?.priority)) ? Number(item.priority) : index + 1
-      }))
-      .filter((item) => item.field)
-      .sort((a, b) => a.priority - b.priority);
-
-    rows.sort((a, b) => {
-      for (const sortItem of normalizedSortItems) {
-        const av = a[sortItem.field];
-        const bv = b[sortItem.field];
-        if (av === bv) { continue; }
-        const result = av > bv ? 1 : -1;
-        return sortItem.order === SORT_ORDER.DESC ? -result : result;
-      }
-      return 0;
-    });
-  }
-
   return rows;
 };

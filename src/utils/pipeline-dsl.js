@@ -416,108 +416,113 @@ const buildTransformStep = (step = {}, columnRef = '$rule_input[0].key_columns[0
   };
 };
 
+const toTransformStepRangeValue = (value) => {
+  if (value !== undefined && value !== '') {
+    return Number(value);
+  }
+  return '';
+};
+
+const buildChainTransformStep = (step = {}, targetType = '') => {
+  const transformType = resolveTransformTypeForApi(step);
+  const next = {
+    transform_type: transformType,
+    delimiter: step.delimiter ?? '',
+    value: step.fixedValue ?? '',
+    start: toTransformStepRangeValue(step.start),
+    end: toTransformStepRangeValue(step.end),
+    search_value: step.search ?? '',
+    replace_value: step.replace ?? '',
+    formula: step.formula ?? ''
+  };
+
+  if (transformType === 'format_datetime') {
+    next.origin_type = resolveOriginTypeForTimeTransform(step);
+    next.target_type = trimText(targetType);
+  }
+  return next;
+};
+
+const buildChainTransformDsl = (chain = [], targetType = '') => ({
+  ability_name: 'transform',
+  params: [
+    makeParam('transform_type', 'enum', 'chain'),
+    makeParam('steps', 'array', chain.map((step) => buildChainTransformStep(step, targetType)))
+  ]
+});
+
+const pickRuleSourceKey = (rule = {}, primaryKey = '', secondaryKey = '', fallbackSourceKeys = []) => {
+  return trimText(rule[primaryKey] || rule[toSnakeKey(primaryKey)] || rule[secondaryKey] || rule[toSnakeKey(secondaryKey)] || fallbackSourceKeys[0]);
+};
+
+const toSnakeKey = (key = '') => String(key).replace(/[A-Z]/g, (char) => `_${char.toLowerCase()}`);
+
+const toTransformStepConfig = (rule = {}) => ({
+  actionMode: rule.actionMode || rule.action_mode,
+  type: rule.type,
+  delimiter: rule.delimiter,
+  fixedValue: rule.fixedValue,
+  start: rule.start,
+  end: rule.end,
+  search: rule.search,
+  replace: rule.replace,
+  formula: rule.formula,
+  precision: rule.precision,
+  timeFormatMode: rule.timeFormatMode,
+  originType: rule.originType
+});
+
+const buildConditionalTransformBranch = (rule = {}, index = 0, targetType = '', sourceAliasToId = {}, fallbackSourceKeys = []) => {
+  if (!rule?.operator) { return null; }
+
+  const ruleInputs = buildConditionalRuleInputs(rule, sourceAliasToId, fallbackSourceKeys);
+  const safeRuleInputs = ruleInputs.length > 0 ? ruleInputs : toRuleInputsByRawSources(fallbackSourceKeys, sourceAliasToId);
+  const conditionSourceKey = pickRuleSourceKey(rule, 'conditionSourceKey', 'actionSourceKey', fallbackSourceKeys);
+  const actionSourceKey = pickRuleSourceKey(rule, 'actionSourceKey', 'conditionSourceKey', fallbackSourceKeys);
+  const conditionColumnRef = `$rule_input[${resolveRuleInputIndex(safeRuleInputs, conditionSourceKey, sourceAliasToId)}].key_columns[0]`;
+  const actionColumnRef = `$rule_input[${resolveRuleInputIndex(safeRuleInputs, actionSourceKey, sourceAliasToId)}].key_columns[0]`;
+  const condition = buildConditionExpression(rule, conditionColumnRef);
+  if (!condition) { return null; }
+
+  return {
+    index: `sub_rule_${normalizeIndexPart(rule.type)}_${index + 1}`,
+    condition,
+    rule: buildTransformStep(toTransformStepConfig(rule), actionColumnRef, targetType),
+    ruleInput: safeRuleInputs
+  };
+};
+
+const buildElseTransformRule = (elseRule = {}, targetType = '', sourceAliasToId = {}, fallbackSourceKeys = []) => {
+  const normalizedElseRule = { ...createDefaultElseRuleConfig(), ...elseRule };
+  const elseActionSourceKey = pickRuleSourceKey(normalizedElseRule, 'actionSourceKey', 'conditionSourceKey', fallbackSourceKeys);
+  const elseRuleInputs = toRuleInputsByRawSources(fallbackSourceKeys, sourceAliasToId);
+  const elseActionColumnRef = `$rule_input[${resolveRuleInputIndex(elseRuleInputs, elseActionSourceKey, sourceAliasToId)}].key_columns[0]`;
+
+  return {
+    ...normalizedElseRule,
+    actionSourceKey: elseActionSourceKey,
+    rule: buildTransformStep(toTransformStepConfig(normalizedElseRule), elseActionColumnRef, targetType)
+  };
+};
+
+const buildConditionalTransformDsl = (config = {}, targetType = '', sourceAliasToId = {}, fallbackSourceKeys = []) => {
+  const branches = config.rules
+    .map((rule, index) => buildConditionalTransformBranch(rule, index, targetType, sourceAliasToId, fallbackSourceKeys))
+    .filter(Boolean);
+
+  if (branches.length === 0) { return undefined; }
+
+  return {
+    kind: 'if_branch',
+    branches,
+    elseRule: buildElseTransformRule(config?.elseRule, targetType, sourceAliasToId, fallbackSourceKeys)
+  };
+};
+
 const buildTransformDsl = (config, targetType = '', sourceAliasToId = {}, fallbackSourceKeys = []) => {
   if (!hasEffectiveTransform(config)) { return undefined; }
-
-  if (Array.isArray(config.chain) && config.chain.length > 0) {
-    return {
-      ability_name: 'transform',
-      params: [
-        makeParam('transform_type', 'enum', 'chain'),
-        makeParam('steps', 'array', config.chain.map((step) => {
-          const startValue = step.start !== undefined && step.start !== '' ? Number(step.start) : '';
-          const endValue = step.end !== undefined && step.end !== '' ? Number(step.end) : '';
-          const transformType = resolveTransformTypeForApi(step);
-          const next = {
-            transform_type: transformType,
-            delimiter: step.delimiter ?? '',
-            value: step.fixedValue ?? '',
-            start: startValue,
-            end: endValue,
-            search_value: step.search ?? '',
-            replace_value: step.replace ?? '',
-            formula: step.formula ?? ''
-          };
-          if (transformType === 'format_datetime') {
-            next.origin_type = resolveOriginTypeForTimeTransform(step);
-            next.target_type = trimText(targetType);
-          }
-          return next;
-        }))
-      ]
-    };
-  }
-
-  if (Array.isArray(config.rules) && config.rules.length > 0) {
-    const branches = config.rules
-      .filter((rule) => !!rule?.operator)
-      .map((rule, index) => {
-        const ruleInputs = buildConditionalRuleInputs(rule, sourceAliasToId, fallbackSourceKeys);
-        const safeRuleInputs = ruleInputs.length > 0 ? ruleInputs : toRuleInputsByRawSources(fallbackSourceKeys, sourceAliasToId);
-        const conditionSourceKey = trimText(rule.conditionSourceKey || rule.condition_source_key || rule.actionSourceKey || rule.action_source_key || fallbackSourceKeys[0]);
-        const actionSourceKey = trimText(rule.actionSourceKey || rule.action_source_key || rule.conditionSourceKey || rule.condition_source_key || fallbackSourceKeys[0]);
-        const conditionColumnRef = `$rule_input[${resolveRuleInputIndex(safeRuleInputs, conditionSourceKey, sourceAliasToId)}].key_columns[0]`;
-        const actionColumnRef = `$rule_input[${resolveRuleInputIndex(safeRuleInputs, actionSourceKey, sourceAliasToId)}].key_columns[0]`;
-        const condition = buildConditionExpression(rule, conditionColumnRef);
-        if (!condition) { return null; }
-
-        const subRule = buildTransformStep({
-          actionMode: rule.actionMode || rule.action_mode,
-          type: rule.type,
-          delimiter: rule.delimiter,
-          fixedValue: rule.fixedValue,
-          start: rule.start,
-          end: rule.end,
-          search: rule.search,
-          replace: rule.replace,
-          formula: rule.formula,
-          precision: rule.precision,
-          timeFormatMode: rule.timeFormatMode,
-          originType: rule.originType
-        }, actionColumnRef, targetType);
-
-        return {
-          index: `sub_rule_${normalizeIndexPart(rule.type)}_${index + 1}`,
-          condition,
-          rule: subRule,
-          ruleInput: safeRuleInputs
-        };
-      })
-      .filter(Boolean);
-
-    if (branches.length === 0) { return undefined; }
-
-    const normalizedElseRule = config?.elseRule ? { ...createDefaultElseRuleConfig(), ...config.elseRule } : createDefaultElseRuleConfig();
-    const elseActionSourceKey = trimText(normalizedElseRule.actionSourceKey || normalizedElseRule.action_source_key || fallbackSourceKeys[0]);
-    const elseActionColumnRef = `$rule_input[${resolveRuleInputIndex(toRuleInputsByRawSources(fallbackSourceKeys, sourceAliasToId), elseActionSourceKey, sourceAliasToId)}].key_columns[0]`;
-    const elseSubRule = normalizedElseRule
-      ? buildTransformStep({
-        actionMode: normalizedElseRule.actionMode || normalizedElseRule.action_mode,
-        type: normalizedElseRule.type,
-        delimiter: normalizedElseRule.delimiter,
-        fixedValue: normalizedElseRule.fixedValue,
-        start: normalizedElseRule.start,
-        end: normalizedElseRule.end,
-        search: normalizedElseRule.search,
-        replace: normalizedElseRule.replace,
-        formula: normalizedElseRule.formula,
-        precision: normalizedElseRule.precision,
-        timeFormatMode: normalizedElseRule.timeFormatMode,
-        originType: normalizedElseRule.originType
-      }, elseActionColumnRef, targetType)
-      : null;
-
-    return {
-      kind: 'if_branch',
-      branches,
-      elseRule: {
-        ...normalizedElseRule,
-        actionSourceKey: elseActionSourceKey,
-        rule: elseSubRule
-      }
-    };
-  }
-
+  if (Array.isArray(config.chain) && config.chain.length > 0) { return buildChainTransformDsl(config.chain, targetType); }
+  if (Array.isArray(config.rules) && config.rules.length > 0) { return buildConditionalTransformDsl(config, targetType, sourceAliasToId, fallbackSourceKeys); }
   return buildTransformStep(config, '$rule_input[0].key_columns[0]', targetType);
 };
 
@@ -623,46 +628,54 @@ const normalizeJoinType = (type) => {
   return allowed.includes(value) ? value : 'left';
 };
 
+const getConfiguredJoinPairs = (fields = []) => {
+  return (Array.isArray(fields) ? fields : []).filter((item) => item?.leftField || item?.rightField);
+};
+
+const normalizeConfiguredJoinLink = (link = {}, index = 0, joinConfig = {}, sourceFiles = []) => {
+  const [mainFile, ...secondaryFiles] = sourceFiles;
+  const rightSource = trimText(link?.rightSource) || trimText(secondaryFiles[index]?.source);
+  if (!rightSource) { return null; }
+
+  const rightFile = sourceFiles.find((item) => trimText(item?.source) === rightSource) || secondaryFiles[index];
+  const pairs = getConfiguredJoinPairs(link?.fields);
+  const fallbackPairs = defaultJoinFields(mainFile?.fields || [], rightFile?.fields || []);
+
+  return {
+    leftSource: trimText(link?.leftSource) || trimText(mainFile?.source) || 'table_a',
+    rightSource,
+    type: normalizeJoinType(link?.type || joinConfig?.type),
+    fields: pairs.length > 0 ? pairs : fallbackPairs
+  };
+};
+
+const normalizeFallbackJoinLink = (rightFile = {}, index = 0, joinConfig = {}, mainFile = {}) => {
+  const fallbackPairs = defaultJoinFields(mainFile?.fields || [], rightFile?.fields || []);
+  let configuredPairs = [];
+  if (index === 0) {
+    configuredPairs = getConfiguredJoinPairs(joinConfig?.fields);
+  }
+
+  return {
+    leftSource: trimText(mainFile?.source) || 'table_a',
+    rightSource: trimText(rightFile?.source),
+    type: normalizeJoinType(joinConfig?.type),
+    fields: configuredPairs.length > 0 ? configuredPairs : fallbackPairs
+  };
+};
+
 const normalizeJoinLinks = (joinConfig = {}, sourceFiles = []) => {
   if (sourceFiles.length < 2) { return []; }
 
   const [mainFile, ...secondaryFiles] = sourceFiles;
   const configuredLinks = Array.isArray(joinConfig?.links) ? joinConfig.links : [];
-
   if (configuredLinks.length > 0) {
     return configuredLinks
-      .map((link, index) => {
-        const rightSource = trimText(link?.rightSource) || trimText(secondaryFiles[index]?.source);
-        if (!rightSource) { return null; }
-
-        const rightFile = sourceFiles.find((item) => trimText(item?.source) === rightSource) || secondaryFiles[index];
-        const pairs = (Array.isArray(link?.fields) ? link.fields : []).filter((item) => item?.leftField || item?.rightField);
-        const fallbackPairs = defaultJoinFields(mainFile?.fields || [], rightFile?.fields || []);
-
-        return {
-          leftSource: trimText(link?.leftSource) || trimText(mainFile?.source) || 'table_a',
-          rightSource,
-          type: normalizeJoinType(link?.type || joinConfig?.type),
-          fields: pairs.length > 0 ? pairs : fallbackPairs
-        };
-      })
+      .map((link, index) => normalizeConfiguredJoinLink(link, index, joinConfig, sourceFiles))
       .filter(Boolean);
   }
 
-  return secondaryFiles.map((rightFile, index) => {
-    const fallbackPairs = defaultJoinFields(mainFile?.fields || [], rightFile?.fields || []);
-    let configuredPairs = [];
-    if (index === 0 && Array.isArray(joinConfig?.fields)) {
-      configuredPairs = joinConfig.fields.filter((item) => item?.leftField || item?.rightField);
-    }
-
-    return {
-      leftSource: trimText(mainFile?.source) || 'table_a',
-      rightSource: trimText(rightFile?.source),
-      type: normalizeJoinType(joinConfig?.type),
-      fields: configuredPairs.length > 0 ? configuredPairs : fallbackPairs
-    };
-  });
+  return secondaryFiles.map((rightFile, index) => normalizeFallbackJoinLink(rightFile, index, joinConfig, mainFile));
 };
 
 const buildJoinDsl = (uploadedFiles = [], joinConfig = {}, sourceAliasToId = {}) => {
@@ -736,6 +749,126 @@ const resolveTargetFieldNames = (selectedModel = {}, mappings = {}) => {
     .filter(Boolean);
 };
 
+const buildTargetFieldFormatMap = (selectedModel = {}) => {
+  return (Array.isArray(selectedModel?.fields) ? selectedModel.fields : []).reduce((acc, field) => {
+    const name = trimText(field?.name || field?.fieldName);
+    if (!name) { return acc; }
+    acc[name] = trimText(field?.format || field?.dataFormat);
+    return acc;
+  }, {});
+};
+
+const resolveDataProcessingSortItems = (sortConfig = {}) => {
+  if (Array.isArray(sortConfig?.items) && sortConfig.items.length > 0) {
+    return sortConfig.items;
+  }
+  if (sortConfig?.field) {
+    return [{ field: sortConfig.field, order: sortConfig.order || 'asc', priority: 1 }];
+  }
+  return [];
+};
+
+const buildSortMap = (sortConfig = {}) => {
+  return resolveDataProcessingSortItems(sortConfig).reduce((acc, item, index) => {
+    const field = trimText(item?.field);
+    if (!field) { return acc; }
+    acc[field] = {
+      order: trimText(item?.order).toLowerCase() === 'desc' ? 'desc' : 'asc',
+      priority: Number.isFinite(Number(item?.priority)) ? Number(item.priority) : index + 1
+    };
+    return acc;
+  }, {});
+};
+
+const buildSortParams = (fieldSort) => {
+  if (!fieldSort) { return null; }
+  return [
+    makeParam('directions', 'enum', fieldSort.order || 'asc'),
+    makeParam('nulls_position', 'enum', 'last'),
+    makeParam('priority', 'int', fieldSort.priority)
+  ];
+};
+
+const applyOptionalRuleParts = (item, { filter, transform, sortParams } = {}) => {
+  if (filter) {
+    item.filter = filter;
+  }
+  if (transform) {
+    item.rule = transform;
+  }
+  if (sortParams) {
+    item.sort = sortParams;
+  }
+  return item;
+};
+
+const buildConditionalRuleItem = ({ fieldName, branch, branchIndex, transform, baseRuleInput, baseRuleOutput, filter, sortParams }) => {
+  const item = {
+    index: `rule_conditional_${normalizeIndexPart(fieldName)}_${branchIndex + 1}`,
+    rule_input: Array.isArray(branch.ruleInput) && branch.ruleInput.length > 0 ? branch.ruleInput : baseRuleInput,
+    rule_output: baseRuleOutput,
+    rule: {
+      ability_name: 'if_branch',
+      params: [
+        makeParam('condition', 'string', branch.condition)
+      ]
+    },
+    then: [
+      {
+        index: branch.index,
+        rule: branch.rule
+      }
+    ]
+  };
+
+  if (transform.elseRule?.rule) {
+    item.else = [
+      {
+        index: `sub_rule_else_${normalizeIndexPart(fieldName)}`,
+        rule: transform.elseRule.rule
+      }
+    ];
+  }
+  if (filter) {
+    item.filter = filter;
+  }
+  if (sortParams && branchIndex === transform.branches.length - 1) {
+    item.sort = sortParams;
+  }
+  return item;
+};
+
+const buildFieldDataProcessingRules = ({ fieldName, index, modelCode, mappings, filters, transforms, targetFieldFormatMap, sortMap, sourceAliasToId }) => {
+  const sourceKeys = mappings[fieldName] || [];
+  const ruleInputs = toRuleInputsByRawSources(sourceKeys, sourceAliasToId);
+  const baseRuleInput = ruleInputs.length > 0 ? ruleInputs : [makeRuleInput('', [])];
+  const baseRuleOutput = makeRuleOutput(modelCode, fieldName);
+  const filter = buildFilterDsl(filters[fieldName]);
+  const transform = buildTransformDsl(transforms[fieldName], targetFieldFormatMap[fieldName] || '', sourceAliasToId, sourceKeys);
+  const sortParams = buildSortParams(sortMap[fieldName]);
+
+  if (transform?.kind === 'if_branch') {
+    return transform.branches.map((branch, branchIndex) => buildConditionalRuleItem({
+      fieldName,
+      branch,
+      branchIndex,
+      transform,
+      baseRuleInput,
+      baseRuleOutput,
+      filter,
+      sortParams
+    }));
+  }
+
+  return [
+    applyOptionalRuleParts({
+      index: `rule_${fieldName.toLowerCase()}_${index}`,
+      rule_input: baseRuleInput,
+      rule_output: baseRuleOutput
+    }, { filter, transform, sortParams })
+  ];
+};
+
 const buildDataProcessingDsl = ({
   selectedModel,
   mappings = {},
@@ -746,111 +879,19 @@ const buildDataProcessingDsl = ({
 }) => {
   const modelCode = getModelCode(selectedModel);
   const targetFields = resolveTargetFieldNames(selectedModel, mappings);
-  const targetFieldFormatMap = (Array.isArray(selectedModel?.fields) ? selectedModel.fields : []).reduce((acc, field) => {
-    const name = trimText(field?.name || field?.fieldName);
-    if (!name) { return acc; }
-    acc[name] = trimText(field?.format || field?.dataFormat);
-    return acc;
-  }, {});
-  let sortItems = [];
-  if (Array.isArray(sortConfig?.items) && sortConfig.items.length > 0) {
-    sortItems = sortConfig.items;
-  } else if (sortConfig?.field) {
-    sortItems = [{ field: sortConfig.field, order: sortConfig.order || 'asc', priority: 1 }];
-  }
-  const sortMap = sortItems.reduce((acc, item, index) => {
-    const field = trimText(item?.field);
-    if (!field) { return acc; }
-    acc[field] = {
-      order: trimText(item?.order).toLowerCase() === 'desc' ? 'desc' : 'asc',
-      priority: Number.isFinite(Number(item?.priority)) ? Number(item.priority) : index + 1
-    };
-    return acc;
-  }, {});
-  const rules = [];
-  let idx = 0;
-
-  targetFields.forEach((fieldName) => {
-    idx += 1;
-    const sourceKeys = mappings[fieldName] || [];
-    const ruleInputs = toRuleInputsByRawSources(sourceKeys, sourceAliasToId);
-    const baseRuleInput = ruleInputs.length > 0 ? ruleInputs : [makeRuleInput('', [])];
-    const baseRuleOutput = makeRuleOutput(modelCode, fieldName);
-
-    const filter = buildFilterDsl(filters[fieldName]);
-    const targetType = targetFieldFormatMap[fieldName] || '';
-    const transform = buildTransformDsl(transforms[fieldName], targetType, sourceAliasToId, sourceKeys);
-
-    const fieldSort = sortMap[fieldName];
-    const sortParams = fieldSort
-      ? [
-        makeParam('directions', 'enum', fieldSort.order || 'asc'),
-        makeParam('nulls_position', 'enum', 'last'),
-        makeParam('priority', 'int', fieldSort.priority)
-      ]
-      : null;
-
-    if (transform?.kind === 'if_branch') {
-      transform.branches.forEach((branch, branchIndex) => {
-        const branchItem = {
-          index: `rule_conditional_${normalizeIndexPart(fieldName)}_${branchIndex + 1}`,
-          rule_input: Array.isArray(branch.ruleInput) && branch.ruleInput.length > 0 ? branch.ruleInput : baseRuleInput,
-          rule_output: baseRuleOutput,
-          rule: {
-            ability_name: 'if_branch',
-            params: [
-              makeParam('condition', 'string', branch.condition)
-            ]
-          },
-          then: [
-            {
-              index: branch.index,
-              rule: branch.rule
-            }
-          ],
-          ...(transform.elseRule?.rule ? {
-            else: [
-              {
-                index: `sub_rule_else_${normalizeIndexPart(fieldName)}`,
-                rule: transform.elseRule.rule
-              }
-            ]
-          } : {})
-        };
-
-        if (filter) {
-          branchItem.filter = filter;
-        }
-
-        if (sortParams && branchIndex === transform.branches.length - 1) {
-          branchItem.sort = sortParams;
-        }
-
-        rules.push(branchItem);
-      });
-      return;
-    }
-
-    const item = {
-      index: `rule_${fieldName.toLowerCase()}_${idx}`,
-      rule_input: baseRuleInput,
-      rule_output: baseRuleOutput
-    };
-
-    if (filter) {
-      item.filter = filter;
-    }
-
-    if (transform) {
-      item.rule = transform;
-    }
-
-    if (sortParams) {
-      item.sort = sortParams;
-    }
-
-    rules.push(item);
-  });
+  const targetFieldFormatMap = buildTargetFieldFormatMap(selectedModel);
+  const sortMap = buildSortMap(sortConfig);
+  const rules = targetFields.flatMap((fieldName, index) => buildFieldDataProcessingRules({
+    fieldName,
+    index: index + 1,
+    modelCode,
+    mappings,
+    filters,
+    transforms,
+    targetFieldFormatMap,
+    sortMap,
+    sourceAliasToId
+  }));
 
   return {
     source_table: 'raw_sources',
