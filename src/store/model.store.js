@@ -262,12 +262,16 @@ export const normalizeProjectModel = (model = {}, projectIdFallback = null, proj
   const isRelease = model.isRelease !== undefined
     ? toBoolean(model.isRelease)
     : toText(base.status).toLowerCase() === 'active';
+  const isDraft = model.isDraft !== undefined
+    ? toBoolean(model.isDraft)
+    : false;
 
   return {
     ...base,
     projectId,
     projectCode,
     isRelease,
+    isDraft,
     refStandardModel: toText(base.refStandardModel || model.referenceModelCode),
     tags: normalizeTags(model)
   };
@@ -308,7 +312,7 @@ export const toModelSavePayload = ({ entity, modelType, projectCode = '' }) => {
     spaceGranularity: normalizeCommaSeparatedList(entity.tags?.spaceGranularity).join(','),
     businessModelType: toApiEnumValue(entity.tags?.type, MODEL_TYPE_UI_TO_API),
     involveCalc,
-    ...(modelType === 'business' ? { isRelease: toBoolean(entity.isRelease) } : {}),
+    ...(modelType === 'business' ? { isRelease: toBoolean(entity.isRelease), isDraft: toBoolean(entity.isDraft) } : {}),
     ...(projectCode ? { projectCode } : {})
   };
 };
